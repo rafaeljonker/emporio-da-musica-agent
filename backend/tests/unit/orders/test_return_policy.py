@@ -56,7 +56,9 @@ def test_defect_within_thirty_days_of_purchase():
 
 
 def test_defect_window_only_after_regret_window_closed():
-    e = check_return(order(order_date=date(2026, 1, 25), estimated_delivery=date(2026, 2, 1)), TODAY)
+    e = check_return(
+        order(order_date=date(2026, 1, 25), estimated_delivery=date(2026, 2, 1)), TODAY
+    )
     assert not e.regret_eligible
     assert e.defect_eligible
     assert e.reason == "within_defect_window"
