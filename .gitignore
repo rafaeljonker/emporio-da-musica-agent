@@ -9,3 +9,8 @@ node_modules/
 .superpowers/
 .design/cache/
 **/desafio_tecnico_ai_eng_artefact.pdf
+.DS_Store
+.claude/settings.local.json
+.envrc
+dist/
+*.egg-info/

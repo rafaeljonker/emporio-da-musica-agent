@@ -2,6 +2,7 @@
 paths:
   - ".env*"
   - "**/*.yml"
+  - "**/*.yaml"
   - "**/*.toml"
 ---
 - Never put real values (keys, tokens, passwords, URLs with credentials) in these files.
