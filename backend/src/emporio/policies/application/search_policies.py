@@ -7,6 +7,6 @@ class SearchPolicies:
         self._index = index
 
     def __call__(self, question: str, k: int = 5) -> tuple[PolicyHit, ...]:
-        if not question.strip():
+        if k <= 0 or not question.strip():
             return ()
         return tuple(self._index.search(question, k))
