@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Conversa · Empório da Música (mockup)</title>
+  <link rel="icon" href="../../../../branding/emporio-da-musica/identity/assets/favicon-concept.jpg">
+  <link rel="stylesheet" href="mockup.css">
+</head>
+<body class="app">
+  <div class="mk-bar" role="region" aria-label="Controles do mockup">
+    <strong>Mockup</strong>
+    <button type="button" id="next">Próxima cena</button>
+    <span id="scene" aria-live="polite">Cena 0 de 4: conversa vazia</span>
+    <button type="button" id="mk-partial">Erro no meio da resposta</button>
+    <button type="button" id="reset">Recomeçar</button>
+    <a href="index.html">Galeria</a>
+  </div>
+
+  <div class="shell">
+    <header class="rail">
+      <div class="rail-inner column">
+        <img src="../../../../branding/emporio-da-musica/identity/assets/avatar-disc-concept.jpg" alt="">
+        <div>
+          <h1>Assistente da Empório</h1>
+          <p>assistente virtual da loja</p>
+        </div>
+        <a class="btn btn-ghost" href="login.html" data-icon="logout">Sair</a>
+      </div>
+    </header>
+
+    <aside class="strip" aria-label="Demonstração">
+      <div class="strip-inner column">
+        <span class="tag" data-icon="flask" data-size="sm">Demonstração</span>
+        <label for="as">Conversar como…</label>
+        <select id="as">
+          <option value="0">Sem identificação</option>
+          <option value="1">Lucas Mendes da Silva · Campo Grande</option>
+          <option value="2">Ana Carolina Ferreira · Campo Grande</option>
+          <option value="3">Pedro Henrique Oliveira · Campo Grande</option>
+          <option value="9">Gabriel Santos Araújo · Dourados</option>
+          <option value="11">Bruno Carvalho Martins · Três Lagoas</option>
+        </select>
+        <details class="metrics">
+          <summary data-icon="gauge" data-size="sm">Métricas<span id="metrics-sum" class="tnum"></span></summary>
+          <div id="metrics-body" class="metrics-panel"><p class="muted" style="margin:0">Nenhuma resposta ainda.</p></div>
+        </details>
+      </div>
+    </aside>
+
+    <main class="body">
+      <div id="empty" class="column" style="padding:48px 24px;text-align:center">
+        <svg viewBox="0 0 160 160" width="96" height="96" aria-hidden="true" style="color:var(--foreground)" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+          <circle cx="80" cy="80" r="30"/><circle cx="80" cy="80" r="44"/><circle cx="80" cy="80" r="52" stroke-dasharray="3 9"/>
+          <circle cx="80" cy="80" r="62"/><circle cx="80" cy="80" r="22" fill="#C98A2B" fill-opacity=".2" stroke="none"/>
+        </svg>
+        <p class="muted" style="max-width:30ch;margin:16px auto 0">Pergunta de preço, estoque, entrega ou qual instrumento combina com você. Pode mandar.</p>
+        <p class="muted small" style="max-width:36ch;margin:8px auto 0">Na faixa de demonstração, "Conversar como…" simula quem manda mensagem pelo WhatsApp.</p>
+      </div>
+      <div id="log" class="log column" role="log" aria-label="Conversa com o assistente da Empório" aria-relevant="additions" tabindex="0"></div>
+      <div id="typing" class="typing column" role="status">
+        <span id="typing-text" class="sr-only"></span>
+        <span class="spacer"></span>
+        <span class="dots" aria-hidden="true"><i class="typing-dot"></i><i class="typing-dot"></i><i class="typing-dot"></i></span>
+      </div>
+    </main>
+
+    <form id="composer" class="composer" aria-label="Enviar mensagem">
+      <div class="column" style="display:flex;gap:8px;align-items:flex-end">
+        <textarea id="msg" rows="1" aria-label="Mensagem" placeholder="Escreve sua mensagem"></textarea>
+        <button id="send" class="btn btn-primary send" type="submit" aria-label="Enviar mensagem" data-icon="send"></button>
+      </div>
+    </form>
+  </div>
+
+  <script src="mockup.js"></script>
+  <script>
+    const SCENES = [
+      { label: "Cena 1 de 4: pergunta feita durante o aquecimento (fila) e card honesto", queued: true,
+        say: "Oi! Quanto tá um violão bom pra começar? Tô aprendendo sozinha, no nylon.",
+        reply: [
+          { text: "Oi! Pra quem tá começando no nylon, o Yamaha C70 resolve bem." },
+          { product: { name: "Yamaha C70 Nylon Natural", honest: true, price: 849 } },
+          { text: "Pro seu nível, esse de R$ 849 dá conta tranquilo. Você toca mais dedilhado ou batida?" },
+        ],
+        m: { tin: 1284, tout: 96, guard: 0.12, llm: 1.96, tools: 0.21, search: 0.08, cost: 0.0042, what: "busca no catálogo" } },
+      { label: "Cena 2 de 4: acessório (fora do catálogo)",
+        say: "Vocês têm capotraste também?",
+        reply: [
+          { text: "Capotraste a gente não trabalha, a loja é só de instrumentos." },
+          { text: "Qualquer loja de acessórios tem um que serve no C70. Se for violão, é comigo." },
+        ],
+        m: { tin: 1102, tout: 58, guard: 0.1, llm: 1.42, tools: 0, search: 0.06, cost: 0.0031, what: "sem ferramenta" } },
+      { label: "Cena 3 de 4: cliente identificada pelo seletor, pergunta de pedido", as: "2",
+        say: "Meu pedido já saiu?",
+        reply: [
+          { text: "Oi, Ana! Saiu sim, o pedido 8 tá a caminho." },
+          { text: "É o ukulele Kala KA-C. O rastreio é BRJL5544332BR e a previsão de entrega é 28/02." },
+        ],
+        m: { tin: 1530, tout: 84, guard: 0.11, llm: 1.88, tools: 0.34, search: 0, cost: 0.0047, what: "consulta de pedido" } },
+      { label: "Cena 4 de 4: limite admitido (repasse pra equipe)",
+        say: "Consigo mudar o endereço de entrega?",
+        reply: [{ handoff: { icon: "user", label: "Repassado pra equipe" }, text: "Isso eu preciso confirmar com a equipe. Já deixei registrado pra eles." }],
+        m: { tin: 1196, tout: 41, guard: 0.1, llm: 1.21, tools: 0.05, search: 0, cost: 0.0029, what: "repasse registrado" } },
+    ];
+    const FALLBACK = { label: "Fim do roteiro: mensagem livre", reply: SCENES[3].reply, m: SCENES[3].m };
+    let i = 0, failNext = false;
+
+    Chat.init();
+    // SC 3.2.2: changing the selector keeps the thread, adds a divider (announced by the log) and never moves focus.
+    // A new session id starts below the divider (build).
+    function switchTo(value) {
+      $("#as").value = value;
+      const first = $("#as").selectedOptions[0].text.split(" ")[0];
+      $("#empty").hidden = true;
+      Chat.divider(value === "0" ? "Agora conversando sem identificação" : `Agora conversando como ${first}`);
+    }
+    $("#as").addEventListener("change", (e) => switchTo(e.target.value));
+
+    Chat.onSend = async (text) => {
+      const s = SCENES[i++] || FALLBACK;
+      $("#scene").textContent = s.label;
+      $("#empty").hidden = true;
+      const g = Chat.user(text, s.queued ? "Vai assim que o assistente ficar pronto" : "");
+      if (s.queued) { Chat.busy = true; Chat.sync(); await sleep(1800); g.querySelector(".queued").outerHTML = `<p class="meta tnum" aria-hidden="true">${now()}</p>`; }
+      const run = (failAfter) => Chat.reply(s.reply, s.m, { failAfter, onRetry: () => run() }); // resend once
+      await run(failNext ? Math.min(1, s.reply.length - 1) : undefined);
+      failNext = false;
+    };
+
+    $("#next").addEventListener("click", () => {
+      if (Chat.busy) return;
+      const s = SCENES[i];
+      if (!s) { $("#scene").textContent = "Fim do roteiro. Escreva o que quiser ou recomece."; return; }
+      if (s.as && $("#as").value !== s.as) switchTo(s.as);
+      Chat.input.value = s.say; Chat.sync(); Chat.submit();
+    });
+    $("#mk-partial").addEventListener("click", () => { failNext = true; $("#next").click(); });
+    $("#reset").addEventListener("click", () => location.reload());
+    if (params.has("autoplay")) (async () => { for (const _ of SCENES) { $("#next").click(); while (Chat.busy || document.querySelector(".queued")) await sleep(300); await sleep(1500); } })();
+  </script>
+</body>
+</html>

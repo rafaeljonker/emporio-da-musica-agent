@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Aquecimento · Empório da Música (mockup)</title>
+  <link rel="icon" href="../../../../branding/emporio-da-musica/identity/assets/favicon-concept.jpg">
+  <link rel="stylesheet" href="mockup.css">
+</head>
+<body class="app">
+  <div class="mk-bar" role="region" aria-label="Controles do mockup">
+    <strong>Mockup</strong>
+    <a href="?variant=gpu" data-v="gpu">GPU no Modal</a>
+    <a href="?variant=local" data-v="local">Local sem GPU</a>
+    <a href="?variant=api" data-v="api">API de provedor</a>
+    <button type="button" id="mk-skip">Avançar 10 s</button>
+    <button type="button" id="mk-long">Simular espera longa</button>
+    <button type="button" id="mk-net" aria-pressed="false">Simular queda de rede</button>
+    <button type="button" id="mk-fail">Simular falha</button>
+    <button type="button" id="mk-type">Escrever durante a espera</button>
+    <button type="button" id="mk-reload">Recarregar (o tempo continua)</button>
+    <button type="button" id="mk-reset">Nova sessão</button>
+    <a href="index.html">Galeria</a>
+  </div>
+
+  <div class="shell">
+    <header class="rail">
+      <div class="rail-inner column">
+        <img src="../../../../branding/emporio-da-musica/identity/assets/avatar-disc-concept.jpg" alt="">
+        <div><h1>Assistente da Empório</h1><p>assistente virtual da loja</p></div>
+        <a class="btn btn-ghost" href="login.html" data-icon="logout">Sair</a>
+      </div>
+    </header>
+    <aside class="strip" aria-label="Demonstração">
+      <div class="strip-inner column">
+        <span class="tag" data-icon="flask" data-size="sm">Demonstração</span>
+        <label for="as">Conversar como…</label>
+        <select id="as"><option value="0">Sem identificação</option><option value="2">Ana Carolina Ferreira · Campo Grande</option></select>
+        <details class="metrics">
+          <summary data-icon="gauge" data-size="sm">Métricas<span id="metrics-sum" class="tnum"></span></summary>
+          <div id="metrics-body" class="metrics-panel"><p class="muted" style="margin:0">Nenhuma resposta ainda.</p></div>
+        </details>
+      </div>
+    </aside>
+    <p id="local-notice" class="notice" hidden data-icon="laptop" data-size="sm">Modo local, sem GPU: cada resposta pode levar de 30 s a alguns minutos.</p>
+
+    <main class="body">
+      <!-- Persistent status region: lives OUTSIDE #warm so "Pronto pra conversar." survives the panel's removal. -->
+      <div id="warm-live" role="status" class="sr-only"></div>
+      <section id="warm" class="warm surface-paper" aria-labelledby="warm-title">
+        <p class="pin tnum" aria-hidden="true"><span id="pin-icon"></span><span id="pin-text"></span></p>
+        <svg class="pegs full" viewBox="0 0 96 96" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M34 92V30c0-14 6-24 14-26 8 2 14 12 14 26v62"/><path d="M42 92V20M54 92V20"/>
+          <circle cx="22" cy="36" r="6"/><path d="M28 36h6"/><circle cx="22" cy="58" r="6"/><path d="M28 58h6"/>
+          <circle cx="74" cy="36" r="6" fill="#C98A2B" fill-opacity=".2"/><path d="M68 36h-6"/><circle cx="74" cy="58" r="6"/><path d="M68 58h-6"/>
+        </svg>
+        <img class="boca breathe full" src="../../../../branding/emporio-da-musica/identity/assets/avatar-disc-concept.jpg" alt="">
+        <h2 id="warm-title" class="font-display" tabindex="-1">Afinando o atendimento</h2>
+        <div class="full">
+          <ol id="stages" class="stages" aria-label="Etapas"></ol>
+          <p class="tnum" aria-live="off">Esperando há <span id="elapsed">0 s</span></p>
+          <p id="expected" class="muted tnum"></p>
+          <p id="explain"></p>
+          <p id="note" class="muted small note"></p>
+        </div>
+        <p id="neterr" class="status-line" hidden data-icon="wifioff" data-size="sm">Não consegui falar com o servidor agora. Confere a conexão.</p>
+        <div id="long" hidden>
+          <p>Tá demorando mais que o normal. Ainda está em: <span id="long-stage"></span>. Pode esperar, a mensagem que você escrever vai assim que ficar pronto.</p>
+        </div>
+        <div id="failed" hidden>
+          <p class="alert" role="alert" data-icon="alert">Não consegui ligar o assistente agora. Tenta de novo daqui a pouco.</p>
+          <p><button class="btn btn-primary" id="retry" type="button">Tentar de novo</button></p>
+        </div>
+      </section>
+      <div id="log" class="log column" role="log" aria-label="Conversa com o assistente da Empório" aria-relevant="additions" tabindex="0"></div>
+      <div id="typing" class="typing column" role="status">
+        <span id="typing-text" class="sr-only"></span><span class="spacer"></span>
+        <span class="dots" aria-hidden="true"><i class="typing-dot"></i><i class="typing-dot"></i><i class="typing-dot"></i></span>
+      </div>
+    </main>
+
+    <form id="composer" class="composer" aria-label="Enviar mensagem">
+      <div class="column" style="display:flex;gap:8px;align-items:flex-end">
+        <textarea id="msg" rows="1" aria-label="Mensagem" placeholder="Escreve sua mensagem"></textarea>
+        <button id="send" class="btn btn-primary send" type="submit" aria-label="Enviar mensagem" data-icon="send"></button>
+      </div>
+    </form>
+  </div>
+
+  <script src="mockup.js"></script>
+  <script>
+    // Simulated backend. The real UI renders only what /auth/login and /warm/status report:
+    // { mode, stage, started_at, expected_seconds } where expected_seconds = measured p75 of recent cold starts.
+    // sessionStorage plays the backend's memory, so reload and retry never reset the elapsed time.
+    const V = {
+      gpu: { expected_seconds: 26, ready_at: 24, loading_at: 9,
+        explain: "O assistente roda no Gemma 4 31B, numa GPU só dele no Modal. Quando ninguém está usando, ela desliga pra não gerar custo, e ligar de novo leva um tempinho.",
+        note: "Com a máquina já ligada, a primeira mensagem sai em uns 2 s. Se escrever agora, a mensagem vai sozinha quando ele ficar pronto.",
+        stages: [["server_starting", "Ligando a GPU", "server"], ["model_loading", "Carregando o modelo", "cpu"], ["ready", "Pronto pra conversar", "check"]] },
+      local: { expected_seconds: 52, ready_at: 48, loading_at: 0,
+        explain: "O modelo está rodando na sua máquina, sem GPU. Cada resposta pode levar de 30 s a alguns minutos.",
+        note: "Pra respostas em uns 2 s, use a versão hospedada. Se escrever agora, a mensagem vai sozinha quando ele ficar pronto.",
+        stages: [["model_loading", "Carregando o modelo", "cpu"], ["ready", "Pronto pra conversar", "check"]] },
+    };
+    const EMPTY = '<div id="empty" class="column muted" style="padding:48px 24px;text-align:center"><p style="margin:0">Pergunta de preço, estoque, entrega ou qual instrumento combina com você. Pode mandar.</p>' +
+      '<p class="small" style="margin:8px 0 0">Na faixa de demonstração, "Conversar como…" simula quem manda mensagem pelo WhatsApp.</p></div>';
+    const variant = params.get("variant") || "gpu";
+    document.querySelectorAll("[data-v]").forEach((a) => a.dataset.v === variant && a.setAttribute("aria-current", "page"));
+    const cfg = V[variant];
+    const store = sessionStorage, K = "mk-warm-" + variant;
+    const backend = JSON.parse(store.getItem(K) || "null") || { started_at: Date.now(), attempt_at: Date.now(), long: false, failed: false };
+    const save = () => store.setItem(K, JSON.stringify(backend));
+    save();
+    let stage = null, timer = null, netDown = false, netFails = 0, longAnnounced = false, queued = null;
+    const warm = $("#warm"), live = (t) => { $("#warm-live").textContent = t; };
+
+    Chat.init();
+    Chat.local = variant === "local";
+    const fmt = (s) => s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, "0")} s`;
+    const roundUp = (n) => Math.ceil(n / 10) * 10;
+    const elapsed = () => Math.floor((Date.now() - backend.started_at) / 1000);
+    const label = (k) => cfg.stages.find(([s]) => s === k)[1];
+
+    // GET /warm/status (simulated). Stage progress follows the current attempt; elapsed follows started_at.
+    function poll() {
+      if (backend.failed) return "failed";
+      if (backend.long) return "model_loading";
+      const p = (Date.now() - backend.attempt_at) / 1000;
+      return p >= cfg.ready_at ? "ready" : p >= cfg.loading_at ? "model_loading" : cfg.stages[0][0];
+    }
+    function renderStages(cur) {
+      const idx = cfg.stages.findIndex(([k]) => k === cur);
+      $("#stages").innerHTML = cfg.stages.map(([k, text, ic], i) => {
+        const st = i < idx || cur === "ready" ? "done" : i === idx ? "current" : "pending";
+        const ico = st === "done" ? "check" : st === "current" ? ic : "circle";
+        const sr = st === "current" ? " em andamento" : st === "pending" ? " a seguir" : " concluído";
+        return `<li class="${st}"${st === "current" ? ' aria-current="step"' : ""}>${icon(ico)}<span>${text}<span class="sr-only">,${sr}</span></span></li>`;
+      }).join("");
+      $("#pin-icon").innerHTML = icon(cfg.stages[idx][2], "sm");
+      live(label(cur) + ".");
+    }
+    function tick() {
+      const s = elapsed();
+      $("#elapsed").textContent = fmt(s);
+      if (stage && stage !== "failed") $("#pin-text").textContent = `${label(stage)} · ${fmt(s)}`;
+      if (netDown) {
+        if (++netFails === 3) { $("#neterr").hidden = false; live("Não consegui falar com o servidor agora. Confere a conexão."); }
+        return; // network error is NOT "failed": keep polling, keep counting
+      }
+      if (netFails) { netFails = 0; $("#neterr").hidden = true; }
+      const next = poll();
+      if (next === "failed") return fail();
+      if (next !== stage) { stage = next; renderStages(next); if (next === "ready") return ready(); }
+      const isLong = s > 2 * roundUp(cfg.expected_seconds);
+      $("#long").hidden = !isLong;
+      $("#long-stage").textContent = label(stage);
+      if (isLong && !longAnnounced) { longAnnounced = true; live($("#long p").textContent); }
+    }
+    function run() { clearInterval(timer); tick(); timer = setInterval(tick, 1000); }
+    function fail() {
+      clearInterval(timer); stage = "failed";
+      $("#long").hidden = true; $("#failed").hidden = false; $("#retry").focus();
+    }
+    // Retry = POST /warm again. started_at is kept, so the timer never goes back to 0.
+    $("#retry").onclick = () => {
+      Object.assign(backend, { failed: false, long: false, attempt_at: Date.now() }); save();
+      $("#failed").hidden = true; $("#long").hidden = true; stage = null; longAnnounced = false;
+      run();
+      $("#warm-title").focus();
+    };
+
+    async function ready() {
+      clearInterval(timer);
+      Chat.session.warm = elapsed(); Chat.renderMetrics();
+      await sleep(800);
+      const focusWasInWarm = warm.contains(document.activeElement);
+      warm.remove(); store.removeItem(K);
+      $("#msg").placeholder = "Escreve sua mensagem";
+      if (variant === "local") $("#local-notice").hidden = false;
+      if (!queued) $("#log").insertAdjacentHTML("beforebegin", EMPTY);
+      // Focus only after the announcement had time to be spoken; never force the soft keyboard on touch.
+      setTimeout(() => {
+        const idle = document.activeElement === document.body || focusWasInWarm;
+        if (!idle) return;
+        if (matchMedia("(pointer: fine)").matches) Chat.input.focus();
+        else if (focusWasInWarm) Chat.log.focus();
+      }, 1200);
+      if (queued) {
+        const { g, texts } = queued; queued = null; store.removeItem("mk-queued");
+        g.querySelector(".queued").outerHTML = `<p class="meta tnum" aria-hidden="true">${now()}</p>`;
+        g.querySelector(".queued-actions")?.remove();
+        await Chat.reply([{ text: "Oi! O Yamaha C70 tá R$ 849, ou R$ 806,55 no PIX." }, { text: "Pra quem tá começando no nylon, ele resolve bem. Você já toca ou tá começando agora?" }],
+          { tin: 1210, tout: 72, guard: 0.11, llm: variant === "local" ? 48.6 : 1.84, tools: 0.19, search: 0.07, cost: variant === "local" ? 0 : 0.0038, what: "busca no catálogo" });
+      }
+    }
+
+    // Queued message: one group, later sends add bubbles (log additions, announced); flushed as one message joined by "\n".
+    const who = () => $("#as").value === "0" ? "" : $("#as").selectedOptions[0].text.split(" ")[0];
+    const queuedLine = () => who() ? `Vai como ${who()} assim que o assistente ficar pronto` : "Vai assim que o assistente ficar pronto";
+    function queue(text, restoring = false) {
+      if (!queued) {
+        const g = Chat.user(text, queuedLine());
+        g.insertAdjacentHTML("beforeend", `<p class="queued-actions"><button class="btn-link" type="button">Desfazer</button></p>`);
+        g.querySelector(".queued-actions button").onclick = undo;
+        queued = { g, texts: [text] };
+      } else {
+        queued.g.querySelector(".queued").insertAdjacentHTML("beforebegin", `<div class="bubble"><span class="sr-only">Você: </span>${esc(text)}</div>`);
+        queued.texts.push(text);
+      }
+      if (!restoring) store.setItem("mk-queued", JSON.stringify(queued.texts));
+      warm.classList.add("compact");
+    }
+    function undo() {
+      Chat.input.value = queued.texts.join("\n"); Chat.sync();
+      queued.g.remove(); queued = null; store.removeItem("mk-queued");
+      warm.classList.remove("compact");
+      live("Mensagem desfeita. O texto voltou pra caixa de mensagem.");
+      Chat.input.focus();
+    }
+    Chat.onSend = (text) => {
+      $("#empty")?.remove();
+      if (!document.body.contains(warm)) return Chat.reply([{ text: "Opa, chegou aqui. Me conta mais um pouco do que você procura?" }], { tin: 900, tout: 30, guard: 0.1, llm: 1.2, tools: 0, search: 0, cost: 0.0024, what: "sem ferramenta" });
+      queue(text);
+    };
+    // Selector during warm-up: no focus move; divider above the queued bubble, line says who it goes as.
+    $("#as").addEventListener("change", () => {
+      if (!queued) return;
+      const p = document.createElement("p"); p.className = "divider";
+      p.textContent = who() ? `Agora conversando como ${who()}` : "Agora conversando sem identificação";
+      queued.g.before(p);
+      queued.g.querySelector(".q-text").textContent = queuedLine();
+    });
+
+    if (variant === "api") {
+      warm.remove();
+      $("#log").insertAdjacentHTML("beforebegin", EMPTY);
+      document.querySelectorAll("#mk-skip,#mk-long,#mk-net,#mk-fail,#mk-type,#mk-reload").forEach((b) => b.hidden = true);
+    } else {
+      $("#explain").textContent = cfg.explain;
+      $("#expected").textContent = `Normalmente leva cerca de ${roundUp(cfg.expected_seconds)} s.`;
+      $("#note").textContent = cfg.note;
+      $("#msg").placeholder = "Pode ir escrevendo";
+      for (const t of JSON.parse(store.getItem("mk-queued") || "[]")) queue(t, true);
+      run();
+    }
+
+    $("#mk-skip").onclick = () => { backend.started_at -= 10000; backend.attempt_at -= 10000; save(); tick(); };
+    $("#mk-long").onclick = () => { backend.long = true; backend.started_at = Date.now() - (2 * roundUp(cfg.expected_seconds) + 1) * 1000; save(); tick(); };
+    $("#mk-net").onclick = (e) => { netDown = !netDown; e.currentTarget.setAttribute("aria-pressed", netDown); };
+    $("#mk-fail").onclick = () => { backend.failed = true; save(); tick(); };
+    $("#mk-type").onclick = () => { Chat.input.value = "Quanto tá o Yamaha C70?"; Chat.sync(); Chat.submit(); };
+    $("#mk-reload").onclick = () => location.reload();
+    $("#mk-reset").onclick = () => { store.clear(); location.reload(); };
+  </script>
+</body>
+</html>

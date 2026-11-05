@@ -1,0 +1,26 @@
+{
+  "version": "0.10.0",
+  "project_type": "design",
+  "project": {
+    "name": "Emporio Chat",
+    "created": "2026-11-05"
+  },
+  "preferences": {
+    "platform": "web",
+    "tech_stack": "Vite + React + TypeScript + Tailwind CSS v4 + shadcn/ui (Radix); lucide-react; Fontsource",
+    "accessibility_level": "WCAG 2.2 AA",
+    "implementation_target": "shadcn",
+    "codebase_type": "greenfield",
+    "design_scope": "full",
+    "style_preset": "",
+    "repo_type": "monorepo",
+    "app_path": "frontend",
+    "icon_library": "lucide"
+  },
+  "git": {
+    "branch": "feat/design",
+    "pr": "",
+    "issue": ""
+  },
+  "gsp_version": "0.10.0"
+}

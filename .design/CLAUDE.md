@@ -8,3 +8,5 @@
 .design/branding/emporio-da-musica/patterns/ — guidelines.html · STYLE.md · emporio-da-musica.yml · emporio-da-musica.theme.json
 
 ## Projects
+### emporio-chat · in progress · 2026-11-05
+brand: emporio-da-musica · next: gsp-project-critique · .design/projects/emporio-chat/
