@@ -37,3 +37,9 @@ def test_bad_price_names_row(tmp_path: Path) -> None:
     repo = _repo(tmp_path, "1,10,A,1,d,3,active,,2021-01-01", "2,abc,B,1,d,3,active,,2021-01-01")
     with pytest.raises(CatalogDataError, match="row 3"):
         repo.products()
+
+
+def test_short_row_raises_data_error_with_file_and_row(tmp_path: Path) -> None:
+    repo = _repo(tmp_path, "1,10.5,A,1,d,3,active,")  # only the unparsed created_at is missing
+    with pytest.raises(CatalogDataError, match=r"products\.csv, row 2"):
+        repo.products()
