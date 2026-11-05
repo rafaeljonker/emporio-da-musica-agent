@@ -375,7 +375,7 @@ These enter the project (FastAPI + Pydantic remains the web base):
    - **In the README:** the same tools serve any MCP client (Claude Desktop, another agent), and there is a contract test.
    - **Identity:** it is injected by the server, never comes from the model's argument. This prevents the LLM from forging the `customer_id`.
 2. **Observability with Langfuse:** tracing of each turn (guard, agent, tools, latency, tokens, cost), with the `trace_id` linked to the message in Postgres.
-   - **Configuration:** optional by variable. Without the keys, tracing is turned off without an error.
+   - **Configuration (owner decision, phase 4):** mandatory. Every agent turn is traced; startup fails with a clear error when the Langfuse variables are missing or tracing is disabled. Self-hosted locally via a compose profile (generated keys, no signup); Langfuse Cloud (EU) for the Modal demo. Tests inject a fake tracer.
    - **In the README:** screenshots of a trace.
 3. **Engineering hygiene to the ecosystem standard:**
    - `uv`, `ruff` (lint + format) and `pyright`;
@@ -425,10 +425,10 @@ These enter the project (FastAPI + Pydantic remains the web base):
 | **3. Policy RAG** | chunking by section, e5 embeddings on CPU, schema and migrations, pgvector (HNSW index), ingestion, local docker compose | pgvector (indexes, cosine distance), psycopg 3 or SQLAlchemy, LangGraph's Postgres checkpointer, Railway Postgres (pgvector, public TCP proxy + SSL), multilingual-e5 (query/passage prefixes), PDF extraction | Fri 06/11 |
 | **4. Agent** | MCP server for the tools, LangGraph graph (guard → agent ⇄ tools), provider port (Gemma/vLLM, Gemini, OpenAI, Anthropic), voice + bubbles + detector, evals | FastMCP and langchain-mcp-adapters, LangGraph (current API), vLLM + Gemma 4 tool parser, init_chat_model of the 4 providers, structured output | Sat 07/11 |
 | **5. API + Frontend** | FastAPI (demo login, `/warm` and `/warm/status`, `/chat` SSE), React with design system (login → warm-up screen → chat with bubbles and "digitando…"), `make up` and `make e2e` (Playwright) | SSE in FastAPI, simple secure auth, SSE in React (EventSource/fetch stream), Playwright | Sat 07/11 night / Sun 08/11 |
-| **6. GPU, deploy and scale** | Gemma FP8/16k on L40S × H100 (cost × latency × evals), measured and optimized cold start (snapshot, cache), API deploy on Modal, Langfuse, load test | Modal (GPU memory snapshots, web endpoints, secrets), vLLM FP8 for Gemma 4, Langfuse SDK, Locust | Sun 08/11 |
+| **6. GPU, deploy and scale** | Gemma FP8/16k on L40S × H100 (cost × latency × evals), measured and optimized cold start (snapshot, cache), API deploy on Modal, Langfuse, load test | Modal (GPU memory snapshots, web endpoints, secrets), vLLM FP8 for Gemma 4, Langfuse Cloud for the demo, Locust | Sun 08/11 |
 | **7. Delivery** | complete README, ADRs, `model-selection.md`, `scaling-and-cost.md`, 3 to 5 real examples, clean clone, tag `v1.0-entrega`, submission via the Form and by replying to the e-mail | README and ADR best practices | Mon 09/11 by ~20h |
 
-**Cut if running late, in this order:** load with a real LLM, metrics panel in the frontend, Langfuse, GPU memory snapshot. The core (phases 0, 2, 3, 4, 5 + deploy + README + examples) is not cut.
+**Cut if running late, in this order:** load with a real LLM, metrics panel in the frontend, GPU memory snapshot. Langfuse is not cut (owner decision). The core (phases 0, 2, 3, 4, 5 + deploy + README + examples) is not cut.
 
 ## 8. Left to whoever builds it
 Lib versions; internal names; Locust or k6; fine chunking inside each section; exact format of the metrics panel; internal structure of the tests.
