@@ -111,7 +111,8 @@ ALL_VIOLOES = (89, 81, 112, 111, 95, 90, 115, 100, 105, 93, 108)
 def search(
     query: str, max_price: Money | None = None, *, include_unavailable: bool = False
 ) -> SearchResult:
-    return search_products(CATALOG, CATEGORIES, query, max_price, include_unavailable)
+    pool = [p for p in CATALOG if max_price is None or p.price <= max_price]
+    return search_products(pool, CATEGORIES, query, include_unavailable)
 
 
 def ids(result: SearchResult) -> tuple[int, ...]:

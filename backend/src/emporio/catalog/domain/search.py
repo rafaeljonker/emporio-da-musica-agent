@@ -4,7 +4,6 @@ from difflib import SequenceMatcher
 from itertools import pairwise
 
 from emporio.catalog.domain.product import Category, Product
-from emporio.shared.money import Money
 from emporio.shared.text import stem, tokens
 
 _STOPWORDS = frozenset(
@@ -50,11 +49,10 @@ def search_products(
     products: Sequence[Product],
     categories: Sequence[Category],
     query: str,
-    max_price: Money | None = None,
     include_unavailable: bool = False,
 ) -> SearchResult:
     words = _query_words(query)
-    pool = tuple(p for p in products if max_price is None or p.price <= max_price)
+    pool = tuple(products)
     stocked = [c for c in categories if any(p.category_id == c.id for p in pool)]
     matched, rest = _match_categories(stocked, pool, words)
     if not matched:
@@ -87,7 +85,7 @@ def search_products(
 
 def _query_words(query: str) -> tuple[str, ...]:
     raw = tokens(query)
-    # "ate 1000" is a price, passed separately as max_price; never a model number.
+    # "ate 1000" is a price, a ceiling applied before searching; never a model number.
     kept = (t for i, t in enumerate(raw) if not (t.isdigit() and i > 0 and raw[i - 1] == "ate"))
     return tuple(_digit_typos(t) for t in kept if t not in _STOPWORDS)
 
