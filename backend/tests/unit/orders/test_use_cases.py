@@ -50,11 +50,11 @@ def test_list_customer_orders_newest_first() -> None:
     assert [o.id for o in result] == [2, 1]
 
 
-def test_return_eligibility_refuses_other_customers_order() -> None:
+def test_return_eligibility_hides_other_customers_order_as_not_found() -> None:
     use_case = CheckReturnEligibility(
         FakeOrderRepository((order(id=10, customer_id=1),)), FixedClock(date(2026, 2, 12))
     )
-    with pytest.raises(IdentityMismatch):
+    with pytest.raises(OrderNotFound):
         use_case(10, 2)
 
 
