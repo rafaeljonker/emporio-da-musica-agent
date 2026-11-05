@@ -29,6 +29,8 @@ jobs:
             backend:
               - 'backend/**'
               - '.github/workflows/**'
+              - 'data/**'
+              - 'Makefile'
 
   backend-quality:
     needs: changes
