@@ -44,6 +44,7 @@ testpaths = ["tests"]
 root_packages = ["emporio"]
 include_external_packages = true
 
+# When a new context is added, add it to EVERY contract below.
 [[tool.importlinter.contracts]]
 name = "catalog layers"
 type = "layers"
@@ -100,3 +101,23 @@ name = "Shared never imports a context"
 type = "forbidden"
 source_modules = ["emporio.shared"]
 forbidden_modules = ["emporio.catalog", "emporio.orders", "emporio.policies", "emporio.support"]
+
+[[tool.importlinter.contracts]]
+name = "Application never imports any infrastructure"
+type = "forbidden"
+source_modules = [
+    "emporio.catalog.application", "emporio.orders.application",
+    "emporio.policies.application", "emporio.support.application",
+]
+forbidden_modules = [
+    "emporio.catalog.infrastructure", "emporio.orders.infrastructure",
+    "emporio.policies.infrastructure", "emporio.support.infrastructure",
+]
+
+[[tool.importlinter.contracts]]
+name = "Domains are independent of each other"
+type = "independence"
+modules = [
+    "emporio.catalog.domain", "emporio.orders.domain",
+    "emporio.policies.domain", "emporio.support.domain",
+]
