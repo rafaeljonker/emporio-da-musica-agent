@@ -14,6 +14,6 @@ class RecommendProducts:
             return NoMatch()
         by_id = {p.id: p for p in self._repo.products()}
         # Availability is filtered here, after retrieval, never in the index query.
-        ranked = (by_id.get(i) for i in self._index.similar(need, _POOL))
+        ranked = (by_id.get(i) for i in self._index.similar(need, max(_POOL, limit)))
         found = tuple(p for p in ranked if p is not None and p.is_available)[:limit]
         return Candidates(found) if found else NoMatch()
