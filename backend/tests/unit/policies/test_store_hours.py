@@ -1,8 +1,8 @@
-from datetime import date, datetime, time
+from datetime import UTC, date, datetime, time, timedelta
 
 import pytest
 
-from emporio.policies.domain.store_hours import is_open, next_opening
+from emporio.policies.domain.store_hours import NoOpeningFound, is_open, next_opening
 from emporio.policies.infrastructure.holidays import STORE_HOLIDAYS
 from emporio.shared.clock import STORE_TZ
 
@@ -57,3 +57,26 @@ def test_holiday_set_is_within_2025_2026_and_has_key_dates() -> None:
     assert date(2026, 12, 25) in STORE_HOLIDAYS
     assert date(2026, 4, 3) in STORE_HOLIDAYS
     assert date(2025, 4, 18) in STORE_HOLIDAYS
+
+
+def test_utc_input_is_converted_to_store_time() -> None:
+    utc_now = datetime(2026, 2, 20, 21, 0, tzinfo=UTC)  # 17:00 in Campo Grande
+    assert is_open(utc_now, HOLIDAYS)
+    result = next_opening(utc_now, HOLIDAYS)
+    assert result == utc_now
+    assert result.utcoffset() == utc_now.astimezone(STORE_TZ).utcoffset()
+
+
+def test_naive_input_is_rejected() -> None:
+    naive = datetime(2026, 2, 20, 10, 0)  # noqa: DTZ001
+    with pytest.raises(ValueError, match="timezone-aware"):
+        is_open(naive, HOLIDAYS)
+    with pytest.raises(ValueError, match="timezone-aware"):
+        next_opening(naive, HOLIDAYS)
+
+
+def test_no_opening_within_14_days_raises() -> None:
+    start = date(2026, 3, 2)
+    holidays = frozenset(start + timedelta(days=i) for i in range(16))
+    with pytest.raises(NoOpeningFound):
+        next_opening(at(start, 10), holidays)
