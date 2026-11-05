@@ -1,0 +1,81 @@
+# Retrieval eval: customer question -> policy section that answers it.
+
+[[case]]
+question = "vocês abrem domingo?"
+expected = "2"
+
+[[case]]
+question = "o produto esgotou, e agora?"
+expected = "7.3"
+
+[[case]]
+question = "quero trocar a cor da guitarra"
+expected = "4.3"
+
+[[case]]
+question = "qual a garantia do instrumento?"
+expected = "8.1"
+
+[[case]]
+question = "posso devolver se me arrepender?"
+expected = "4.1"
+
+[[case]]
+question = "parcela em quantas vezes?"
+expected = "3.1"
+
+[[case]]
+question = "qual o cnpj e o endereço da loja?"
+expected = "1.2"
+
+[[case]]
+question = "aceita pix? tem desconto?"
+expected = "3"
+
+[[case]]
+question = "comprei um violao e veio com defeito, o que faço"
+expected = "4.2"
+
+[[case]]
+question = "da pra trocar a boquilha do sax que comprei"
+expected = "4.4"
+
+[[case]]
+question = "entregam gratis em campo grande?"
+expected = "5.1"
+
+[[case]]
+question = "quanto tempo demora o sedex pra outra cidade"
+expected = "5.2"
+
+[[case]]
+question = "cade meu codigo de rastreio"
+expected = "5.3"
+
+[[case]]
+question = "vai ter desconto na black friday?"
+expected = "6.1"
+
+[[case]]
+question = "o desconto do pix soma com a promoçao?"
+expected = "6.2"
+
+[[case]]
+question = "a garantia do fabricante dura quanto tempo"
+expected = "8.2"
+
+[[case]]
+question = "trasteis gastos entram na garantia?"
+expected = "8.3"
+
+[[case]]
+question = "como eu apago meus dados de voces? lgpd"
+expected = "9"
+
+[[case]]
+question = "em quanto tempo vcs respondem no zap"
+expected = "7.1"
+
+[[case]]
+question = "desde quando a loja existe?"
+expected = "1"
