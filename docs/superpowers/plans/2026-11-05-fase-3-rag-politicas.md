@@ -47,7 +47,7 @@
   - Ingestion and query use the same model and file.
 - **Database:**
   - `DATABASE_URL` is the only connection setting.
-  - Local: `postgresql://emporio:emporio@localhost:5433/emporio` (compose). Hosted: Railway via `DATABASE_PUBLIC_URL` with `sslmode=require` (phase 6).
+  - Local: `postgresql://emporio:emporio@localhost:5434/emporio` (compose). Hosted: Railway via `DATABASE_PUBLIC_URL` with `sslmode=require` (phase 6).
   - Never commit a real URL or password. Compose's local password is a dev-only literal.
 - **Retrieval:**
   - Policies use hybrid search: vector cosine rank + `portuguese` full-text rank over `f_unaccent(...)`, fused with RRF `1/(60 + rank)`, k = 5.
@@ -178,7 +178,7 @@
     Plus an HNSW index (`vector_cosine_ops`) and a GIN index on `tsv`.
   - `003`: `product_embeddings(product_id integer PRIMARY KEY, embedding vector(384) NOT NULL)` + an HNSW cosine index.
   - The runner keeps `schema_migrations(version text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())` and applies the pending `NNN_*.sql` files in sorted order, one transaction each.
-- **Compose:** service `db`, image `pgvector/pgvector:0.8.7-pg17`, port `5433:5432`, user/password/db `emporio`, named volume, `pg_isready` healthcheck.
+- **Compose:** service `db`, image `pgvector/pgvector:0.8.7-pg17`, port `5434:5432`, user/password/db `emporio`, named volume, `pg_isready` healthcheck.
 - **Makefile targets:**
   - `db-up` runs `docker compose up -d --wait db`;
   - `migrate` runs `uv run python -m emporio.migrate`;

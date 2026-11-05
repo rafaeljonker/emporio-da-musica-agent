@@ -191,7 +191,7 @@ Hybrid (FTS + RRF) fixes "vocês abrem domingo?" and "o produto esgotou, e agora
 
 **Recommendation:** pure vector, k=5, plus the 20-question hit@5 ≥ 0.9 eval; add hybrid (FTS `portuguese` + unaccent, RRF) only if that eval fails.
 
-Update: the owner chose hybrid, and the measured table below confirms it.
+Update: the owner chose hybrid, and the measured table above confirms it.
 
 ## Recommended decisions for phase 3
 1. pdfplumber with a sequence-checked section parser (pure, in domain): 25 chunks, title-prefixed, cited by section id.
