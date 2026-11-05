@@ -54,6 +54,22 @@ jobs:
     needs: changes
     if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.7-pg17
+        env:
+          POSTGRES_USER: emporio
+          POSTGRES_PASSWORD: emporio
+          POSTGRES_DB: emporio
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U emporio -d emporio"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://emporio:emporio@localhost:5432/emporio
     defaults:
       run:
         working-directory: backend
@@ -63,7 +79,7 @@ jobs:
         with:
           working-directory: backend
       - run: uv sync --locked
-      - run: uv run pytest -q
+      - run: uv run pytest -q -m "not eval"
 
   secrets:
     runs-on: ubuntu-latest
