@@ -5,14 +5,18 @@ ZWSP = "​"
 HEADER = "Empório da Música Manual de Políticas e Procedimentos"
 
 
+def sections_before(n: int) -> list[str]:
+    return [line for i in range(1, n) for line in (f"{i}. Seção {i}", f"Texto {i}.")]
+
+
 def test_subsections_become_chunks_with_parent_title() -> None:
     chunks = parse_sections(
-        ["3. Pagamento", "3.1 Parcelamento", "Até 3x sem juros.", "3.2 Boleto", "À vista."]
+        ["1. Pagamento", "1.1 Parcelamento", "Até 3x sem juros.", "1.2 Boleto", "À vista."]
     )
 
     assert [(c.section_id, c.title, c.parent_title, c.body) for c in chunks] == [
-        ("3.1", "Parcelamento", "Pagamento", "Até 3x sem juros."),
-        ("3.2", "Boleto", "Pagamento", "À vista."),
+        ("1.1", "Parcelamento", "Pagamento", "Até 3x sem juros."),
+        ("1.2", "Boleto", "Pagamento", "À vista."),
     ]
 
 
@@ -24,14 +28,15 @@ def test_top_level_intro_becomes_own_chunk() -> None:
 
 
 def test_heading_without_body_is_dropped() -> None:
-    chunks = parse_sections(["5. Frete", "5.1 Região", "Frete grátis.", "6. Promoções"])
+    chunks = parse_sections(["1. Frete", "1.1 Região", "Frete grátis.", "2. Promoções"])
 
-    assert [c.section_id for c in chunks] == ["5.1"]
+    assert [c.section_id for c in chunks] == ["1.1"]
 
 
 def test_numbered_steps_inside_subsection_are_not_headings() -> None:
     chunks = parse_sections(
         [
+            *sections_before(7),
             "7. Atendimento",
             "7.2 Fluxo",
             "1. Saudação: cumprimentar.",
@@ -42,9 +47,9 @@ def test_numbered_steps_inside_subsection_are_not_headings() -> None:
         ]
     )
 
-    assert [c.section_id for c in chunks] == ["7.2", "8"]
-    assert "Saudação" in chunks[0].body
-    assert "Fechamento" in chunks[0].body
+    assert [c.section_id for c in chunks] == [*(str(i) for i in range(1, 7)), "7.2", "8"]
+    assert "Saudação" in chunks[6].body
+    assert "Fechamento" in chunks[6].body
 
 
 def test_clean_lines_drops_cover_header_footer_and_zwsp() -> None:
