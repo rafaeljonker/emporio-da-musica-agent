@@ -8,7 +8,7 @@ Full design: [docs/superpowers/specs/2026-11-05-emporio-agent-design.md](docs/su
 ## Commands
 Run from the repo root; all targets execute in `backend/`.
 - `make setup`: install deps and pre-commit hooks.
-- `make check`: lint + typecheck + import contracts + tests. Must be green before every commit.
+- `make check`: lint + typecheck + import contracts + tests. Green before every commit, except the `(red)` commit of a TDD pair, where only the new test may fail.
 - `make test`: pytest only.
 - `make fmt`: ruff format and `ruff check --fix`.
 
@@ -47,4 +47,4 @@ Never write keys or real values in any file. Use `.env` (git-ignored); `.env.exa
 - `data/` is read-only source material.
 
 ## Code style
-Conventions no tool checks are in `.claude/rules/python-style.md`. The ruff and basedpyright (strict) gates are law: fix the code, do not silence them.
+Conventions no tool checks are in `.claude/rules/python-style.md`. The ruff and basedpyright (strict in domain/application/shared) gates are law: fix the code, do not silence them.
