@@ -2,7 +2,12 @@ from datetime import UTC, date, datetime, time, timedelta
 
 import pytest
 
-from emporio.policies.domain.store_hours import NoOpeningFound, is_open, next_opening
+from emporio.policies.domain.store_hours import (
+    NaiveDatetimeError,
+    NoOpeningFound,
+    is_open,
+    next_opening,
+)
 from emporio.policies.infrastructure.holidays import STORE_HOLIDAYS
 from emporio.shared.clock import STORE_TZ
 
@@ -69,9 +74,9 @@ def test_utc_input_is_converted_to_store_time() -> None:
 
 def test_naive_input_is_rejected() -> None:
     naive = datetime(2026, 2, 20, 10, 0)  # noqa: DTZ001
-    with pytest.raises(ValueError, match="timezone-aware"):
+    with pytest.raises(NaiveDatetimeError):
         is_open(naive, HOLIDAYS)
-    with pytest.raises(ValueError, match="timezone-aware"):
+    with pytest.raises(NaiveDatetimeError):
         next_opening(naive, HOLIDAYS)
 
 

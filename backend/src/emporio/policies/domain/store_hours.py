@@ -16,6 +16,13 @@ WEEKLY_HOURS: dict[int, tuple[time, time] | None] = {
 MAX_LOOKAHEAD_DAYS = 14
 
 
+class NaiveDatetimeError(DomainError):
+    """A timezone-naive datetime was passed where an aware one is required."""
+
+    def __init__(self) -> None:
+        super().__init__("now must be timezone-aware")
+
+
 class NoOpeningFound(DomainError):
     """No opening within the lookahead window."""
 
@@ -29,7 +36,7 @@ def _hours(day: date, holidays: frozenset[date]) -> tuple[time, time] | None:
 
 def _to_store_time(now: datetime) -> datetime:
     if now.tzinfo is None:
-        raise ValueError("now must be timezone-aware")  # noqa: TRY003
+        raise NaiveDatetimeError
     return now.astimezone(STORE_TZ)
 
 
