@@ -48,8 +48,9 @@ def test_numbered_steps_inside_subsection_are_not_headings() -> None:
     )
 
     assert [c.section_id for c in chunks] == [*(str(i) for i in range(1, 7)), "7.2", "8"]
-    assert "Saudação" in chunks[6].body
-    assert "Fechamento" in chunks[6].body
+    steps = next(c for c in chunks if c.section_id == "7.2")
+    assert "Saudação" in steps.body
+    assert "Fechamento" in steps.body
 
 
 def test_clean_lines_drops_cover_header_footer_and_zwsp() -> None:
