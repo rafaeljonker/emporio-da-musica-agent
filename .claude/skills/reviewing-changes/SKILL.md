@@ -32,6 +32,7 @@ Write `verdict.md` in the review folder, then show it:
 |---|---|---|---|---|---|
 
 - **Which claims go in:** only claims marked HOLDS or WEAKENED. Downgrade WEAKENED claims by one level.
+- **Duplicates:** when two lenses report the same root cause, merge them into one row that cites both ids and keeps the higher surviving severity.
 - **Order:** BLOCKER first, then FIX-NOW, LATER and DEFERRED.
 - **Refuted claims:** list them below the table with the challenger's reason, so the user can audit the challenge.
 - **Last line:** `Merge: ready | after FIX-NOW | blocked`.
