@@ -23,6 +23,8 @@ def test_get_product_quotes_with_active_promotion() -> None:
     found, quote = GetProduct(repo)(1)
     assert found.id == 1
     assert quote.final == m("800")
+    assert quote.promotion is not None
+    assert quote.promotion.id == 2
     assert quote.pix is None
 
 
@@ -79,3 +81,19 @@ def test_search_products_delegates_to_domain() -> None:
         (product(id=1, name="Violao Giannini", category_id=1),), (category(id=1, name="Violoes"),)
     )
     assert isinstance(SearchProducts(repo)("Violao Giannini"), Exact)
+
+
+def test_list_promotions_uses_highest_active_percent_per_product() -> None:
+    repo = FakeCatalogRepository(
+        (product(id=1, price="1000"),),
+        (),
+        (
+            promo(id=1, product_id=1, percent="30", active=False),
+            promo(id=2, product_id=1, percent="10"),
+            promo(id=3, product_id=1, percent="20"),
+        ),
+    )
+    ((_, quote),) = ListPromotions(repo)()
+    assert quote.promotion is not None
+    assert quote.promotion.percent == 20
+    assert quote.final == m("800")
