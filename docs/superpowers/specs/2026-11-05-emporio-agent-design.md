@@ -171,7 +171,7 @@ React (Vite+TS, GSP design system) ──POST /chat (SSE)──► FastAPI (Pyth
   - short messages, one question at a time;
   - no markdown, em dash or stock phrases;
   - uses the customer's name when known;
-  - may split the answer into 2 bubbles.
+  - 1–3 short bubbles per reply, question last.
 - **"AI tell" detector:** a tested function and an evals step that fails an answer with an em dash, markdown, a blacklisted phrase or above the maximum length. The voice becomes measured, not just promised.
 
 ### 7.5 Scale and cost

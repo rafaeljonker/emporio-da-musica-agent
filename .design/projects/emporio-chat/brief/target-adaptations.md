@@ -13,7 +13,7 @@ None. The project uses the brand tokens as-is (core vars via `emporio-da-musica.
 
 | Brand spec | Project adaptation | Why |
 |-----------|-------------------|-----|
-| Stage label "Ligando o servidor" | "Ligando a GPU" (`Server` icon kept) | Spec 5 names the stage; the evaluator is technical |
+| Stage label (generic server wording) | "Ligando a GPU" (`Server` icon kept) | Spec 5 names the stage; the evaluator is technical |
 | Explanation: generic "servidor que desliga" | Names the model and the reason: Gemma 4 31B on its own GPU (Modal) that sleeps when idle to avoid cost | Spec 5 asks for the plain-language why |
 | "never an estimate of remaining time" | Add a static expected total, rounded up to the next 10 s: "Normalmente leva cerca de {N} s." Elapsed timer still counts up. Never a countdown, never "faltam" | Spec asks for estimated + elapsed time; brand forbids fake progress. A fixed expectation is honest; a countdown would lie when it overruns |
 | — | One merged note with the measured number: "Com a máquina já ligada, a primeira mensagem sai em uns 2 s. Se escrever agora, a mensagem vai sozinha quando ele ficar pronto." Value from config/backend, not hardcoded (design revision 1) | Spec 5: show that production would not wait |

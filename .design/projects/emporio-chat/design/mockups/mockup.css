@@ -170,7 +170,7 @@ label.field-label { display: block; font-weight: 600; margin-bottom: 4px; }
 .stages { list-style: none; margin: 12px 0; padding: 0; display: grid; gap: 8px; }
 .stages li { display: flex; align-items: center; gap: 10px; min-height: 32px; padding-left: 10px; border-left: 4px solid transparent; }
 .stages li.done .icon { color: var(--success); }
-.stages li.current { border-left-color: var(--warning); font-weight: 600; } /* honey deep: 6.0:1 on cream */
+.stages li.current { border-left-color: var(--warning); font-weight: 600; } /* honey deep: 5.40:1 on cream, 4.91 on spruce */
 .stages li.pending { color: var(--muted-foreground); }
 .warm .note { margin-bottom: 0; }
 .status-line { display: flex; gap: 8px; align-items: flex-start; }

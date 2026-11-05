@@ -35,7 +35,7 @@ No progress bar, no percentage, no spinner, no rotating logo.
 
 | Stage key | Label |
 |---|---|
-| `server_starting` | "Ligando o servidor" (`Server` while current) |
+| `server_starting` | "Ligando a GPU" (`Server` while current) |
 | `model_loading` | "Carregando o modelo" (`Cpu` while current) |
 | `ready` | "Pronto pra conversar" |
 

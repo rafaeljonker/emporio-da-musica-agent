@@ -79,7 +79,7 @@ Axes chosen because they map directly to Luísa's two frustrations (BRIEF.md): "
 4. Promo always shows original price + % + final price.
 5. If the system has no answer, say so and route to a human; never guess.
 
-**Risk:** "honest" is a claim every brand makes. It only works if it is demonstrated, not declared. The brand never says "somos honestos"; it shows it by recommending the R$ 849 Yamaha C70 when that is what fits.
+**Risk:** "honest" is a claim every brand makes. It only works if it is demonstrated, not declared. The brand never says "somos honestos"; it shows it by recommending the R$ 599,90 Yamaha C40 over the R$ 849 C70 when that is what fits.
 
 ---
 

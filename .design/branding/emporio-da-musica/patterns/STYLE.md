@@ -147,8 +147,8 @@ Type: Fraunces (display, `--font-display`) 500–600, `"SOFT" 100, "WONK" 0`; So
 |----------|------|
 | use | the agent does not know or must confirm a fact; calm, not an error |
 | container | the normal agent bubble (spruce/walnut); no border, tint or shake |
-| label | first line in the bubble: Lucide `UserRound` (or `Clock` when a return time is promised) 16px + "Confirmando com a equipe", 14px 600 `text-muted-foreground` (5.03 on spruce) |
-| copy | "Isso eu preciso confirmar com a equipe, já te retorno." |
+| label | first line in the bubble: Lucide `UserRound` (or `Clock` when a return time is promised) 16px + "Repassado pra equipe", 14px 600 `text-muted-foreground` (5.03 on spruce) |
+| copy | "Isso eu preciso confirmar com a equipe. Já deixei registrado pra eles." |
 | a11y | label is visible text; announced like any message, no `role="alert"` |
 | never | terracotta (not clickable), oxblood / `CircleAlert` (not an error), honey fill, spinner |
 
@@ -159,7 +159,7 @@ Type: Fraunces (display, `--font-display`) 500–600, `"SOFT" 100, "WONK" 0`; So
 | name | Source Sans 3 600 16px walnut (13.35 on paper) |
 | honest badge | `CircleCheck` 16px + "Na medida pro seu nível", 14px 600 `text-success` moss on paper (6.91), 1px `border` hairline, `rounded-full` |
 | price | final price 600 20px tabular; PIX line 14px `text-muted-foreground` (6.89 on paper) |
-| promotion | one line, three parts: "De R$ 1.299" muted + line-through (the word "De" carries meaning) · "15% off" 600 `text-warning` honey deep (5.77 on paper) · "R$ 1.104,15" 600 walnut. PIX 5% never stacks on promo |
+| promotion | one line, three parts: "De R$ 2.399" muted + line-through (the word "De" carries meaning) · "18% off" 600 `text-warning` honey deep (5.77 on paper) · "R$ 1.967,18" 600 walnut. PIX 5% never stacks on promo |
 | never | terracotta badge or price, red sale banner, honey deep on spruce (4.22), a discount without the original |
 
 ---
@@ -278,9 +278,9 @@ Type: Fraunces (display, `--font-display`) 500–600, `"SOFT" 100, "WONK" 0`; So
 // Chat header (wood rail) — also add --color-rail* to @theme inline
 "flex items-center gap-3 px-4 py-3 bg-rail text-rail-foreground border-b-[3px] border-rail-rule [&_:focus-visible]:outline-rail-foreground"
 // Handoff bubble label (first line inside the agent bubble)
-<span className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground"><UserRound size={16} strokeWidth={1.75} absoluteStrokeWidth aria-hidden />Confirmando com a equipe</span>
+<span className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground"><UserRound size={16} strokeWidth={1.75} absoluteStrokeWidth aria-hidden />Repassado pra equipe</span>
 // Promo price line (product card, paper)
-<p className="tnum"><span className="text-muted-foreground line-through">De R$ 1.299</span> <span className="font-semibold text-warning">15% off</span> <span className="font-semibold text-foreground">R$ 1.104,15</span></p>
+<p className="tnum"><span className="text-muted-foreground line-through">De R$ 2.399</span> <span className="font-semibold text-warning">18% off</span> <span className="font-semibold text-foreground">R$ 1.967,18</span></p>
 // Error line
 <p role="alert" className="flex gap-2 text-destructive"><CircleAlert size={20} strokeWidth={1.75} absoluteStrokeWidth aria-hidden />E-mail ou senha não bateram. Confere e tenta de novo.</p>
 ```

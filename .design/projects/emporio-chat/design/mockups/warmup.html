@@ -189,7 +189,7 @@
         const { g, texts } = queued; queued = null; store.removeItem("mk-queued");
         g.querySelector(".queued").outerHTML = `<p class="meta tnum" aria-hidden="true">${now()}</p>`;
         g.querySelector(".queued-actions")?.remove();
-        await Chat.reply([{ text: "Oi! O Yamaha C70 tá R$ 849, ou R$ 806,55 no PIX." }, { text: "Pra quem tá começando no nylon, ele resolve bem. Você já toca ou tá começando agora?" }],
+        await Chat.reply([{ text: "Oi! O Yamaha C40 tá R$ 599,90, ou R$ 569,91 no PIX." }, { text: "Pra quem tá começando no nylon, ele resolve bem. Você já toca ou tá começando agora?" }],
           { tin: 1210, tout: 72, guard: 0.11, llm: variant === "local" ? 48.6 : 1.84, tools: 0.19, search: 0.07, cost: variant === "local" ? 0 : 0.0038, what: "busca no catálogo" });
       }
     }
@@ -248,7 +248,7 @@
     $("#mk-long").onclick = () => { backend.long = true; backend.started_at = Date.now() - (2 * roundUp(cfg.expected_seconds) + 1) * 1000; save(); tick(); };
     $("#mk-net").onclick = (e) => { netDown = !netDown; e.currentTarget.setAttribute("aria-pressed", netDown); };
     $("#mk-fail").onclick = () => { backend.failed = true; save(); tick(); };
-    $("#mk-type").onclick = () => { Chat.input.value = "Quanto tá o Yamaha C70?"; Chat.sync(); Chat.submit(); };
+    $("#mk-type").onclick = () => { Chat.input.value = "Quanto tá o Yamaha C40?"; Chat.sync(); Chat.submit(); };
     $("#mk-reload").onclick = () => location.reload();
     $("#mk-reset").onclick = () => { store.clear(); location.reload(); };
   </script>

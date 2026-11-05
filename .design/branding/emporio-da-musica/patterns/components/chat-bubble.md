@@ -39,7 +39,7 @@ ChatTranscript  <div role="log">
 ## Content rules
 
 - Source Sans 3 400, 16/24. `whitespace-pre-line` for line breaks; no markdown rendering (bold, lists, headers are stripped/never produced).
-- Prices inside text use pt-BR format ("R$ 849", "R$ 1.104,15"). Structured product info uses [ProductCard](./product-card.md) inside the agent group.
+- Prices inside text use pt-BR format ("R$ 599,90", "R$ 1.967,18"). Structured product info uses [ProductCard](./product-card.md) inside the agent group.
 - Fraunces never appears in a bubble.
 
 ## ChatTranscript a11y
@@ -73,5 +73,5 @@ ChatTranscript  <div role="log">
 ## Copy examples (pt-BR)
 
 - Agent: "Oi, Luísa! Tá procurando violão ou outro instrumento?"
-- Agent: "Pro seu nível, esse de R$ 849 dá conta tranquilo."
+- Agent: "Pro seu nível, o C40 de R$ 599,90 dá conta tranquilo."
 - Agent: "Qualquer coisa me chama aqui."

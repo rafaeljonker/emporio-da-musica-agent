@@ -4,7 +4,7 @@
 |-------|--------|-------|
 | patterns.nav | spruce header, grain-line border, wood grain | wood rail: `--rail` #3B2A1E (dark #5A4130), 3px `--rail-rule` honey #C98A2B (dark #E0A94F), no texture; avatar-disc-concept |
 | brand ext. `--rail`, `--rail-foreground`, `--rail-muted`, `--rail-rule` | — | #3B2A1E/#FAF4EA/#E9D8B8/#C98A2B (dark #5A4130/#F3E9D8/#C9B8A0/#E0A94F) |
-| patterns.bubble-handoff | — | agent bubble + UserRound/Clock + "Confirmando com a equipe" in muted-foreground (5.03) |
+| patterns.bubble-handoff | — | agent bubble + UserRound/Clock + "Repassado pra equipe" in muted-foreground (5.03) |
 | patterns.product-card | — | paper card, honest badge moss (6.91), promo original + % + final (6.89 / 5.77 / 13.35) |
 | patterns.layout.surfaces | wood grain on spruce header | header is the solid wood rail |
 | effects.surfaces.wood-rail | — | solid rail, survives prefers-reduced-data |

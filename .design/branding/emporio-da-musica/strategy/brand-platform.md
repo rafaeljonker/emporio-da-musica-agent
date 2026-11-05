@@ -70,7 +70,7 @@ Behavioral, each with a test that can be checked in a transcript.
         /────────\
        /          \    FUNCTIONAL: the right instrument at a clear, real price
       /────────────\
-     /              \  ATTRIBUTES: since 2008 in Campo Grande · 300+ instruments,
+     /              \  ATTRIBUTES: since 2008 in Campo Grande · 300+ instruments claimed in the store manual (the case catalog has 65 products),
     /────────────────\ instruments only · PIX 5% off · 12x sem juros · 7-day regret
 ```
 

@@ -87,7 +87,7 @@ Pacing (resolved): backend-driven, bubble 1 at 0 ms (typing already covered gene
 | Empty | rosette line drawing (96 px, `aria-hidden`) + muted "Pergunta de preço, estoque, entrega ou qual instrumento combina com você. Pode mandar." + 14px muted "Na faixa de demonstração, \"Conversar como…\" simula quem manda mensagem pelo WhatsApp." centered |
 | Loading (reply in progress) | user bubble rendered immediately (no spinner); TypingIndicator; send `aria-disabled="true"` (stays focusable), textarea enabled |
 | Sequential reply | 1–3 bubbles; first at once, the rest paced; avatar moves to the last bubble of the group |
-| Product | ProductCard in the agent group; honest badge "Na medida pro seu nível" only when flagged; e.g. Yamaha C70 Nylon Natural, R$ 849, "R$ 806,55 no PIX (5% off)" |
+| Product | ProductCard in the agent group; honest badge "Na medida pro seu nível" only when flagged; e.g. Yamaha C40 Nylon Natural, R$ 599,90, "R$ 569,91 no PIX (5% off)" |
 | Handoff | HandoffBubble label from the backend flag: `UserRound` + "Repassado pra equipe", or `Clock` + "Retorno em até 24 horas úteis". Body never promises a callback the demo cannot make: "Isso eu preciso confirmar com a equipe. Já deixei registrado pra eles." History line shows "repasse registrado" |
 | Error (no reply) | inline under the failed user bubble, 14px muted text + "Manda de novo?" link button at **16px** (`text-base`, own font size, never `font: inherit`); resends once; never `role="alert"` on bubbles |
 | Partial reply error | see SSE table; bubbles kept |

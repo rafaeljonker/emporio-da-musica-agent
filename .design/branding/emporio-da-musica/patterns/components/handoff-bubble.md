@@ -19,14 +19,14 @@ A normal agent [ChatBubble](./chat-bubble.md) (same grouping, avatar, corners) w
 
 | Variant | Icon | Label | Body example |
 |---|---|---|---|
-| confirm with team | `UserRound` | "Confirmando com a equipe" | "Isso eu preciso confirmar com a equipe, já te retorno." |
+| confirm with team | `UserRound` | "Repassado pra equipe" | "Isso eu preciso confirmar com a equipe. Já deixei registrado pra eles." |
 | promised return time | `Clock` | "Retorno em até 24 horas úteis" | "Poxa, entendo a chateação. Já registrei e alguém da loja te responde em até 24 horas úteis." |
 
 Trigger: a structured flag from the backend (e.g. `message.kind === "handoff"`), never inferred from text on the client.
 
 ## A11y
 
-- The label is visible text, read as part of the bubble: "Assistente: Confirmando com a equipe. Isso eu preciso confirmar…".
+- The label is visible text, read as part of the bubble: "Assistente: Repassado pra equipe. Isso eu preciso confirmar…".
 - Announced like any message through the transcript `role="log"`; no `role="alert"`, no assertive live region.
 - Icon `aria-hidden`.
 
@@ -36,8 +36,8 @@ Trigger: a structured flag from the backend (e.g. `message.kind === "handoff"`),
 <ChatBubble variant="agent">
   <span className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
     <UserRound size={16} strokeWidth={1.75} absoluteStrokeWidth aria-hidden />
-    Confirmando com a equipe
+    Repassado pra equipe
   </span>
-  Isso eu preciso confirmar com a equipe, já te retorno.
+  Isso eu preciso confirmar com a equipe. Já deixei registrado pra eles.
 </ChatBubble>
 ```

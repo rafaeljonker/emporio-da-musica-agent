@@ -11,7 +11,7 @@ Note: identity/brand-applications.md §3 said "no price cards"; the confirmed `.
 ├─ Name                 16px 600 walnut
 ├─ HonestBadge?         CircleCheck + "Na medida pro seu nível" (only when flagged)
 ├─ PriceLine            final price 20px 600 tabular   | or PromoLine (3 parts)
-└─ PixLine?             14px muted, e.g. "R$ 806,55 no PIX (5% off)"  (never together with a promo)
+└─ PixLine?             14px muted, e.g. "R$ 569,91 no PIX (5% off)"  (never together with a promo)
 ```
 
 ## Tokens
@@ -31,7 +31,7 @@ Never: terracotta (the card is not clickable), red sale banner, `text-warning` o
 
 ## Promo rule
 
-Always three parts on one line: "De R$ 1.299" · "15% off" · "R$ 1.104,15". The word "De" carries the meaning; the strike is decorative. Only active promotions (`is_active = 1`) render; otherwise the plain price line.
+Always three parts on one line: "De R$ 2.399" · "18% off" · "R$ 1.967,18". The word "De" carries the meaning; the strike is decorative. Only active promotions (`is_active = 1`) render; otherwise the plain price line.
 
 ## Data / formatting
 
@@ -50,9 +50,9 @@ Always three parts on one line: "De R$ 1.299" · "15% off" · "R$ 1.104,15". The
 ## A11y
 
 - `<article aria-labelledby={nameId}>`; name is an `<h3>`-level text inside the log (or `<p>` with `id` if heading levels would conflict, decide in build).
-- Promo line has an sr-only rewrite so the strike is not needed: `<span className="sr-only">Preço original R$ 1.299, 15% de desconto, sai por R$ 1.104,15</span>` and the visual line `aria-hidden`.
+- Promo line has an sr-only rewrite so the strike is not needed: `<span className="sr-only">Preço original R$ 2.399, 18% de desconto, sai por R$ 1.967,18</span>` and the visual line `aria-hidden`.
 - Not focusable (no actions in the POC). If a future action is added, it is a separate Button, not a clickable card.
 
 ## Copy examples (pt-BR)
 
-Agent bubble before the card: "Pro seu nível, esse de R$ 849 dá conta tranquilo." Card: "Yamaha C70 Nylon Natural" · "Na medida pro seu nível" · "R$ 849" · "R$ 806,55 no PIX (5% off)".
+Agent bubble before the card: "Pro seu nível, o C40 de R$ 599,90 dá conta tranquilo." Card: "Yamaha C40 Nylon Natural" · "Na medida pro seu nível" · "R$ 599,90" · "R$ 569,91 no PIX (5% off)".

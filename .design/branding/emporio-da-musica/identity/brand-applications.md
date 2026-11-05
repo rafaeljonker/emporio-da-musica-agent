@@ -23,7 +23,7 @@ Honesty is the brand, so the wait is explained, not disguised.
 
 - **Headline (Fraunces):** "Afinando o atendimento"
 - **Explanation (Source Sans 3):** "O assistente roda num servidor que desliga quando ninguém está usando, e ligar de novo leva cerca de {N} segundos. Já já ele tá pronto."
-- **Stages:** a short vertical list, each with a state icon (done check in moss, current with a subtle honey marker, pending in walnut muted). Suggested labels: "Ligando o servidor", "Carregando o modelo", "Pronto pra conversar".
+- **Stages:** a short vertical list, each with a state icon (done check in moss, current with a subtle honey marker, pending in walnut muted). Suggested labels: "Ligando a GPU", "Carregando o modelo", "Pronto pra conversar".
 - **Elapsed time:** tabular figures, e.g. "Esperando há 42 s". Real time, counting up.
 - **No progress bar**, no fake percentage. The only motion is the logo ring breathing slowly (disabled under reduced motion).
 - **Illustration:** one line drawing of tuning pegs.

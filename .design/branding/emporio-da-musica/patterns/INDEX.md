@@ -25,7 +25,7 @@ node .claude/skills/gsp-brand-guidelines/bin/theme-css.js .design/branding/empor
 | [select.md](./components/select.md) | override | Radix Select trigger/content/items, selection never color-only |
 | [chat-bubble.md](./components/chat-bubble.md) | custom | Agent/user bubbles, sequential grouping, avatar once per group, transcript `role="log"` |
 | [typing-indicator.md](./components/typing-indicator.md) | custom | Three honey dots, `role="status"` outside the log, static under reduced motion |
-| [handoff-bubble.md](./components/handoff-bubble.md) | custom | "Confirmando com a equipe" limit-admitted state, calm not error |
+| [handoff-bubble.md](./components/handoff-bubble.md) | custom | "Repassado pra equipe" limit-admitted state, calm not error |
 | [product-card.md](./components/product-card.md) | custom | Paper card, honest badge, three-part promo rule, PIX line |
 | [wood-rail-header.md](./components/wood-rail-header.md) | custom | Walnut header + 3px honey rule, cream focus inside |
 | [warmup-status.md](./components/warmup-status.md) | custom | Real backend stages + elapsed timer, `role="status"`, no fake progress |

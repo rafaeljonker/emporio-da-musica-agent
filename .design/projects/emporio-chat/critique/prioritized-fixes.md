@@ -39,7 +39,7 @@
 
 5. **No forced keyboard on `ready`** (screen-02 § Ready, screen-01 § Accessibility). Move focus to the composer only if `matchMedia("(pointer: fine)")` or if the composer already had focus. This matches the login rule "focus not forced (avoids keyboard pop on mobile)".
 
-6. **HandoffBubble honesty** ([handoff-bubble.md](../../../branding/emporio-da-musica/patterns/components/handoff-bubble.md) usage). The label should state what the system did, not repeat the body: "Repassado pra equipe" (`UserRound`) / "Retorno em até 24 horas úteis" (`Clock`), driven by the backend flag. The metrics history line shows "repasse registrado", so the evaluator can see the handoff tool fired even though nobody will "já te retorno" in a demo.
+6. **HandoffBubble honesty** ([handoff-bubble.md](../../../branding/emporio-da-musica/patterns/components/handoff-bubble.md) usage). The label should state what the system did, not repeat the body: "Repassado pra equipe" (`UserRound`) / "Retorno em até 24 horas úteis" (`Clock`), driven by the backend flag. The metrics history line shows "repasse registrado", so the evaluator can see the handoff tool fired even though nobody will call back in a demo.
 
 7. **Explain the demo strip once.** In the chat empty state, under the existing line, add 14px muted: "Na faixa de demonstração, \"Conversar como…\" simula quem manda mensagem pelo WhatsApp." Keep the Radix item second line "o assistente vai pedir o número do pedido" for "Sem identificação".
 

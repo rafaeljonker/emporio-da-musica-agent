@@ -398,7 +398,7 @@ a:hover { text-decoration-thickness: 2px; }
         <tr><td><span class="pair-sample" style="background:#3B2A1E; color:#E9D8B8;">Aa</span></td><td>spruce on walnut rail</td><td class="pass tnum">9.75</td><td>chat header subline</td></tr>
         <tr><td><span class="pair-sample" style="background:#FFFCF6; color:#46602B;">Aa</span></td><td>moss on paper</td><td class="pass tnum">6.91</td><td>honest badge</td></tr>
         <tr><td><span class="pair-sample" style="background:#FFFCF6; color:#6B5444;">Aa</span></td><td>walnut muted on paper</td><td class="pass tnum">6.89</td><td>original price, PIX line</td></tr>
-        <tr><td><span class="pair-sample" style="background:#FFFCF6; color:#8A5A14;">15%</span></td><td>honey deep on paper</td><td class="pass tnum">5.77</td><td>promo percentage</td></tr>
+        <tr><td><span class="pair-sample" style="background:#FFFCF6; color:#8A5A14;">18%</span></td><td>honey deep on paper</td><td class="pass tnum">5.77</td><td>promo percentage</td></tr>
         <tr><td><span class="pair-sample" style="background:#FAF4EA; color:#46602B; border:1px solid var(--border);">Pronto</span></td><td>moss on cream</td><td class="pass tnum">6.47</td><td>success</td></tr>
         <tr><td><span class="pair-sample" style="background:#FAF4EA; color:#9A2E24; border:1px solid var(--border);">Erro</span></td><td>oxblood on cream</td><td class="pass tnum">6.88</td><td>error</td></tr>
         <tr><td><span class="pair-sample" style="background:#1E1611; color:#F3E9D8;">Aa</span></td><td>cream on night (dark)</td><td class="pass tnum">14.82</td><td>dark body text</td></tr>
@@ -606,7 +606,7 @@ a:hover { text-decoration-thickness: 2px; }
           <h3 class="font-display" style="font-size:var(--text-h1); font-weight:600; text-align:center;">Afinando o atendimento</h3>
           <p style="margin:0;">O assistente roda num servidor que desliga quando ninguém está usando, e ligar de novo leva cerca de 60 segundos. Já já ele tá pronto.</p>
           <ul class="stages" aria-live="polite">
-            <li class="stage-done"><span class="stage-ico"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg></span><span>Ligando o servidor <span class="sr-only">(concluído)</span></span></li>
+            <li class="stage-done"><span class="stage-ico"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg></span><span>Ligando a GPU <span class="sr-only">(concluído)</span></span></li>
             <li class="stage-current"><span class="stage-ico"><svg class="ico" aria-hidden="true"><use href="#i-cpu"/></svg></span><span>Carregando o modelo <span class="sr-only">(em andamento)</span></span></li>
             <li class="stage-pending"><span class="stage-ico"><svg class="ico" aria-hidden="true"><use href="#i-circle"/></svg></span><span>Pronto pra conversar</span></li>
           </ul>
@@ -639,19 +639,27 @@ a:hover { text-decoration-thickness: 2px; }
           <div class="group agent">
             <img class="avatar" src="../identity/assets/avatar-disc-concept.jpg" alt="" style="width:28px; height:28px;">
             <div class="bubbles">
-              <div class="bubble fade-in">Pro seu nível, esse de R$ 849 dá conta.</div>
+              <div class="bubble fade-in">Pro seu nível, o C40 de R$ 599,90 dá conta.</div>
               <div class="product-card fade-in">
-                <b>Yamaha C70 Nylon Natural</b>
+                <b>Yamaha C40 Nylon Natural</b>
                 <span class="honest-badge"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-check"/></svg>Na medida pro seu nível</span>
-                <p class="price">R$ 849</p>
-                <p class="price-sub">ou R$ 806,55 no PIX · 8 em estoque</p>
+                <p class="price">R$ 599,90</p>
+                <p class="price-sub">ou R$ 569,91 no PIX · 12 em estoque</p>
               </div>
             </div>
           </div>
           <div class="user" style="margin-top:16px;"><div class="bubble">Boa! E chega até sexta?</div><span class="time tnum">14:32</span></div>
           <div class="group agent">
             <img class="avatar" src="../identity/assets/avatar-disc-concept.jpg" alt="" style="width:28px; height:28px;">
-            <div class="bubbles"><div class="bubble fade-in"><span class="handoff-label"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-user"/></svg>Confirmando com a equipe</span>Isso eu preciso confirmar com a equipe, já te retorno.</div></div>
+            <div class="bubbles"><div class="bubble fade-in">Depende da cidade. Você tá em Campo Grande?</div></div>
+          </div>
+          <div class="user" style="margin-top:16px;"><div class="bubble">Tô sim, no centro.</div></div>
+          <div class="group agent">
+            <img class="avatar" src="../identity/assets/avatar-disc-concept.jpg" alt="" style="width:28px; height:28px;">
+            <div class="bubbles">
+              <div class="bubble fade-in">Na região metropolitana de Campo Grande, a entrega leva de 1 a 3 dias úteis.</div>
+              <div class="bubble fade-in">O frete é grátis acima de R$ 500, então o seu sai sem custo. Quer fechar?</div>
+            </div>
           </div>
           <div class="group agent" style="margin-top:16px;">
             <img class="avatar" src="../identity/assets/avatar-disc-concept.jpg" alt="" style="width:28px; height:28px;">
@@ -667,8 +675,8 @@ a:hover { text-decoration-thickness: 2px; }
     </div>
     <div class="grid g2" style="margin-top:32px;">
       <div class="paper"><h3>Chat empty state</h3><p style="margin:0;">Pergunta de preço, estoque, entrega ou qual instrumento combina com você. Pode mandar.</p></div>
-      <div class="paper"><h3>Handoff (limit admitted)</h3><div class="bubble" style="background:var(--card); display:inline-block; margin-bottom:12px;"><span class="handoff-label"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-clock"/></svg>Confirmando com a equipe</span>Isso eu preciso confirmar com a equipe, já te retorno.</div><p class="meta" style="margin:0;">Calm, not an error. Normal agent bubble; label in walnut muted (5.03 on spruce) + UserRound or Clock. Never terracotta, never oxblood.</p></div>
-      <div class="paper"><h3>Price block · promotion</h3><div class="product-card" style="margin-bottom:12px;"><b>Yamaha FG800 Dreadnought Natural</b><p class="promo-line"><span class="was">De R$ 1.299</span> <span class="pct">15% off</span> <span class="now">R$ 1.104,15</span></p><p class="price-sub">PIX não acumula com a promoção</p></div><p class="meta" style="margin:0;">Original + % + final on paper: walnut muted 6.89, honey deep 5.77, walnut 13.35. Honest badge moss on paper 6.91. Never on spruce, never terracotta.</p></div>
+      <div class="paper"><h3>Handoff (limit admitted)</h3><div class="bubble" style="background:var(--card); display:inline-block; margin-bottom:12px;"><span class="handoff-label"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-clock"/></svg>Retorno em até 24 horas úteis</span>Isso eu preciso confirmar com a equipe. Já deixei registrado pra eles.</div><p class="meta" style="margin:0;">Calm, not an error. Normal agent bubble; label in walnut muted (5.03 on spruce) + UserRound or Clock. Never terracotta, never oxblood.</p></div>
+      <div class="paper"><h3>Price block · promotion</h3><div class="product-card" style="margin-bottom:12px;"><b>Crafter HT-100 Folk Aço Natural</b><p class="promo-line"><span class="was">De R$ 2.399</span> <span class="pct">18% off</span> <span class="now">R$ 1.967,18</span></p><p class="price-sub">PIX não acumula com a promoção</p></div><p class="meta" style="margin:0;">Original + % + final on paper: walnut muted 6.89, honey deep 5.77, walnut 13.35. Honest badge moss on paper 6.91. Never on spruce, never terracotta.</p></div>
       <div class="paper"><h3>Chat error</h3><p style="margin:0; color:var(--muted-foreground);">Perdi o fio da conversa aqui. Manda de novo? <a href="#screens">Tentar de novo</a></p></div>
     </div>
   </div>
@@ -731,7 +739,7 @@ a:hover { text-decoration-thickness: 2px; }
         <h3>Always</h3>
         <ul class="always-list">
           <li>1 to 3 short bubbles per reply, 1–2 sentences each.</li>
-          <li>Promo as original + % + final: "De R$ 1.299 por R$ 1.104,15, 15% off".</li>
+          <li>Promo as original + % + final: "De R$ 2.399 por R$ 1.967,18, 18% off".</li>
           <li>The cheaper option first when it fits, and why.</li>
           <li>"Vou confirmar" or a handoff when the system has no answer.</li>
           <li>"Você", "a Empório", "Empório" with the accent.</li>
@@ -740,7 +748,7 @@ a:hover { text-decoration-thickness: 2px; }
       </div>
     </div>
     <div class="compare">
-      <div class="do"><b>Do</b><p style="margin:8px 0 0;">Pro seu nível, esse de R$ 849 dá conta tranquilo.</p></div>
+      <div class="do"><b>Do</b><p style="margin:8px 0 0;">Pro seu nível, o C40 de R$ 599,90 dá conta tranquilo.</p></div>
       <div class="dont"><b>Don't</b><p style="margin:8px 0 0;">Recomendo fortemente investir no modelo premium.</p></div>
       <div class="do"><b>Do</b><p style="margin:8px 0 0;">Poxa, entendo a chateação. Já registrei e alguém da loja te responde em até 24 horas úteis.</p></div>
       <div class="dont"><b>Don't</b><p style="margin:8px 0 0;">Lamentamos o ocorrido e pedimos desculpas pelo transtorno causado.</p></div>

@@ -31,7 +31,7 @@ Traces to: Luísa's frustration ("clerks push the priciest instrument") and her 
 - Answers: distrust of "fake urgency" and hidden conditions.
 
 ### 3. Safe to say yes
-**pt-BR:** "Comprou e não era isso? Você tem 7 dias pra devolver, e o frete de volta é com a gente."
+**pt-BR:** "Comprou online e não era isso? Você tem 7 dias pra devolver, e o frete de volta é com a gente."
 - Proof: 7-day regret right on online purchases, return shipping paid by the store, refund in up to 10 business days.
 - Proof: 30-day exchange for manufacturing defects; 90-day legal warranty.
 - Proof: honest handoff to staff when the agent does not know; complaints answered within 24 business hours.

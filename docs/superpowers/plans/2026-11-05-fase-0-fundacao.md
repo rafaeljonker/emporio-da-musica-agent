@@ -11,7 +11,7 @@
 **Spec:** `docs/superpowers/specs/2026-11-05-emporio-agent-design.md`, sections 7.7, 7.9, 7.10, 7.12, 7.13 and 7.14. **Research:** `docs/research/fase-0.md`.
 
 ## Global Constraints
-- Repo path: `~/Documents/projetos/my-projects/emporio-da-musica-agent`.
+- Repo path: repo root (`emporio-da-musica-agent/`).
 - Python 3.12, pinned in `backend/.python-version`. The package is called `emporio` and lives in `backend/src/emporio/`.
 - Code, identifiers, commits, PRs and all engineering docs (`docs/`, ADRs, `.design/`) in **English**. `README.md`, `examples/` and everything the store's customer reads in **Portuguese** (spec 7.13).
 - Conventional Commits with scope, for example `chore(repo): …` or `ci: …`. Subject up to 72 characters, imperative. Every commit ends with the trailer `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.

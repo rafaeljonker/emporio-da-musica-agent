@@ -137,5 +137,6 @@ The owner chose an AI-generated rendering of the "Boca" direction as the logo co
 | Favicon | `assets/favicon-concept.jpg` | Browser tab icon: the standalone "ó" with the pick above. At 16 px, drop the strings and bridge and keep the soundhole and pick. |
 
 - **Provenance:** generated with Google Gemini 3 Pro Image from prompts written for this direction. The avatar and favicon were derived from the wordmark image so the "ó" stays consistent.
+- **Usage:** AI-generated concept for this case project; to be vectorized and redrawn before any real use.
 - **Status:** raster concepts only. Before production, vectorize to SVG, lock the colors to the brand tokens (honey `#C98A2B`, walnut `#3B2A1E`, terracotta `#A54A29`, cream `#FAF4EA`), and set the letters in Fraunces outlines so the wordmark matches the type system.
 - **Superseded:** `assets/boca-icon.svg` and `assets/boca-icon-16.svg` (the first geometric drafts) are kept only as construction references.
