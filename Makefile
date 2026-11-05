@@ -1,3 +1,5 @@
+export PATH := $(CURDIR)/backend/.venv/bin:$(PATH)
+
 .PHONY: help setup fmt lint typecheck imports test check
 .DEFAULT_GOAL := help
 
