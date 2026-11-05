@@ -36,7 +36,7 @@ def parse_sections(lines: Sequence[str]) -> tuple[PolicyChunk, ...]:
 
     def flush() -> None:
         text = "\n".join(body)
-        if text:
+        if text and section_id:
             chunks.append(PolicyChunk(section_id, title, parent, text))
         body.clear()
 
