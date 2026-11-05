@@ -62,3 +62,9 @@ def test_typo_violuao_finds_c40() -> None:
     r = SearchProducts(repo)("violuao")
     assert isinstance(r, Candidates)
     assert any(p.id == 81 for p in r.products)
+
+
+def test_crafter_ht100_fits_2000_ceiling_at_promo_price() -> None:
+    r = SearchProducts(repo)("violão", max_price=m("2000"))
+    assert isinstance(r, Candidates)
+    assert any(p.id == 90 for p in r.products)

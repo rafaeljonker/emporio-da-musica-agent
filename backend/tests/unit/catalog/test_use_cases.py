@@ -97,3 +97,14 @@ def test_list_promotions_uses_highest_active_percent_per_product() -> None:
     assert quote.promotion is not None
     assert quote.promotion.percent == 20
     assert quote.final == m("800")
+
+
+def test_search_price_ceiling_uses_promotional_final_price() -> None:
+    repo = FakeCatalogRepository(
+        (product(id=1, name="Violao Crafter", price="2399"),),
+        (category(),),
+        (promo(id=1, product_id=1, percent="20"),),  # final 1919.20
+    )
+    found = SearchProducts(repo)("violao", max_price=m("2000"))
+    assert isinstance(found, Exact)
+    assert found.product.id == 1
