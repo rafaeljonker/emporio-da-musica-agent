@@ -7,7 +7,7 @@ from emporio.orders.application.get_order_status import GetOrderStatus
 from emporio.orders.application.list_customer_orders import ListCustomerOrders
 from emporio.orders.domain.errors import OrderNotFound
 from emporio.orders.domain.identity import IdentityMismatch
-from emporio.orders.domain.return_policy import ReturnEligibility
+from emporio.orders.domain.return_policy import ReturnEligibility, ReturnReason
 from emporio.shared.clock import FixedClock
 from tests.unit.orders.factories import cust, order
 from tests.unit.orders.fakes import FakeCustomerRepository, FakeOrderRepository
@@ -74,7 +74,7 @@ def test_return_eligibility_uses_injected_clock() -> None:
         date(2026, 2, 10),
         date(2026, 2, 17),
         date(2026, 3, 3),
-        "within_regret_window",
+        ReturnReason.WITHIN_REGRET_WINDOW,
     )
     assert late == ReturnEligibility(
         False,
@@ -82,5 +82,5 @@ def test_return_eligibility_uses_injected_clock() -> None:
         date(2026, 2, 10),
         date(2026, 2, 17),
         date(2026, 3, 3),
-        "defect_window_closed",
+        ReturnReason.DEFECT_WINDOW_CLOSED,
     )

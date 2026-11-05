@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import date, timedelta
+from enum import StrEnum
 
 from emporio.orders.domain.order import Order, OrderStatus
 
@@ -7,14 +8,23 @@ REGRET_DAYS = 7
 DEFECT_DAYS = 30
 
 
-@dataclass(frozen=True)
+class ReturnReason(StrEnum):
+    CANCELLED = "cancelled"
+    NOT_DELIVERED = "not_delivered"
+    NO_DELIVERY_DATE = "no_delivery_date"
+    WITHIN_REGRET_WINDOW = "within_regret_window"
+    WITHIN_DEFECT_WINDOW = "within_defect_window"
+    DEFECT_WINDOW_CLOSED = "defect_window_closed"
+
+
+@dataclass(frozen=True, slots=True)
 class ReturnEligibility:
     regret_eligible: bool
     defect_eligible: bool
     delivered_on: date | None
     regret_deadline: date | None
     defect_deadline: date | None
-    reason: str
+    reason: ReturnReason
 
 
 def check_return(order: Order, today: date) -> ReturnEligibility:
@@ -33,9 +43,9 @@ def check_return(order: Order, today: date) -> ReturnEligibility:
       defect_window_closed   both windows closed
     """
     if order.status is OrderStatus.CANCELLED:
-        return ReturnEligibility(False, False, None, None, None, "cancelled")
+        return ReturnEligibility(False, False, None, None, None, ReturnReason.CANCELLED)
     if order.status is not OrderStatus.DELIVERED:
-        return ReturnEligibility(False, False, None, None, None, "not_delivered")
+        return ReturnEligibility(False, False, None, None, None, ReturnReason.NOT_DELIVERED)
 
     delivered_on = order.estimated_delivery
     regret_deadline = None if delivered_on is None else delivered_on + timedelta(days=REGRET_DAYS)
@@ -43,11 +53,11 @@ def check_return(order: Order, today: date) -> ReturnEligibility:
     regret = regret_deadline is not None and today <= regret_deadline
     defect = today <= defect_deadline
     if delivered_on is None:
-        reason = "no_delivery_date"
+        reason = ReturnReason.NO_DELIVERY_DATE
     elif regret:
-        reason = "within_regret_window"
+        reason = ReturnReason.WITHIN_REGRET_WINDOW
     elif defect:
-        reason = "within_defect_window"
+        reason = ReturnReason.WITHIN_DEFECT_WINDOW
     else:
-        reason = "defect_window_closed"
+        reason = ReturnReason.DEFECT_WINDOW_CLOSED
     return ReturnEligibility(regret, defect, delivered_on, regret_deadline, defect_deadline, reason)
