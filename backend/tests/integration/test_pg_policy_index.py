@@ -45,7 +45,7 @@ def test_stopword_only_question_does_not_fail(pg_conn: psycopg.Connection) -> No
 
 
 @pytest.mark.parametrize(
-    ("question", "word"), [("devolucao", "devolução"), ("garantia do violao", "violão")]
+    ("question", "word"), [("devolucao", "devolução"), ("garantia dos violoes", "violões")]
 )
 def test_full_text_side_matches_without_accents(
     pg_conn: psycopg.Connection, question: str, word: str

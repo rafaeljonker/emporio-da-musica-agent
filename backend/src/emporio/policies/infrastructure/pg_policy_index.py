@@ -16,21 +16,20 @@ LIMIT %(k)s
 # Reciprocal rank fusion (constant 60) of a vector ranking and an OR-ed full-text ranking.
 # plainto_tsquery ANDs terms; swapping ' & ' for ' | ' makes any matching term count.
 # A stopword-only question gives an empty tsquery, which matches nothing.
-# Shared with the tests. Do not re-parse the text through to_tsquery: that stems twice.
+# Shared with the tests. Cast to tsquery; to_tsquery would stem the lexemes a second time.
 TSQUERY = (
-    "to_tsquery('portuguese',"
-    " replace(plainto_tsquery('portuguese', f_unaccent(%(text)s))::text, ' & ', ' | '))"
+    "replace(plainto_tsquery('portuguese', f_unaccent(%(text)s))::text, ' & ', ' | ')::tsquery"
 )
 
 _HYBRID = """
 WITH vec AS (
-    SELECT section_id, row_number() OVER (ORDER BY embedding <=> %(q)s) AS rank
+    SELECT section_id, row_number() OVER (ORDER BY embedding <=> %(q)s, section_id) AS rank
     FROM policy_chunks
     ORDER BY embedding <=> %(q)s
     LIMIT 20
 ), fts AS (
     SELECT section_id,
-           row_number() OVER (ORDER BY ts_rank(tsv, query.q) DESC) AS rank
+           row_number() OVER (ORDER BY ts_rank(tsv, query.q) DESC, section_id) AS rank
     FROM policy_chunks,
          (SELECT {tsquery} AS q) AS query
     WHERE tsv @@ query.q
@@ -59,8 +58,8 @@ class PgPolicyIndex:
     def search(self, question: str, k: int) -> Sequence[PolicyHit]:
         params = {"q": Vector(self._embedder.embed_query(question)), "text": question, "k": k}
         sql = _HYBRID if self._hybrid else _VECTOR_ONLY
-        rows = self._conn.execute(sql, params).fetchall()
-        self._conn.commit()  # read-only; end the implicit transaction
+        with self._conn.transaction():
+            rows = self._conn.execute(sql, params).fetchall()
         return [PolicyHit(PolicyChunk(r[0], r[1], r[2], r[3]), float(r[4])) for r in rows]
 
     def replace_all(self, chunks: Sequence[PolicyChunk]) -> None:
