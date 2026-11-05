@@ -13,6 +13,7 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "basedpyright>=1.40.2",
+    "hypothesis>=6.170.14",
     "import-linter>=2.15",
     "pre-commit>=4.7.0",
     "pytest>=9.2.0",
@@ -39,6 +40,7 @@ strict = ["src/emporio/*/domain", "src/emporio/*/application", "src/emporio/shar
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = ["--import-mode=importlib"]
 
 [tool.importlinter]
 root_packages = ["emporio"]
