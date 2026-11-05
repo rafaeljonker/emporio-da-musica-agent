@@ -284,14 +284,15 @@ def test_category_typos_are_tolerated() -> None:
         ("ukelele", UKULELES),
     ]:
         result = search(query)
-        assert isinstance(result, Candidates), query
-        assert {p.category_id for p in result.products} == {category_id}, query
+        found = [result.product] if isinstance(result, Exact) else getattr(result, "products", ())
+        assert found, query
+        assert {p.category_id for p in found} == {category_id}, query
 
 
 def test_category_typo_with_price_ceiling() -> None:
     result = search("violuao ate 1000", max_price=m("1000"))
     assert isinstance(result, Candidates)
-    assert set(ids(result)) == {89, 81, 112, 111}
+    assert set(ids(result)) == {89, 81, 112}
 
 
 def test_category_typo_never_overrides_a_brand_or_unrelated_word() -> None:

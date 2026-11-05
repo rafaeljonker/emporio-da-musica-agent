@@ -15,6 +15,7 @@ _MIN_SCORE = 0.7
 _EXACT_SCORE = 0.9
 _TIER_GAP = 0.05
 _MIN_PREFIX = 4
+_MIN_TYPO_SCORE = 0.85
 _MIN_PRICE_DIGITS = 3
 
 
@@ -55,7 +56,7 @@ def search_products(
     words = _query_words(query)
     pool = tuple(p for p in products if max_price is None or p.price <= max_price)
     stocked = [c for c in categories if any(p.category_id == c.id for p in pool)]
-    matched, rest = _match_categories(stocked, words)
+    matched, rest = _match_categories(stocked, pool, words)
     if not matched:
         found = _match_words(pool, words) if words else _NOTHING
     else:
@@ -112,11 +113,34 @@ def _terms(text: str) -> tuple[str, ...]:
 
 
 def _match_categories(
-    categories: Sequence[Category], words: tuple[str, ...]
+    categories: Sequence[Category], pool: tuple[Product, ...], words: tuple[str, ...]
 ) -> tuple[tuple[Category, ...], tuple[str, ...]]:
     by_word = {w: tuple(c for c in categories if w in tokens(c.name)) for w in words}
+    for w in words:
+        if not by_word[w]:
+            by_word[w] = _typo_categories(categories, pool, w)
     matched = tuple({c.id: c for cats in by_word.values() for c in cats}.values())
     return matched, tuple(w for w in words if not by_word[w])
+
+
+def _typo_categories(
+    categories: Sequence[Category], pool: tuple[Product, ...], word: str
+) -> tuple[Category, ...]:
+    """Categories whose name token is a close misspelling of `word` ("violuao" -> Violões)."""
+    if len(word) < _MIN_PREFIX or _has_digit(word):
+        return ()
+    # Brand/model words and words the catalog itself describes ("viola") are not typos.
+    if any(_hits(word, (), _terms(p.name)) for p in pool):
+        return ()
+    if any(word in tokens(c.description) for c in categories):
+        return ()
+    scored = [
+        (max(SequenceMatcher(None, word, t).ratio() for t in tokens(c.name)), c) for c in categories
+    ]
+    best = max((s for s, _ in scored), default=0.0)
+    if best < _MIN_TYPO_SCORE:
+        return ()
+    return tuple(c for s, c in scored if s == best)
 
 
 def _match_words(pool: tuple[Product, ...], words: tuple[str, ...]) -> _Match:
