@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+node_modules/
+.superpowers/
+.design/cache/
+**/desafio_tecnico_ai_eng_artefact.pdf
