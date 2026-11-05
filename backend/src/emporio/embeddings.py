@@ -9,6 +9,8 @@ from fastembed.common.model_description import ModelSource, PoolingType
 EMBEDDING_MODEL = "intfloat/multilingual-e5-small"
 EMBEDDING_DIM = 384
 
+# ponytail: assumes single-threaded construction at startup; add a threading.Lock if
+# built concurrently
 _registered = False
 
 
@@ -25,6 +27,8 @@ class _Model(Protocol):
 def _load_model(cache_dir: Path | None) -> _Model:
     global _registered
     if not _registered:
+        # HF revision is not pinned (fastembed ModelSource has no revision field). The phase 6
+        # image bakes the model at build time; ingest and query must run on the same baked file.
         TextEmbedding.add_custom_model(
             model=EMBEDDING_MODEL,
             pooling=PoolingType.MEAN,
@@ -41,7 +45,9 @@ def _load_model(cache_dir: Path | None) -> _Model:
 
 
 class E5Embedder:
-    def __init__(self, cache_dir: Path | None = None, model: _Model | None = None) -> None:
+    """Build once per process: loading the model costs about 1 s."""
+
+    def __init__(self, cache_dir: Path | None = None, *, model: _Model | None = None) -> None:
         self._model = model if model is not None else _load_model(cache_dir)
 
     def _embed(self, prefix: str, texts: Sequence[str]) -> list[list[float]]:
