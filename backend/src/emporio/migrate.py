@@ -3,7 +3,7 @@ from pathlib import Path
 
 import psycopg
 
-from emporio.db import connect
+from emporio.db import connect, register_vector_if_available
 from emporio.paths import MIGRATIONS_DIR
 
 log = logging.getLogger(__name__)
@@ -37,6 +37,8 @@ def apply_migrations(conn: psycopg.Connection, directory: Path = MIGRATIONS_DIR)
             raise
         applied.append(version)
         log.info("applied migration %s", path.name)
+    if applied:  # the extension may have just been created on this connection
+        register_vector_if_available(conn)
     return applied
 
 

@@ -20,10 +20,15 @@ def database_url() -> str:
     return url
 
 
-def connect(url: str | None = None) -> psycopg.Connection:
-    conn = psycopg.connect(url or database_url())
+def register_vector_if_available(conn: psycopg.Connection) -> None:
+    """Register pgvector adapters; a no-op until the extension exists."""
     exists = conn.execute("SELECT 1 FROM pg_type WHERE typname = 'vector'").fetchone()
     conn.commit()
     if exists:
         register_vector(conn)
+
+
+def connect(url: str | None = None) -> psycopg.Connection:
+    conn = psycopg.connect(url or database_url())
+    register_vector_if_available(conn)
     return conn

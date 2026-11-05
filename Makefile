@@ -46,7 +46,7 @@ ingest:
 db: db-up migrate ingest
 
 test-pg: db-up db-test
-	cd backend && DATABASE_URL=$(TEST_DATABASE_URL) uv run pytest -q -m postgres
+	cd backend && DATABASE_URL=$(TEST_DATABASE_URL) uv run pytest -q -m "postgres and not eval"
 
 evals: db-up db-test
 	cd backend && DATABASE_URL=$(TEST_DATABASE_URL) uv run pytest -q -m eval -s
