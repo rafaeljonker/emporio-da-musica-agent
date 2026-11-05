@@ -1,0 +1,123 @@
+[project]
+name = "emporio"
+version = "0.1.0"
+description = "Customer-service agent for Empório da Música (Artefact AI Engineer case)"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[build-system]
+requires = ["uv_build>=0.12.3,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.40.2",
+    "import-linter>=2.15",
+    "pre-commit>=4.7.0",
+    "pytest>=9.2.0",
+    "ruff>=0.17.3",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF", "ANN", "BLE", "TRY", "DTZ", "S", "PT", "RET", "C4", "PIE", "PERF"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["emporio"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S101", "ANN201"]
+
+[tool.basedpyright]
+typeCheckingMode = "standard"
+include = ["src", "tests"]
+strict = ["src/emporio/*/domain", "src/emporio/*/application", "src/emporio/shared"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.importlinter]
+root_packages = ["emporio"]
+include_external_packages = true
+
+# When a new context is added, add it to EVERY contract below.
+[[tool.importlinter.contracts]]
+name = "catalog layers"
+type = "layers"
+layers = ["infrastructure", "application", "domain"]
+containers = ["emporio.catalog"]
+
+[[tool.importlinter.contracts]]
+name = "orders layers"
+type = "layers"
+layers = ["infrastructure", "application", "domain"]
+containers = ["emporio.orders"]
+
+[[tool.importlinter.contracts]]
+name = "policies layers"
+type = "layers"
+layers = ["infrastructure", "application", "domain"]
+containers = ["emporio.policies"]
+
+[[tool.importlinter.contracts]]
+name = "support layers"
+type = "layers"
+layers = ["infrastructure", "application", "domain"]
+containers = ["emporio.support"]
+
+# Later phases: extend forbidden_modules as each dependency is added, if missing here.
+[[tool.importlinter.contracts]]
+name = "domain and shared stay framework-free"
+type = "forbidden"
+source_modules = [
+    "emporio.catalog.domain", "emporio.orders.domain",
+    "emporio.policies.domain", "emporio.support.domain", "emporio.shared",
+]
+forbidden_modules = [
+    "fastapi", "langchain", "langchain_core", "langgraph", "sqlalchemy", "psycopg",
+    "duckdb", "httpx", "openai", "anthropic", "google",
+]
+
+[[tool.importlinter.contracts]]
+name = "Domain and shared never import application or infrastructure"
+type = "forbidden"
+source_modules = [
+    "emporio.catalog.domain", "emporio.orders.domain",
+    "emporio.policies.domain", "emporio.support.domain", "emporio.shared",
+]
+forbidden_modules = [
+    "emporio.catalog.application", "emporio.catalog.infrastructure",
+    "emporio.orders.application", "emporio.orders.infrastructure",
+    "emporio.policies.application", "emporio.policies.infrastructure",
+    "emporio.support.application", "emporio.support.infrastructure",
+]
+
+[[tool.importlinter.contracts]]
+name = "Shared never imports a context"
+type = "forbidden"
+source_modules = ["emporio.shared"]
+forbidden_modules = ["emporio.catalog", "emporio.orders", "emporio.policies", "emporio.support"]
+
+[[tool.importlinter.contracts]]
+name = "Application never imports any infrastructure"
+type = "forbidden"
+source_modules = [
+    "emporio.catalog.application", "emporio.orders.application",
+    "emporio.policies.application", "emporio.support.application",
+]
+forbidden_modules = [
+    "emporio.catalog.infrastructure", "emporio.orders.infrastructure",
+    "emporio.policies.infrastructure", "emporio.support.infrastructure",
+]
+
+[[tool.importlinter.contracts]]
+name = "Domains are independent of each other"
+type = "independence"
+modules = [
+    "emporio.catalog.domain", "emporio.orders.domain",
+    "emporio.policies.domain", "emporio.support.domain",
+]
