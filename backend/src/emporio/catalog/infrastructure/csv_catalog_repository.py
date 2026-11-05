@@ -16,7 +16,7 @@ class CatalogDataError(DomainError):
     """Raised when a catalog CSV row cannot be parsed."""
 
     def __init__(self, file: str, row: int, cause: Exception) -> None:
-        super().__init__(f"{file}, row {row}: {cause!r}")
+        super().__init__(f"{file}, row {row}: {type(cause).__name__}")
 
 
 def _specs(raw: str) -> tuple[tuple[str, str], ...]:
