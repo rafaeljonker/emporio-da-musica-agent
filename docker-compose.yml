@@ -3,7 +3,7 @@ services:
   db:
     image: pgvector/pgvector:0.8.7-pg17
     ports:
-      - "5433:5432"
+      - "5434:5432"
     environment:
       POSTGRES_USER: emporio
       POSTGRES_PASSWORD: emporio

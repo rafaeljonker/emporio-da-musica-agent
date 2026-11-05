@@ -27,7 +27,7 @@ test:
 check: lint typecheck imports test
 
 # Dev-only local URL (matches docker-compose.yml).
-LOCAL_DATABASE_URL := postgresql://emporio:emporio@localhost:5433/emporio
+LOCAL_DATABASE_URL := postgresql://emporio:emporio@localhost:5434/emporio
 
 db-up:
 	docker compose up -d --wait db

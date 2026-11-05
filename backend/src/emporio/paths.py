@@ -10,3 +10,5 @@ CASE_CSV_FILES: dict[str, Path] = {
 
 # NFC-normalized name (accented "í" is a single code point).
 POLICIES_PDF: Path = DATA_DIR / "políticas_da_loja.pdf"
+
+MIGRATIONS_DIR: Path = REPO_ROOT / "backend" / "migrations"
