@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Empório da Música">
+  <!-- Grid: 256 unit square. Disc r=128. Soundhole center (128,152). Hand-editable. -->
+  <circle cx="128" cy="128" r="128" fill="#C98A2B"/>
+  <circle cx="128" cy="152" r="60" fill="none" stroke="#3B2A1E" stroke-width="4"/>   <!-- rosette (drop at <=24px) -->
+  <circle cx="128" cy="152" r="42" fill="#FAF4EA" stroke="#3B2A1E" stroke-width="14"/> <!-- open hole -->
+  <line x1="106" y1="72" x2="150" y2="52" stroke="#3B2A1E" stroke-width="14" stroke-linecap="round"/> <!-- accent / pick, tilts up-right ~24deg -->
+</svg>
