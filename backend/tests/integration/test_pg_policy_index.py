@@ -1,8 +1,9 @@
 import psycopg
 import pytest
+from psycopg import sql
 
 from emporio.policies.infrastructure.pdf_sections import read_policy_chunks
-from emporio.policies.infrastructure.pg_policy_index import PgPolicyIndex
+from emporio.policies.infrastructure.pg_policy_index import TSQUERY, PgPolicyIndex
 from tests.fakes.hash_embedder import HashEmbedder
 
 pytestmark = pytest.mark.postgres
@@ -41,3 +42,19 @@ def test_stopword_only_question_does_not_fail(pg_conn: psycopg.Connection) -> No
     hits = _index(pg_conn).search("o que é", 5)
 
     assert len(hits) <= 5
+
+
+@pytest.mark.parametrize(
+    ("question", "word"), [("devolucao", "devolução"), ("garantia do violao", "violão")]
+)
+def test_full_text_side_matches_without_accents(
+    pg_conn: psycopg.Connection, question: str, word: str
+) -> None:
+    _index(pg_conn)
+
+    rows = pg_conn.execute(
+        sql.SQL("SELECT body FROM policy_chunks WHERE tsv @@ {}").format(sql.SQL(TSQUERY)),
+        {"text": question},
+    ).fetchall()
+
+    assert any(word in r[0].lower() for r in rows)

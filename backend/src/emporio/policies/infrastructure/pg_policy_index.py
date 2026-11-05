@@ -16,6 +16,12 @@ LIMIT %(k)s
 # Reciprocal rank fusion (constant 60) of a vector ranking and an OR-ed full-text ranking.
 # plainto_tsquery ANDs terms; swapping ' & ' for ' | ' makes any matching term count.
 # A stopword-only question gives an empty tsquery, which matches nothing.
+# Shared with the tests. Do not re-parse the text through to_tsquery: that stems twice.
+TSQUERY = (
+    "to_tsquery('portuguese',"
+    " replace(plainto_tsquery('portuguese', f_unaccent(%(text)s))::text, ' & ', ' | '))"
+)
+
 _HYBRID = """
 WITH vec AS (
     SELECT section_id, row_number() OVER (ORDER BY embedding <=> %(q)s) AS rank
@@ -26,10 +32,7 @@ WITH vec AS (
     SELECT section_id,
            row_number() OVER (ORDER BY ts_rank(tsv, query.q) DESC) AS rank
     FROM policy_chunks,
-         (SELECT to_tsquery(
-             'portuguese',
-             replace(plainto_tsquery('portuguese', f_unaccent(%(text)s))::text, ' & ', ' | ')
-         ) AS q) AS query
+         (SELECT {tsquery} AS q) AS query
     WHERE tsv @@ query.q
     ORDER BY ts_rank(tsv, query.q) DESC
     LIMIT 20
@@ -42,7 +45,7 @@ SELECT c.section_id, c.title, c.parent_title, c.body, fused.score
 FROM fused JOIN policy_chunks c ON c.section_id = fused.section_id
 ORDER BY fused.score DESC, c.section_id
 LIMIT %(k)s
-"""
+""".replace("{tsquery}", TSQUERY)
 
 
 class PgPolicyIndex:
