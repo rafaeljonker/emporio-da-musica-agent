@@ -67,3 +67,9 @@ def test_embedding_text_format() -> None:
 
     assert with_parent.embedding_text == "Trocas > 4.1 Arrependimento\n7 dias."
     assert without_parent.embedding_text == "2 Horário\n09:00."
+
+
+def test_text_before_first_heading_is_not_a_chunk() -> None:
+    chunks = parse_sections(["Sumário solto.", "1. Sobre", "Texto."])
+
+    assert [c.section_id for c in chunks] == ["1"]
