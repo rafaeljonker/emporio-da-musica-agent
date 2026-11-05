@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from emporio.catalog.domain.pricing import Promotion
-from emporio.catalog.domain.product import Product, ProductStatus
+from emporio.catalog.domain.product import Category, Product, ProductStatus
 from emporio.shared.money import Money
 
 
@@ -32,3 +32,7 @@ def promo(
     active: bool = True,
 ) -> Promotion:
     return Promotion(id, product_id, Decimal(percent), label, active)
+
+
+def category(*, id: int = 1, name: str = "Violoes", description: str = "") -> Category:
+    return Category(id, name, description)
