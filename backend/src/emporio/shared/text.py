@@ -8,12 +8,21 @@ def fold(text: str) -> str:
     return " ".join(bare.casefold().split())
 
 
-def stem(token: str) -> str:
-    if token.endswith(("oes", "aes", "aos")):
-        return token[:-3] + "ao"
-    if len(token) > 3 and token.endswith("s"):
-        return token[:-1]
-    return token
+_LONG_PLURALS = (("ores", "or"), ("ais", "al"), ("eis", "el"))
+
+
+def stem(word: str) -> str:
+    if word == "oboes":
+        return "oboe"
+    if word.endswith(("oes", "aes", "aos")):
+        return word[:-3] + "ao"
+    if len(word) > 5:
+        for plural, singular in _LONG_PLURALS:
+            if word.endswith(plural):
+                return word[: -len(plural)] + singular
+    if len(word) > 3 and word.endswith("s"):
+        return word[:-1]
+    return word
 
 
 def tokens(text: str) -> tuple[str, ...]:
