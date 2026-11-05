@@ -47,3 +47,10 @@ def test_ingest_refuses_empty_source() -> None:
     with pytest.raises(EmptyPolicySource):
         IngestPolicies(FakePolicySource(), index)()
     assert len(index.chunks) == 1
+
+
+def test_non_positive_k_returns_nothing_without_searching() -> None:
+    index = InMemoryPolicyIndex(list(CHUNKS))
+
+    assert SearchPolicies(index)("horario", k=0) == ()
+    assert index.search_calls == 0
