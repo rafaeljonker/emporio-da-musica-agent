@@ -36,3 +36,44 @@ strict = ["src/emporio/*/domain", "src/emporio/*/application", "src/emporio/shar
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.importlinter]
+root_packages = ["emporio"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "catalog layers"
+type = "layers"
+layers = ["infrastructure", "application", "domain"]
+containers = ["emporio.catalog"]
+
+[[tool.importlinter.contracts]]
+name = "orders layers"
+type = "layers"
+layers = ["infrastructure", "application", "domain"]
+containers = ["emporio.orders"]
+
+[[tool.importlinter.contracts]]
+name = "policies layers"
+type = "layers"
+layers = ["infrastructure", "application", "domain"]
+containers = ["emporio.policies"]
+
+[[tool.importlinter.contracts]]
+name = "support layers"
+type = "layers"
+layers = ["infrastructure", "application", "domain"]
+containers = ["emporio.support"]
+
+# Later phases: extend forbidden_modules as each dependency is added, if missing here.
+[[tool.importlinter.contracts]]
+name = "domain and shared stay framework-free"
+type = "forbidden"
+source_modules = [
+    "emporio.catalog.domain", "emporio.orders.domain",
+    "emporio.policies.domain", "emporio.support.domain", "emporio.shared",
+]
+forbidden_modules = [
+    "fastapi", "langchain", "langchain_core", "langgraph", "sqlalchemy", "psycopg",
+    "duckdb", "httpx", "openai", "anthropic", "google",
+]
