@@ -96,7 +96,7 @@ They evaluate **"lógica, clareza e iniciativa"** (logic, clarity and initiative
   - **Documented fallback:** whoever does not want to wait uses `--provider gemini|openai|anthropic`.
   - **GPU on during business hours (`min_containers`):** stays only as an option explained in the README, with the cost calculated, and is not enabled by default.
 - **Keys:** the vLLM one (secret `emporio-vllm` on Modal) and those of the optional providers stay only in the local `.env` and in Modal secrets; never in git. The code agent does not copy secrets. Whoever runs locally uses their own key, including the free one.
-- **Deploy:** **Modal (serverless)**, with the Python API (FastAPI + LangGraph) also serving the static React build in a single app. Postgres + pgvector lives on a free managed service (Neon or Supabase, chosen in the phase 3 research). Modal's free credits must be confirmed before going up.
+- **Deploy:** **Modal (serverless)**, with the Python API (FastAPI + LangGraph) also serving the static React build in a single app. Postgres + pgvector lives on Railway, in the owner's existing project (owner decision, phase 3). Modal's free credits must be confirmed before going up.
 - **Demo access login:** the user and password live in Modal secrets and in the local `.env`, and **never enter git**. `.gitignore`, the `.env.example` without values and a CI step that looks for secrets (gitleaks or equivalent) guarantee this. The credentials go only in the delivery e-mail and Google Form.
 - **Deadline:** about 15h or more available until Monday. Submission is on Mon ~20h, with slack.
 
@@ -124,7 +124,7 @@ They evaluate **"lógica, clareza e iniciativa"** (logic, clarity and initiative
 |---|---|---|
 | **catalog** | products, categories, stock, promotions, final price | available only if `active` and stock > 0; only promotions with `is_active=1`; promotional price shown with original + %; PIX 5% off; installments (3.1) |
 | **orders** | status, tracking, items, return/withdrawal eligibility | verified identity (order + customer e-mail or phone); withdrawal (arrependimento) within 7 calendar days after receipt; exchange for defect within 30 days; ineligible items |
-| **policies** | store manual and semantic search | chunking by numbered section; opening hours and "open now" (America/Campo_Grande time zone) |
+| **policies** | store manual and hybrid search | chunking by numbered section (25 chunks); opening hours and "open now" on the real wall clock (America/Campo_Grande), holidays injected |
 | **support** (customer service) | the agent: persona, guard, graph, memory, tools | voice (guide + "AI tell" detector), scope (instruments only; accessories redirected) |
 
 **Layers per domain:**
@@ -140,6 +140,15 @@ The agent's tools are a thin layer in `support/` that calls the use cases. A rul
 - **Search grading:** a result is Exact only when every remaining query word hits a name token of a single product (fuzzy needs score ≥ 0.9 with no runner-up within 0.05; model codes with digits never match fuzzily); everything else is Candidates and the agent asks. Category words tolerate typos ("violuao", "guitara", "ukelele").
 - **Identity:** an unknown order and a wrong e-mail/phone return the same error, so the agent never reveals which order numbers exist.
 
+### 7.2.2 Phase 3 rulings
+- **Policy retrieval is hybrid** (owner decision): pgvector cosine + Postgres full-text (`portuguese`, over an immutable `f_unaccent`), fused with RRF `1/(60 + rank)`, k = 5. On a 20-question eval it scored hit@1/3/5 = 0.75/0.95/1.00 against 0.65/0.80/0.90 for vector only (`backend/evals/policies_retrieval.toml`, caveats in `docs/research/fase-3.md`). Hit@1 is 0.75, so the agent reads all five hits.
+- **Full-text query** is built as `replace(plainto_tsquery('portuguese', f_unaccent(q))::text, ' & ', ' | ')::tsquery`, so lexemes are stemmed once. The Portuguese stemmer splits singular and plural ("violão" → `viola`, "violões" → `violo`); the vector side covers those.
+- **Embeddings:** fastembed with `intfloat/multilingual-e5-small` ONNX (384 dims, `query:`/`passage:` prefixes), no torch. Lives in `emporio/embeddings.py`, usable only by infrastructure. The model revision is pinned when the phase 6 image bakes the model.
+- **Products:** `recommend_products` asks the vector index for 10 ids and filters availability after retrieval (never in SQL), returning at most `limit` (default 5) Candidates.
+- **"Open now"** uses the real wall clock in `America/Campo_Grande`; return windows keep `STORE_TODAY`. Mon–Fri 09:00–18:00, Sat 09:00–13:00, closed Sundays and holidays (hard-coded 2025–2026 list; the Campo Grande holiday on 08-26 is unconfirmed). Opening is inclusive, closing exclusive. `store_now` returns open + next opening.
+- **Database:** plain SQL migrations (`backend/migrations/NNN_*.sql`) with a small runner that commits each file; pgvector is registered on the connection after migrating, so a fresh database (the first Railway deploy) works. Local compose uses host port 5434; Postgres tests run on a separate `emporio_test` database.
+- **Contact data:** the agent quotes WhatsApp (67) 3341-4444 (cover and 1.2). Section 7 lists (67) 3321-4500 and 1.2 spells the e-mail with an accent; both are recorded as data quirks.
+
 ### 7.3 Architecture
 ```
 React (Vite+TS, GSP design system) ──POST /chat (SSE)──► FastAPI (Python)
@@ -147,7 +156,7 @@ React (Vite+TS, GSP design system) ──POST /chat (SSE)──► FastAPI (Pyth
         └── bubbles via SSE ◄─────────────────────────────┤ catalog/orders → stdlib csv (in memory)
                                                            ├ policies → pgvector
                                                            └ history/metrics → Postgres
-    scripts/ingest_policies.py (Python): PDF → chunks by section → e5 embeddings (CPU) → pgvector
+    python -m emporio.ingest: PDF → 25 section chunks → e5 embeddings (CPU) → pgvector (+ product embeddings)
 ```
 - **Graph:** `guard` (Gemma, structured output: loja | acessório | fora_de_escopo | abuso) → `agent` (Gemma + tools, ReAct; tool rules from the spike's prompt v2) → answer.
 - **Memory:** LangGraph `thread_id` with a Postgres checkpointer (`langgraph-checkpoint-postgres`), with the history trimmed to the last N messages.
@@ -168,8 +177,8 @@ React (Vite+TS, GSP design system) ──POST /chat (SSE)──► FastAPI (Pyth
   - `calc_installments`: deterministic;
   - `get_order_status`: with identity verification;
   - `check_return_eligibility`;
-  - `store_now`;
-  - `search_policies`.
+  - `store_now`: open now + next opening, on the real clock;
+  - `search_policies`: hybrid retrieval, top 5 sections cited by section id.
 - **"Today" (design decision):** the orders run from 10/2025 to 03/2026. With the real date, all of them would be outside the withdrawal window. So `STORE_TODAY` is **mandatory** and defaults to **2026-02-20**, chosen so that there are orders inside and outside the window (order 7 is regret-eligible, order 5 is not). It is documented as an assumption, together with the data quirks: some orders are dated after that day, product #135 is named "Music Man Bass 1X" but described as a Fender Jazz Bass, the installment rules conflict (section 3.1 wins), and a delivered order's delivery date is taken as `estimated_delivery`.
 
 ### 7.4 Human voice
@@ -256,9 +265,9 @@ emporio-da-musica-agent/
 │   │   │   ├── application/       # get_order_status.py · list_customer_orders.py · check_return_eligibility.py
 │   │   │   └── infrastructure/    # csv_order_repository.py
 │   │   ├── policies/
-│   │   │   ├── domain/            # policy_chunk.py · store_hours.py
-│   │   │   ├── application/       # search_policies.py · ingest_policies.py
-│   │   │   └── infrastructure/    # pdf_sections.py · e5_embedder.py · pgvector_policy_index.py
+│   │   │   ├── domain/            # policy_chunk.py · sections.py · store_hours.py
+│   │   │   ├── application/       # ports.py · search_policies.py · ingest_policies.py · store_now.py
+│   │   │   └── infrastructure/    # pdf_sections.py · pg_policy_index.py · holidays.py
 │   │   ├── support/
 │   │   │   ├── domain/            # channel_identity.py · bubbles.py · ai_tells.py · scope.py
 │   │   │   ├── application/       # handle_message.py (channel port) · ports.py (ChatModelProvider, ConversationStore)
@@ -268,15 +277,17 @@ emporio-da-musica-agent/
 │   │   │       └── postgres_store.py · metrics.py
 │   │   ├── api/                   # app.py: /auth/login · /warm · /warm/status · /chat (SSE) · /customers
 │   │   ├── cli.py                 # `emporio chat --as-customer 14 --provider gemini`
-│   │   └── config.py              # pydantic-settings
+│   │   ├── config.py              # pydantic-settings
+│   │   ├── embeddings.py · db.py · migrate.py   # shared technical modules (infrastructure only)
+│   │   └── ingest.py              # composition root: python -m emporio.ingest
 │   ├── tests/
 │   │   ├── unit/{catalog,orders,policies,support,shared}/   # pure rules, no LLM/IO
 │   │   ├── integration/           # adapters (CSV, Postgres/pgvector via docker compose, provider factory)
 │   │   └── contract/              # tools: schema and lean JSON output
-│   ├── evals/                     # cases.yaml · run.py · judge.py · reports/
+│   ├── evals/                     # policies_retrieval.toml (phase 3) · agent cases, run, judge, reports (phase 4)
 │   └── load/                      # locustfile.py (simulated and real LLM)
-├── docker-compose.yml             # local Postgres + pgvector
-├── backend/migrations/            # SQL schema (alembic or plain SQL, decided in phase 3)
+├── docker-compose.yml             # local Postgres + pgvector (host port 5434)
+├── backend/migrations/            # plain SQL files, applied by emporio.migrate
 ├── frontend/                      # Vite + React + TS, by feature: auth/ · warmup/ · chat/ · design-system/
 │   └── .design/                   # GSP artifacts (strategy, identity, tokens, critique)
 ├── e2e/                           # Playwright: login → warm-up → conversation → bubbles
@@ -411,7 +422,7 @@ These enter the project (FastAPI + Pydantic remains the web base):
 | **0. Foundation** | repo, AGENTS.md/CLAUDE.md, `.claude/rules` and skills, uv + ruff + pyright + pre-commit + gitleaks, CI, Makefile, `data/`, spec and ADR 0001 committed | AGENTS.md and skills (Anthropic docs), uv, ruff, pre-commit, gitleaks, import-linter, GitHub Actions | Thu 05/11 night |
 | **1. Design** | lean GSP (voice strategy → identity → tokens), mockups to choose from (login, warm-up, chat with bubbles), WCAG critique | GSP, messaging-app-style chat UI patterns, UX of long, explanatory loading | Thu night / Fri morning |
 | **2. Pure domains** | catalog, orders and `shared` (domain + application + stdlib `csv` repositories), all the data traps as tests | DDD in Python (layout, import-linter), stdlib csv/difflib, PT-BR normalization | Fri 06/11 |
-| **3. Policy RAG** | chunking by section, e5 embeddings on CPU, schema and migrations, pgvector (HNSW index), ingestion, local docker compose | pgvector (indexes, cosine distance), psycopg 3 or SQLAlchemy, LangGraph's Postgres checkpointer, Neon × Supabase (free tier, pooling in serverless), multilingual-e5 (query/passage prefixes), PDF extraction | Fri 06/11 |
+| **3. Policy RAG** | chunking by section, e5 embeddings on CPU, schema and migrations, pgvector (HNSW index), ingestion, local docker compose | pgvector (indexes, cosine distance), psycopg 3 or SQLAlchemy, LangGraph's Postgres checkpointer, Railway Postgres (pgvector, public TCP proxy + SSL), multilingual-e5 (query/passage prefixes), PDF extraction | Fri 06/11 |
 | **4. Agent** | MCP server for the tools, LangGraph graph (guard → agent ⇄ tools), provider port (Gemma/vLLM, Gemini, OpenAI, Anthropic), voice + bubbles + detector, evals | FastMCP and langchain-mcp-adapters, LangGraph (current API), vLLM + Gemma 4 tool parser, init_chat_model of the 4 providers, structured output | Sat 07/11 |
 | **5. API + Frontend** | FastAPI (demo login, `/warm` and `/warm/status`, `/chat` SSE), React with design system (login → warm-up screen → chat with bubbles and "digitando…"), `make up` and `make e2e` (Playwright) | SSE in FastAPI, simple secure auth, SSE in React (EventSource/fetch stream), Playwright | Sat 07/11 night / Sun 08/11 |
 | **6. GPU, deploy and scale** | Gemma FP8/16k on L40S × H100 (cost × latency × evals), measured and optimized cold start (snapshot, cache), API deploy on Modal, Langfuse, load test | Modal (GPU memory snapshots, web endpoints, secrets), vLLM FP8 for Gemma 4, Langfuse SDK, Locust | Sun 08/11 |

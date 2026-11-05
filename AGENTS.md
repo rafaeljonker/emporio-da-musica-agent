@@ -10,6 +10,9 @@ Run from the repo root; all targets execute in `backend/`.
 - `make setup`: install deps and pre-commit hooks.
 - `make check`: lint + typecheck + import contracts + tests. Green before every commit, except the `(red)` commit of a TDD pair, where only the new test may fail.
 - `make test`: pytest only.
+- `make db`: start Postgres (host port 5434), migrate, ingest policies and products.
+- `make test-pg`: Postgres integration tests on a separate `emporio_test` database; never touches dev data.
+- `make evals`: real-model retrieval eval on `emporio_test` (ingests by itself, no `make db` needed); not part of `make check`.
 - `make fmt`: ruff format and `ruff check --fix`.
 
 ## Architecture rules
@@ -21,6 +24,8 @@ Enforced by `import-linter` (`make imports`).
 | `*/application` | own `domain`, other `application` via ports, `shared` |
 | `*/infrastructure` | `application`, `domain` and external libs |
 | `api/`, `cli.py` | `support.application` and `config` (never another domain's `infrastructure`, only via the factory) |
+
+`emporio.db`, `embeddings`, `migrate` are leaf technical modules usable only by infrastructure; `emporio.ingest` is the composition root.
 
 Domain has no IO and no frameworks. One use case per file.
 
@@ -44,6 +49,8 @@ Never write keys or real values in any file. Use `.env` (git-ignored); `.env.exa
 
 ## Gotchas
 - Files in `data/` have spaces and accents in their names; never hardcode them, use `emporio.paths`.
+- `DATABASE_URL` is the only DB setting. `make db`, `make test-pg` and `make evals` set their own URL; `make test`/`make check` ignore any exported `DATABASE_URL`; Postgres tests only run against a database whose name ends in `_test`.
+- First use of the e5 embedder downloads about 470 MB (fastembed cache); `make db` and `make evals` need it.
 - `data/` is read-only source material.
 
 ## Code style

@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Protocol
 
 from emporio.catalog.domain.pricing import Promotion
@@ -11,3 +11,13 @@ class CatalogRepository(Protocol):
     def categories(self) -> Sequence[Category]: ...
 
     def promotions(self) -> Sequence[Promotion]: ...
+
+
+class ProductIndex(Protocol):
+    def similar(self, need: str, k: int) -> Sequence[int]:
+        """Product ids, most similar to the need first."""
+        ...
+
+    def replace_all(
+        self, products: Sequence[Product], category_names: Mapping[int, str]
+    ) -> None: ...
