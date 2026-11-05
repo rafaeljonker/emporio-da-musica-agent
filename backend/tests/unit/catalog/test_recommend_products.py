@@ -90,7 +90,7 @@ def test_recommend_with_non_positive_limit_returns_no_match_without_asking_index
     limit: int,
 ) -> None:
     index = FakeIndex([1, 2])
-    recommend = RecommendProducts(FakeCatalogRepository([product(id=1), product(id=2)]), index)
+    recommend = RecommendProducts(FakeCatalogRepository((product(id=1), product(id=2))), index)
 
     assert recommend("quero algo", limit) == NoMatch()
     assert index.asked is None
