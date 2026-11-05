@@ -10,6 +10,10 @@ MAX_INSTALLMENTS = 12
 class InvalidInstallments(DomainError):
     """Raised when an installment count is out of range or the parcel is too small."""
 
+    def __init__(self, count: int, total: Money | None = None) -> None:
+        suffix = "" if total is None else f" for total {total.amount}"
+        super().__init__(f"{count} installments not allowed{suffix}")
+
 
 @dataclass(frozen=True, slots=True)
 class InstallmentPlan:
@@ -29,16 +33,19 @@ def minimum_for(count: int) -> Decimal:
     raise InvalidInstallments(count)
 
 
+def _allowed(total: Money, count: int) -> bool:
+    # Exact (unrounded) parcel: rounding up must never let the sum exceed the total.
+    return total.amount / count >= minimum_for(count)
+
+
 def installment_plan(total: Money, count: int) -> InstallmentPlan:
-    parcel = total.divided_by(count) if count >= 1 else None
-    if parcel is None or parcel.amount < minimum_for(count):
-        raise InvalidInstallments(count)
-    return InstallmentPlan(count, parcel)
+    if count < 1 or count > MAX_INSTALLMENTS or not _allowed(total, count):
+        raise InvalidInstallments(count, total)
+    return InstallmentPlan(count, total.divided_by(count))
 
 
 def max_installments(total: Money) -> InstallmentPlan:
     for count in range(MAX_INSTALLMENTS, 1, -1):
-        parcel = total.divided_by(count)
-        if parcel.amount >= minimum_for(count):
-            return InstallmentPlan(count, parcel)
+        if _allowed(total, count):
+            return InstallmentPlan(count, total.divided_by(count))
     return InstallmentPlan(1, total)
