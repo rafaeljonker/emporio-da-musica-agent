@@ -1,0 +1,13 @@
+---
+paths:
+  - "backend/**/*.py"
+---
+- Money is `Decimal`, never `float`.
+- Domain entities are `@dataclass(frozen=True)`, never loose `dict`s.
+- Pydantic only at the edges (API, tools, MCP, config).
+- No `typing.Any`, no `cast`; `# type: ignore` only with a justification on the same line.
+- Raise own domain exceptions (`OrderNotFound`, `IdentityMismatch`), not a generic `ValueError`.
+- Functions: explicit name, one responsibility, no boolean flag that changes behavior.
+- Date and time always via `emporio.shared.clock`, never `datetime.now()` directly.
+- Use `logging`, not `print`.
+- What ruff/basedpyright already catch is not repeated here; run `make check`.
