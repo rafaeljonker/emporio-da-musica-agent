@@ -1,4 +1,6 @@
-from datetime import date
+from datetime import date, timedelta
+
+import pytest
 
 from emporio.orders.domain.order import OrderStatus
 from emporio.orders.domain.return_policy import ReturnReason, check_return
@@ -77,3 +79,22 @@ def test_delivered_without_delivery_date_has_no_regret_window():
     assert e.regret_deadline is None
     assert e.defect_eligible
     assert e.reason == ReturnReason.NO_DELIVERY_DATE
+
+
+@pytest.mark.parametrize(
+    ("days_after_order", "defect_eligible", "reason"),
+    [
+        (30, True, ReturnReason.WITHIN_DEFECT_WINDOW),
+        (31, False, ReturnReason.DEFECT_WINDOW_CLOSED),
+    ],
+)
+def test_defect_window_boundary_is_day_30_after_order_date(
+    days_after_order: int, defect_eligible: bool, reason: ReturnReason
+):
+    order_date = date(2026, 1, 1)
+    e = check_return(
+        order(order_date=order_date, estimated_delivery=date(2026, 1, 2)),
+        order_date + timedelta(days=days_after_order),
+    )
+    assert e.defect_eligible is defect_eligible
+    assert e.reason == reason

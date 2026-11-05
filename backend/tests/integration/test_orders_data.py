@@ -7,6 +7,7 @@ from emporio.orders.application.get_order_status import GetOrderStatus
 from emporio.orders.application.list_customer_orders import ListCustomerOrders
 from emporio.orders.domain.identity import IdentityMismatch
 from emporio.orders.domain.order import OrderStatus
+from emporio.orders.domain.return_policy import ReturnReason
 from emporio.orders.infrastructure.csv_order_repository import (
     CsvCustomerRepository,
     CsvOrderRepository,
@@ -30,6 +31,13 @@ def test_cancelled_order_17_is_not_eligible() -> None:
     r = CheckReturnEligibility(repo, clock)(17, 15)
     assert not r.regret_eligible
     assert not r.defect_eligible
+
+
+def test_order_6_defect_window_closed_on_feb_20() -> None:
+    r = CheckReturnEligibility(repo, clock)(6, 9)
+    assert not r.regret_eligible
+    assert not r.defect_eligible
+    assert r.reason is ReturnReason.DEFECT_WINDOW_CLOSED
 
 
 def test_order_5_status_with_owner_email() -> None:
