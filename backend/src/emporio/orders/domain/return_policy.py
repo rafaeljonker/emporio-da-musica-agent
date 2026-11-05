@@ -30,7 +30,7 @@ def check_return(order: Order, today: date) -> ReturnEligibility:
       no_delivery_date       delivered but no delivery date: regret window unknown
       within_regret_window   regret (7 days after delivery) still open
       within_defect_window   regret closed, defect (30 days after purchase) open
-      regret_window_closed   both windows closed
+      defect_window_closed   both windows closed
     """
     if order.status is OrderStatus.CANCELLED:
         return ReturnEligibility(False, False, None, None, None, "cancelled")
@@ -49,5 +49,5 @@ def check_return(order: Order, today: date) -> ReturnEligibility:
     elif defect:
         reason = "within_defect_window"
     else:
-        reason = "regret_window_closed"
+        reason = "defect_window_closed"
     return ReturnEligibility(regret, defect, delivered_on, regret_deadline, defect_deadline, reason)

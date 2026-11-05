@@ -23,5 +23,6 @@ def _email(raw: str) -> str:
 def matches_identity(customer: Customer, email_or_phone: str) -> bool:
     if "@" in email_or_phone:
         return _email(customer.email) == _email(email_or_phone)
+    # No suffix matching: a number without DDD never matches (no partial auth).
     wanted = normalize_phone(email_or_phone)
     return wanted != "" and wanted == normalize_phone(customer.phone)
