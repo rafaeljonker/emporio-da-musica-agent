@@ -41,6 +41,7 @@ strict = ["src/emporio/*/domain", "src/emporio/*/application", "src/emporio/shar
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = ["--import-mode=importlib"]
+pythonpath = ["."]
 
 [tool.importlinter]
 root_packages = ["emporio"]
