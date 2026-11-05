@@ -38,8 +38,8 @@ Red, green, refactor. Each behavior is a pair of commits: `test(x): <behavior> (
 Never write keys or real values in any file. Use `.env` (git-ignored); `.env.example` lists names only.
 
 ## Language policy
-- English: code, identifiers, commit messages, PRs, this file.
-- Portuguese: README, `docs/`, ADRs, `examples/`.
+- English: code, identifiers, commits, PRs, this file, skills, rules, and all engineering docs (`docs/**`, `.design/`).
+- Portuguese (pt-BR): `README.md`, `examples/`, and everything the store's customer reads or that shapes the agent's Portuguese speech (agent responses, voice guide, persona prompts).
 - The agent talks to customers in Brazilian Portuguese.
 
 ## Gotchas

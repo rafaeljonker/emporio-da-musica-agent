@@ -1,59 +1,59 @@
-# Pesquisa Fase 1: design do chat do Empório da Música
+# Phase 1 research: design of the Empório da Música chat
 
-Data: 2026-11-05. Escopo: GSP, padrões de chat, esperas longas, acessibilidade, design tokens.
+Date: 2026-11-05. Scope: GSP, chat patterns, long waits, accessibility, design tokens.
 
 ## 1. Get Shit Pretty (GSP)
 
-**Instalação (README):** https://github.com/jubscodes/get-shit-pretty
-- O README documenta `pnpm dlx get-shit-pretty` ou `bunx get-shit-pretty`. O `npx get-shit-pretty` aparece no SKILL local (`~/.claude/skills/get-shit-pretty/SKILL.md`), mas o README, na leitura que fiz, não o cita. Não confirmei se funciona.
-- O instalador é **interativo** (pergunta runtime e global/local). Há modo não interativo: `--claude --global` ou `--claude --local` (README).
-- Global grava em `~/.claude/` (skills em `~/.claude/skills/`, agents em `~/.claude/agents/`). O README não diz que o instalador cria arquivos no projeto. Os artefatos de design vão para `.design/` no projeto (`~/.claude/skills/get-shit-pretty/SKILL.md`).
-- O README não define um "lean path". O mais próximo é `/gsp-style <preset>`, que gera tokens sem o branding diamond.
+**Installation (README):** https://github.com/jubscodes/get-shit-pretty
+- The README documents `pnpm dlx get-shit-pretty` or `bunx get-shit-pretty`. `npx get-shit-pretty` appears in the local SKILL (`~/.claude/skills/get-shit-pretty/SKILL.md`), but the README, as I read it, does not mention it. I did not confirm that it works.
+- The installer is **interactive** (it asks for runtime and global/local). There is a non-interactive mode: `--claude --global` or `--claude --local` (README).
+- Global writes to `~/.claude/` (skills in `~/.claude/skills/`, agents in `~/.claude/agents/`). The README does not say the installer creates files in the project. Design artifacts go to `.design/` in the project (`~/.claude/skills/get-shit-pretty/SKILL.md`).
+- The README does not define a "lean path". The closest is `/gsp-style <preset>`, which generates tokens without the branding diamond.
 
-**Estado local (verificado):** os skills `gsp-*` existem em `~/.claude/skills/`, junto com `~/.claude/references/`, `prompts/` e `templates/`. Mas `~/.claude/agents/` está **vazio** e não há nenhum `gsp-brand-strategist*` em `~/.claude`. Os SKILLs dizem que "GSP requires a full installation to work — agents, prompts, templates" (`~/.claude/skills/get-shit-pretty/SKILL.md`). Strategy, identity, patterns, design e critique spawnam agents (`gsp-brand-strategist`, `gsp-identity-designer`, `gsp-system-architect`, `gsp-designer`, `gsp-critic`, `gsp-accessibility-auditor`; ver o `<objective>` de cada SKILL.md em `~/.claude/skills/gsp-*/SKILL.md`). Conclusão: a instalação local parece incompleta. Isso é inferência, não testei rodar um skill.
+**Local state (verified):** the `gsp-*` skills exist in `~/.claude/skills/`, along with `~/.claude/references/`, `prompts/` and `templates/`. But `~/.claude/agents/` is **empty** and there is no `gsp-brand-strategist*` in `~/.claude`. The SKILLs say "GSP requires a full installation to work — agents, prompts, templates" (`~/.claude/skills/get-shit-pretty/SKILL.md`). Strategy, identity, patterns, design and critique spawn agents (`gsp-brand-strategist`, `gsp-identity-designer`, `gsp-system-architect`, `gsp-designer`, `gsp-critic`, `gsp-accessibility-auditor`; see the `<objective>` of each SKILL.md in `~/.claude/skills/gsp-*/SKILL.md`). Conclusion: the local installation looks incomplete. This is an inference; I did not try running a skill.
 
-**Ordem do lean path (SKILLs locais):**
-1. `/gsp:start`: cria `.design/branding/{brand}/BRIEF.md` e `.design/projects/{project}/` (`~/.claude/skills/gsp-start/SKILL.md`). Interativo (usa `AskUserQuestion`).
-2. `/gsp:brand-strategy`: gera `strategy/` com 5 chunks (inclui `voice-and-tone.md`). Interativo. Lê `discover/` se existir; roda só com o BRIEF.md (`gsp-brand-strategy/SKILL.md`), então `brand-research` pode ser pulado.
-3. `/gsp:brand-identity`: gera `identity/` (6 chunks + `palettes.json`). Exige a strategy completa (`gsp-brand-identity/SKILL.md`).
-4. `/gsp:brand-patterns`: gera `system/` com `tokens.json`, foundations, components e `preview.html` (`gsp-brand-patterns/SKILL.md`).
-5. `/gsp:project-brief`: gera `projects/{p}/brief/` (`gsp-project-brief/SKILL.md`).
-6. `/gsp:project-design`: gera `projects/{p}/design/` (um chunk por tela) (`gsp-project-design/SKILL.md`).
-7. `/gsp:project-critique`: roda `gsp-critic` (Nielsen) e `gsp-accessibility-auditor` (WCAG 2.2 AA) em paralelo e grava em `critique/` (`gsp-project-critique/SKILL.md`). Se houver `needs-revision`, `project-design` relê `critique/prioritized-fixes.md`.
+**Lean path order (local SKILLs):**
+1. `/gsp:start`: creates `.design/branding/{brand}/BRIEF.md` and `.design/projects/{project}/` (`~/.claude/skills/gsp-start/SKILL.md`). Interactive (uses `AskUserQuestion`).
+2. `/gsp:brand-strategy`: generates `strategy/` with 5 chunks (includes `voice-and-tone.md`). Interactive. Reads `discover/` if it exists; runs with only the BRIEF.md (`gsp-brand-strategy/SKILL.md`), so `brand-research` can be skipped.
+3. `/gsp:brand-identity`: generates `identity/` (6 chunks + `palettes.json`). Requires the complete strategy (`gsp-brand-identity/SKILL.md`).
+4. `/gsp:brand-patterns`: generates `system/` with `tokens.json`, foundations, components and `preview.html` (`gsp-brand-patterns/SKILL.md`).
+5. `/gsp:project-brief`: generates `projects/{p}/brief/` (`gsp-project-brief/SKILL.md`).
+6. `/gsp:project-design`: generates `projects/{p}/design/` (one chunk per screen) (`gsp-project-design/SKILL.md`).
+7. `/gsp:project-critique`: runs `gsp-critic` (Nielsen) and `gsp-accessibility-auditor` (WCAG 2.2 AA) in parallel and writes to `critique/` (`gsp-project-critique/SKILL.md`). If there is `needs-revision`, `project-design` rereads `critique/prioritized-fixes.md`.
 
-Pré-requisito: o `brief` e o `design` leem `brand.ref` e `system/tokens.json`. Por isso o patterns não pode ser pulado, a menos que se use `/gsp:style` (`gsp-style/SKILL.md`). Observação: o README usa nomes `/gsp-...`, os SKILLs locais usam `/gsp:...`. Confirmar com `/gsp-help`.
+Prerequisite: `brief` and `design` read `brand.ref` and `system/tokens.json`. That is why patterns cannot be skipped, unless `/gsp:style` is used (`gsp-style/SKILL.md`). Note: the README uses `/gsp-...` names, the local SKILLs use `/gsp:...`. Confirm with `/gsp-help`.
 
-## 2. Padrões de UI de chat
+## 2. Chat UI patterns
 
-Não encontrei fonte autoritativa para bubble layout. As recomendações abaixo são convenção de mercado e minha inferência.
-- Layout: bolhas do cliente à direita e do atendente à esquerda, agrupamento de mensagens consecutivas do mesmo remetente, timestamp por grupo, mobile-first com input fixo embaixo. Convenção do WhatsApp, não citável.
-- **Pacing:** não há benchmark validado. Fontes do achado: vendors usam delay fixo (padrão 2 s, https://support.ingenious.ai/hc/en-au/articles/5114874768407), delay escalado ao tamanho da mensagem com mínimo e máximo (https://help.nicecxone.com/content/aiassistantsandbots/botbuilder/featuredetails/smarttyping.htm) e o módulo open source de presença WhatsApp modela 42 wpm mais jitter aleatório (https://cdn.jsdelivr.net/npm/waha-openclaw-channel@2.2.0/docs/presence.md). 42 wpm equivale a cerca de 3,5 caracteres por segundo (cálculo meu, 5 caracteres por palavra). A pesquisa recomenda delay proporcional ao tamanho, com piso e teto, e variação aleatória, tudo a ser calibrado em teste.
-- A página NN/g de chatbots (`/articles/chatbots-ux-heuristics/`) retornou 404, então não há fonte NN/g sobre isso.
+I did not find an authoritative source for bubble layout. The recommendations below are market convention and my inference.
+- Layout: customer bubbles on the right and attendant bubbles on the left, grouping of consecutive messages from the same sender, a timestamp per group, mobile-first with the input fixed at the bottom. WhatsApp convention, not citable.
+- **Pacing:** there is no validated benchmark. Sources for the finding: vendors use a fixed delay (default 2 s, https://support.ingenious.ai/hc/en-au/articles/5114874768407), a delay scaled to message length with a minimum and a maximum (https://help.nicecxone.com/content/aiassistantsandbots/botbuilder/featuredetails/smarttyping.htm) and the open source WhatsApp presence module models 42 wpm plus random jitter (https://cdn.jsdelivr.net/npm/waha-openclaw-channel@2.2.0/docs/presence.md). 42 wpm is about 3.5 characters per second (my calculation, 5 characters per word). The research recommends a delay proportional to length, with a floor and a ceiling, and random variation, all to be calibrated in testing.
+- The NN/g chatbot page (`/articles/chatbots-ux-heuristics/`) returned 404, so there is no NN/g source on this.
 
-## 3. Esperas longas (cold start de 30 s a 3 min)
+## 3. Long waits (cold start from 30 s to 3 min)
 
-- O limite de 10 s é "o máximo que o usuário mantém a atenção". Acima disso: mostrar percent-done, dizer quando deve terminar, dar forma clara de interromper, e usar spinner genérico só como último recurso. Se o trabalho total é desconhecido, mostrar progresso corrente (https://www.nngroup.com/articles/response-times-3-important-limits/).
-- Para 10 s ou mais, usar indicador percent-done. Evitar "Loading..." estático. Dar estimativa arredondada para cima. Barra deve começar lenta e acelerar, nunca disparar e travar. Se a estimativa for longa, deixar o usuário sair (aviso ou callback). Usuários com barra de progresso esperaram cerca de 3x mais (https://www.nngroup.com/articles/progress-indicators/).
-- Aplicação: o cold start não tem progresso real mensurável, então a barra seria fingida. Uma alternativa honesta é mostrar etapas reais (acordando o servidor, carregando o modelo, pronto) e o tempo decorrido, com a explicação de por que demora. Isso é minha inferência a partir do NN/g (progresso corrente quando o total é desconhecido).
+- The 10 s limit is "the maximum the user keeps their attention". Above that: show percent-done, say when it should finish, give a clear way to interrupt, and use a generic spinner only as a last resort. If the total work is unknown, show running progress (https://www.nngroup.com/articles/response-times-3-important-limits/).
+- For 10 s or more, use a percent-done indicator. Avoid a static "Loading...". Give an estimate rounded up. The bar should start slow and speed up, never shoot up and stall. If the estimate is long, let the user leave (a notice or a callback). Users with a progress bar waited about 3x longer (https://www.nngroup.com/articles/progress-indicators/).
+- Application: the cold start has no measurable real progress, so the bar would be faked. An honest alternative is to show real stages (waking the server, loading the model, ready) and the elapsed time, with the explanation of why it takes long. This is my inference from NN/g (running progress when the total is unknown).
 
-## 4. Acessibilidade do chat (WCAG 2.2 AA)
+## 4. Chat accessibility (WCAG 2.2 AA)
 
-- `role="log"` tem `aria-live="polite"` e `aria-atomic="false"` implícitos, exige nome acessível (`aria-label`/`aria-labelledby`) e serve para chat, com novas mensagens só no fim. O MDN não dá orientação específica de chat entre polite e assertive (https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Reference/Roles/log_role). Minha recomendação: usar `role="log"` na lista de mensagens e `role="status"` no indicador de digitação e no status do warm-up.
-- SC 4.1.3 (AA): mensagens de status devem ser identificáveis por software sem mover o foco. `role="log"` e `role="status"` são técnicas suficientes para progresso. Usar `role="alert"` ou `assertive` em conteúdo não urgente é falha comum (https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html).
-- Movimento: SC 2.3.3 é nível AAA, não AA. A técnica C39 usa `prefers-reduced-motion` (https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions.html). Aplicar mesmo assim ao typing indicator (trocar pulso por "digitando…" estático). Não confirmei o limiar de 5 s do SC 2.2.2 na página consultada.
-- Contraste: SC 1.4.11 exige 3:1 para componentes de UI e focus indicator (https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html). O texto de 4.5:1 vem do SC 1.4.3, que não abri nesta pesquisa (conhecimento geral). Texto em bolhas deve passar 4.5:1.
-- Foco e teclado: não consultei fonte específica. Prática sugerida: foco permanece no input ao enviar, Enter envia, não roubar foco ao chegar mensagem. Marcar como não verificado.
+- `role="log"` has implicit `aria-live="polite"` and `aria-atomic="false"`, requires an accessible name (`aria-label`/`aria-labelledby`) and fits chat, with new messages only at the end. MDN gives no chat-specific guidance between polite and assertive (https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Reference/Roles/log_role). My recommendation: use `role="log"` on the message list and `role="status"` on the typing indicator and on the warm-up status.
+- SC 4.1.3 (AA): status messages must be programmatically identifiable without moving focus. `role="log"` and `role="status"` are sufficient techniques for progress. Using `role="alert"` or `assertive` on non-urgent content is a common failure (https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html).
+- Motion: SC 2.3.3 is level AAA, not AA. Technique C39 uses `prefers-reduced-motion` (https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions.html). Apply it to the typing indicator anyway (swap the pulse for a static "digitando…"). I did not confirm the 5 s threshold of SC 2.2.2 on the page I consulted.
+- Contrast: SC 1.4.11 requires 3:1 for UI components and the focus indicator (https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html). The 4.5:1 for text comes from SC 1.4.3, which I did not open in this research (general knowledge). Text in bubbles must pass 4.5:1.
+- Focus and keyboard: I did not consult a specific source. Suggested practice: focus stays on the input when sending, Enter sends, do not steal focus when a message arrives. Mark as unverified.
 
 ## 5. Design tokens
 
-- O DTCG publicou a primeira versão estável **2025.10** em 28/10/2025 (https://www.designtokens.org/). Extensão e media type não confirmados.
-- O GSP gera `tokens.json` em formato W3C Design Tokens e mapeia por convenção `color.brand.primary` para `--color-brand-primary` e para `text-brand-primary` no Tailwind (`~/.claude/references/design-tokens.md`, seção "Token-to-Code Mapping"). O SKILL de patterns pergunta o `tech_stack` e, para Tailwind, estende o config (`gsp-brand-patterns/SKILL.md`). Para Vite+React sugiro CSS custom properties em `:root`, pois é o que o GSP produz de forma direta. Style Dictionary é citado como ferramenta de conversão (mesmo arquivo de referência).
-- Não confirmei a versão do formato que o `tokens.json` do GSP usa (`$value`/`$type` vs. rascunho anterior).
+- The DTCG published the first stable version, **2025.10**, on 28/10/2025 (https://www.designtokens.org/). Extension and media type not confirmed.
+- GSP generates `tokens.json` in the W3C Design Tokens format and by convention maps `color.brand.primary` to `--color-brand-primary` and to `text-brand-primary` in Tailwind (`~/.claude/references/design-tokens.md`, section "Token-to-Code Mapping"). The patterns SKILL asks for the `tech_stack` and, for Tailwind, extends the config (`gsp-brand-patterns/SKILL.md`). For Vite+React I suggest CSS custom properties on `:root`, since that is what GSP produces directly. Style Dictionary is cited as a conversion tool (same reference file).
+- I did not confirm which version of the format GSP's `tokens.json` uses (`$value`/`$type` vs. the earlier draft).
 
-## Decisões recomendadas para a Fase 1
+## Recommended decisions for Phase 1
 
-1. **Corrigir a instalação do GSP antes de começar.** Rodar `pnpm dlx get-shit-pretty --claude --global` (ou `--local`), pois `~/.claude/agents/` está vazio. Depois testar com `/gsp-doctor` e `/gsp-help` para confirmar a sintaxe de comando. Fazer o instalador rodar num terminal real, e as perguntas de `/gsp:start` e strategy exigem o Rafael presente.
-2. **Caminho lean:** start → brand-strategy → brand-identity → brand-patterns → project-brief → project-design → project-critique. Pular brand-research e brand-audit. Alternativa mais curta: `/gsp:style` com um preset para tokens, caso o branding completo pese.
-3. **Warm-up honesto:** etapas reais com tempo decorrido, estimativa arredondada para cima ("normalmente 30 s a 3 min"), explicação direta de que o modelo roda em GPU que precisa ligar, e opção de sair e voltar. Sem barra fingindo precisão. `role="status"` para o texto.
-4. **Chat:** `role="log"` com nome acessível, typing indicator com `role="status"` e `prefers-reduced-motion`, delay entre bolhas proporcional ao tamanho (piso e teto, com jitter), parametrizado em constantes para calibrar. Seletor "conversar como…" rotulado como simulação de identidade do WhatsApp.
-5. **Tokens:** exportar `tokens.json` (DTCG) para CSS custom properties; Tailwind só se o projeto já o usar. Metas de contraste: 4.5:1 texto, 3:1 UI e focus.
+1. **Fix the GSP installation before starting.** Run `pnpm dlx get-shit-pretty --claude --global` (or `--local`), because `~/.claude/agents/` is empty. Then test with `/gsp-doctor` and `/gsp-help` to confirm the command syntax. Run the installer in a real terminal, and the questions in `/gsp:start` and strategy require the owner to be present.
+2. **Lean path:** start → brand-strategy → brand-identity → brand-patterns → project-brief → project-design → project-critique. Skip brand-research and brand-audit. Shorter alternative: `/gsp:style` with a preset for tokens, if the full branding is too heavy.
+3. **Honest warm-up:** real stages with elapsed time, an estimate rounded up ("normalmente 30 s a 3 min"), a direct explanation that the model runs on a GPU that needs to power on, and an option to leave and come back. No bar faking precision. `role="status"` for the text.
+4. **Chat:** `role="log"` with an accessible name, typing indicator with `role="status"` and `prefers-reduced-motion`, delay between bubbles proportional to length (floor and ceiling, with jitter), parameterized in constants for calibration. The "conversar como…" selector labeled as a simulation of the WhatsApp identity.
+5. **Tokens:** export `tokens.json` (DTCG) to CSS custom properties; Tailwind only if the project already uses it. Contrast targets: 4.5:1 text, 3:1 UI and focus.

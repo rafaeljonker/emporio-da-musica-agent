@@ -1,15 +1,15 @@
-# 0001. Dado estruturado via tools, texto de política via RAG
+# 0001. Structured data via tools, policy text via RAG
 
-## Contexto
+## Context
 
-A loja tem dados estruturados (preço, estoque, pedidos, promoções, em CSVs) e um manual de políticas em texto livre (PDF, cerca de 20 seções). A própria política diz: "nunca fornecer informações sobre preços, estoque ou prazos sem consultar o sistema". Consultas exatas não podem ser busca semântica aproximada.
+The store has structured data (price, stock, orders, promotions, in CSVs) and a free-text policy manual (PDF, about 20 sections). The policy itself says: "nunca fornecer informações sobre preços, estoque ou prazos sem consultar o sistema" (never provide information about prices, stock or lead times without checking the system). Exact lookups cannot be approximate semantic search.
 
-## Decisão
+## Decision
 
-Dados estruturados são respondidos por tools determinísticas que consultam os CSVs. Apenas o manual de políticas passa por RAG (pgvector).
+Structured data is answered by deterministic tools that query the CSVs. Only the policy manual goes through RAG (pgvector).
 
-## Consequências
+## Consequences
 
-- As tools são tipadas e testadas.
-- O escopo do RAG fica pequeno.
-- A porta `PolicyIndex` permite trocar o vector store no futuro.
+- The tools are typed and tested.
+- The scope of the RAG stays small.
+- The `PolicyIndex` port allows swapping the vector store in the future.
