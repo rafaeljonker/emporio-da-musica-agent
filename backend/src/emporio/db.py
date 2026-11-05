@@ -23,6 +23,7 @@ def database_url() -> str:
 def connect(url: str | None = None) -> psycopg.Connection:
     conn = psycopg.connect(url or database_url())
     exists = conn.execute("SELECT 1 FROM pg_type WHERE typname = 'vector'").fetchone()
+    conn.commit()
     if exists:
         register_vector(conn)
     return conn

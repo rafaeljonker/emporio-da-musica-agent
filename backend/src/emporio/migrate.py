@@ -21,14 +21,20 @@ def apply_migrations(conn: psycopg.Connection, directory: Path = MIGRATIONS_DIR)
     conn.execute(_CREATE_TABLE)
     conn.commit()
     done = {r[0] for r in conn.execute("SELECT version FROM schema_migrations").fetchall()}
+    conn.commit()  # end the read transaction so each migration below is its own transaction
     applied: list[str] = []
     for path in sorted(directory.glob("[0-9][0-9][0-9]_*.sql")):
         version = path.name.split("_", 1)[0]
         if version in done:
             continue
-        with conn.transaction():
+        try:
+            # SQL comes from repo-trusted files, not user input, so the non-literal query is safe.
             conn.execute(path.read_text())  # pyright: ignore[reportCallIssue, reportArgumentType]
             conn.execute("INSERT INTO schema_migrations (version) VALUES (%s)", (version,))
+            conn.commit()
+        except psycopg.Error:
+            conn.rollback()
+            raise
         applied.append(version)
         log.info("applied migration %s", path.name)
     return applied
