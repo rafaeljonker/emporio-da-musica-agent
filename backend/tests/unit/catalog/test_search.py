@@ -3,12 +3,17 @@ from emporio.catalog.domain.search import Candidates, Exact, NoMatch, SearchResu
 from emporio.shared.money import Money
 from tests.unit.catalog.factories import category, m, product
 
-GUITARRAS, BAIXOS, BATERIAS, VIOLAO, METAIS, CORDAS, UKULELES = 1, 2, 3, 5, 7, 8, 9
+GUITARRAS, BAIXOS, BATERIAS, TECLADOS, VIOLAO, METAIS, CORDAS, UKULELES = 1, 2, 3, 4, 5, 7, 8, 9
 
 CATEGORIES = (
     category(id=GUITARRAS, name="Guitarras"),
     category(id=BAIXOS, name="Baixos"),
     category(id=BATERIAS, name="Baterias e Percussão"),
+    category(
+        id=TECLADOS,
+        name="Teclados e Pianos",
+        description="Pianos digitais, sintetizadores, arranjadores e controladores MIDI",
+    ),
     category(id=VIOLAO, name="Violões"),
     category(id=METAIS, name="Instrumentos de Sopro (Metais)"),
     category(id=CORDAS, name="Cordas Orquestrais"),
@@ -36,7 +41,34 @@ CATALOG = (
     product(
         id=145, name="Fender Stratocaster American Pro II", category_id=GUITARRAS, price="12500"
     ),
-    product(id=135, name="Music Man Bass 1X Electric Bass", category_id=BAIXOS, price="8732"),
+    product(
+        id=135,
+        name="Music Man Bass 1X Electric Bass",
+        category_id=BAIXOS,
+        price="8732",
+        description="Contrabaixo elétrico Fender Jazz Bass com corpo em Alder.",
+    ),
+    product(
+        id=137,
+        name="Yamaha Bass 3X Electric Bass",
+        category_id=BAIXOS,
+        price="11445",
+        description="Contrabaixo ativo de 5 cordas Ibanez com equalizador de 3 bandas.",
+    ),
+    product(
+        id=142,
+        name="Teclado Sintetizador Korg Synth 1 Pro",
+        category_id=TECLADOS,
+        price="1127",
+        description="Sintetizador workstation Roland com 88 teclas pesadas.",
+    ),
+    product(
+        id=143,
+        name="Teclado Sintetizador Nord Synth 2 Pro",
+        category_id=TECLADOS,
+        price="19567",
+        description="Piano de palco Nord Stage com seções independentes de piano, órgão e synth.",
+    ),
     product(
         id=140, name="Bateria Acústica Pearl Kit 2 Studio", category_id=BATERIAS, price="13285"
     ),
@@ -128,8 +160,11 @@ def test_accessory_not_sold_is_no_match() -> None:
     assert isinstance(search("encordoamento"), NoMatch)
 
 
-def test_conflicting_category_words_do_not_borrow_another_category() -> None:
-    assert isinstance(search("baixo 5 cordas"), NoMatch)
+def test_bass_query_never_returns_a_violao() -> None:
+    result = search("baixo 5 cordas")
+    found = (result.product,) if isinstance(result, Exact) else ()
+    found += result.products if isinstance(result, Candidates) else ()
+    assert all(p.category_id == BAIXOS for p in found)
 
 
 def test_wrong_model_number_is_never_exact() -> None:
@@ -150,3 +185,21 @@ def test_category_fallback_does_not_fuzz_the_whole_store() -> None:
 
 def test_shopping_words_are_ignored() -> None:
     assert ids(search("violão mais barato")) == ALL_VIOLOES
+
+
+def test_word_from_the_category_description_lists_the_category() -> None:
+    assert ids(search("teclado digital")) == (142, 143)
+
+
+def test_piano_digital_lists_the_keyboards() -> None:
+    assert ids(search("piano digital")) == (142, 143)
+
+
+def test_two_categories_list_both() -> None:
+    assert set(ids(search("violões e guitarras"))) == {*ALL_VIOLOES, 145}
+
+
+def test_word_only_in_one_description_is_exact() -> None:
+    result = search("jazz bass")
+    assert isinstance(result, Exact)
+    assert result.product.id == 135
