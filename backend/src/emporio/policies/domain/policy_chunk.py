@@ -14,3 +14,9 @@ class PolicyChunk:
         if self.parent_title is not None:
             heading = f"{self.parent_title} > {heading}"
         return f"{heading}\n{self.body}"
+
+
+@dataclass(frozen=True, slots=True)
+class PolicyHit:
+    chunk: PolicyChunk
+    score: float
