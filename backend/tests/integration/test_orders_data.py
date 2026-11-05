@@ -7,10 +7,14 @@ from emporio.orders.application.get_order_status import GetOrderStatus
 from emporio.orders.application.list_customer_orders import ListCustomerOrders
 from emporio.orders.domain.identity import IdentityMismatch
 from emporio.orders.domain.order import OrderStatus
-from emporio.orders.infrastructure.csv_order_repository import CsvOrderRepository
+from emporio.orders.infrastructure.csv_order_repository import (
+    CsvCustomerRepository,
+    CsvOrderRepository,
+)
 from emporio.shared.clock import FixedClock
 
 repo = CsvOrderRepository()
+customers = CsvCustomerRepository()
 clock = FixedClock(date(2026, 2, 20))
 
 
@@ -29,13 +33,13 @@ def test_cancelled_order_17_is_not_eligible() -> None:
 
 
 def test_order_5_status_with_owner_email() -> None:
-    order = GetOrderStatus(repo, repo)(5, "rafael.pereira@jmail.com")
+    order = GetOrderStatus(repo, customers)(5, "rafael.pereira@jmail.com")
     assert order.status is OrderStatus.DELIVERED
 
 
 def test_order_5_with_other_customers_email_is_rejected() -> None:
     with pytest.raises(IdentityMismatch):
-        GetOrderStatus(repo, repo)(5, "joao.silva@gmail.com")
+        GetOrderStatus(repo, customers)(5, "joao.silva@gmail.com")
 
 
 def test_customer_3_has_two_orders_newest_first() -> None:
