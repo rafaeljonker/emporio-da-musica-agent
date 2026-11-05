@@ -75,3 +75,9 @@ def test_limit_above_pool_asks_index_for_limit() -> None:
 
     assert index.asked == ("x", 12)
     assert result == Candidates(tuple(items))
+
+
+def test_recommend_skips_ids_missing_from_catalog() -> None:
+    a = product(id=1)
+
+    assert _recommend([99, 1], a)("x") == Candidates((a,))
