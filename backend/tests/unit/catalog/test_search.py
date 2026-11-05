@@ -3,14 +3,16 @@ from emporio.catalog.domain.search import Candidates, Exact, NoMatch, SearchResu
 from emporio.shared.money import Money
 from tests.unit.catalog.factories import category, m, product
 
-GUITARRAS, BATERIAS, VIOLAO, METAIS, CORDAS = 1, 3, 5, 7, 8
+GUITARRAS, BAIXOS, BATERIAS, VIOLAO, METAIS, CORDAS, UKULELES = 1, 2, 3, 5, 7, 8, 9
 
 CATEGORIES = (
     category(id=GUITARRAS, name="Guitarras"),
+    category(id=BAIXOS, name="Baixos"),
     category(id=BATERIAS, name="Baterias e Percussão"),
     category(id=VIOLAO, name="Violões"),
     category(id=METAIS, name="Instrumentos de Sopro (Metais)"),
     category(id=CORDAS, name="Cordas Orquestrais"),
+    category(id=UKULELES, name="Ukuleles"),
 )
 
 CATALOG = (
@@ -27,8 +29,24 @@ CATALOG = (
         price="749",
         status=ProductStatus.DISCONTINUED,
     ),
-    product(id=1, name="Fender Stratocaster Player", category_id=GUITARRAS, price="7999"),
+    product(id=90, name="Crafter HT-100 Folk Aço Natural", category_id=VIOLAO, price="2399"),
+    product(
+        id=111, name="Rozini RV-175 7 Cordas Elétrico Natural", category_id=VIOLAO, price="1699"
+    ),
+    product(
+        id=145, name="Fender Stratocaster American Pro II", category_id=GUITARRAS, price="12500"
+    ),
+    product(id=135, name="Music Man Bass 1X Electric Bass", category_id=BAIXOS, price="8732"),
+    product(
+        id=140, name="Bateria Acústica Pearl Kit 2 Studio", category_id=BATERIAS, price="13285"
+    ),
+    product(id=124, name="Kala KA-T Tenor Mogno", category_id=UKULELES, price="449.90"),
+    product(id=125, name="Ohana TK-35G Tenor Sólido Natural", category_id=UKULELES, price="1299"),
+    product(id=128, name="Kala KA-B Barítono Mogno", category_id=UKULELES, price="599"),
 )
+
+
+ALL_VIOLOES = (89, 81, 111, 95, 90, 115, 100, 105)
 
 
 def search(
@@ -57,7 +75,7 @@ def test_category_plural_with_max_price() -> None:
 
 
 def test_category_only_query_lists_the_whole_category() -> None:
-    assert ids(search("violão")) == (89, 81, 95, 115, 100, 105)
+    assert ids(search("violão")) == ALL_VIOLOES
 
 
 def test_category_word_and_stopwords_narrow_the_query() -> None:
@@ -88,3 +106,47 @@ def test_typo_falls_back_to_fuzzy() -> None:
 
 def test_unknown_returns_no_match() -> None:
     assert isinstance(search("bateria eletronica roland"), NoMatch)
+
+
+def test_typo_with_split_model_code_is_still_exact() -> None:
+    result = search("gd 20")
+    assert isinstance(result, Exact)
+    assert result.product.id == 95
+
+
+def test_prefix_of_a_name_word_matches() -> None:
+    result = search("strato")
+    assert isinstance(result, Exact)
+    assert result.product.id == 145
+
+
+def test_weak_fuzzy_similarity_is_no_match() -> None:
+    assert isinstance(search("violino"), NoMatch)
+
+
+def test_accessory_not_sold_is_no_match() -> None:
+    assert isinstance(search("encordoamento"), NoMatch)
+
+
+def test_conflicting_category_words_do_not_borrow_another_category() -> None:
+    assert isinstance(search("baixo 5 cordas"), NoMatch)
+
+
+def test_wrong_model_number_is_never_exact() -> None:
+    assert not isinstance(search("gd30"), Exact)
+
+
+def test_wrong_model_number_with_brand_is_never_exact() -> None:
+    assert not isinstance(search("takamine gd30"), Exact)
+
+
+def test_price_words_do_not_fuzz_into_model_numbers() -> None:
+    assert ids(search("violões até 1000")) == ALL_VIOLOES
+
+
+def test_category_fallback_does_not_fuzz_the_whole_store() -> None:
+    assert isinstance(search("bateria eletronica roland"), NoMatch)
+
+
+def test_shopping_words_are_ignored() -> None:
+    assert ids(search("violão mais barato")) == ALL_VIOLOES
