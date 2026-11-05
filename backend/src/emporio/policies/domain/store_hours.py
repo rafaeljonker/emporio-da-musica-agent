@@ -1,5 +1,6 @@
 from datetime import date, datetime, time, timedelta
 
+from emporio.shared.clock import STORE_TZ
 from emporio.shared.errors import DomainError
 
 # Policy section 2. Opening inclusive, closing exclusive. Keys are date.weekday().
@@ -26,19 +27,27 @@ def _hours(day: date, holidays: frozenset[date]) -> tuple[time, time] | None:
     return None if day in holidays else WEEKLY_HOURS[day.weekday()]
 
 
+def _to_store_time(now: datetime) -> datetime:
+    if now.tzinfo is None:
+        raise ValueError("now must be timezone-aware")  # noqa: TRY003
+    return now.astimezone(STORE_TZ)
+
+
 def is_open(now: datetime, holidays: frozenset[date]) -> bool:
+    now = _to_store_time(now)
     hours = _hours(now.date(), holidays)
     return hours is not None and hours[0] <= now.time() < hours[1]
 
 
 def next_opening(now: datetime, holidays: frozenset[date]) -> datetime:
-    """Return `now` when open, else the next opening instant (same tzinfo as `now`)."""
+    """Return `now` when open, else the next opening instant (in STORE_TZ)."""
+    now = _to_store_time(now)
     for offset in range(MAX_LOOKAHEAD_DAYS + 1):
         day = now.date() + timedelta(days=offset)
         hours = _hours(day, holidays)
         if hours is None:
             continue
-        opening = datetime.combine(day, hours[0], tzinfo=now.tzinfo)
+        opening = datetime.combine(day, hours[0], tzinfo=STORE_TZ)
         if now < opening:
             return opening
         if now.time() < hours[1]:
