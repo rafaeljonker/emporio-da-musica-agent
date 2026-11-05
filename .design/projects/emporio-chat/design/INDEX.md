@@ -80,7 +80,7 @@ Source: [critique/prioritized-fixes.md](../critique/prioritized-fixes.md) (C = C
 | P6 dark-mode wordmark | screen-03 § Responsive; `login.html` |
 | P7 local long-wait threshold | screen-02 § States (per-mode expected) |
 | A-08 "Entrando…" status | screen-03 § States; `login.html` `#login-live` |
-| A-09 stage marker (partial) | `mockup.css` current stage `--warning` 5.40:1 on cream (4.91 on spruce); see Deferred |
+| A-09 stage marker (partial) | `mockup.css` current stage `--warning` 5.40:1 on cream, 4.91 on #F3E9D8, 4.22 on spruce (non-text border, needs 3:1: passes); see Deferred |
 | A-10 landmarks/headings | screen-01 § Accessibility; information-architecture heading model; mockups `aside`, `form aria-label`, `p.product-name`, `.mp-h`, `aria-current="step"` |
 | A-11 `aria-invalid` | screen-03 § States; `login.html` |
 | A-12 breathing avatar | screen-02; micro-interactions; `mockup.css` one iteration |
