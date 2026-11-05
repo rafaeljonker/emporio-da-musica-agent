@@ -1,10 +1,10 @@
 export PATH := $(CURDIR)/backend/.venv/bin:$(PATH)
 
-.PHONY: help setup fmt lint typecheck imports test check db-up migrate db test-pg ingest evals
+.PHONY: help setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals
 .DEFAULT_GOAL := help
 
 help:
-	@echo "targets: setup fmt lint typecheck imports test check db-up migrate db test-pg ingest evals"
+	@echo "targets: setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals"
 
 setup:
 	cd backend && uv sync && uv run pre-commit install --config ../.pre-commit-config.yaml
@@ -28,9 +28,14 @@ check: lint typecheck imports test
 
 # Dev-only local URL (matches docker-compose.yml).
 LOCAL_DATABASE_URL := postgresql://emporio:emporio@localhost:5434/emporio
+# Tests truncate tables, so they get their own database.
+TEST_DATABASE_URL := postgresql://emporio:emporio@localhost:5434/emporio_test
 
 db-up:
 	docker compose up -d --wait db
+
+db-test: db-up
+	docker compose exec -T db psql -U emporio -d emporio -tc "SELECT 1 FROM pg_database WHERE datname='emporio_test'" | grep -q 1 || docker compose exec -T db createdb -U emporio emporio_test
 
 migrate:
 	cd backend && DATABASE_URL=$(LOCAL_DATABASE_URL) uv run python -m emporio.migrate
@@ -40,8 +45,8 @@ ingest:
 
 db: db-up migrate ingest
 
-test-pg:
-	cd backend && DATABASE_URL=$(LOCAL_DATABASE_URL) uv run pytest -q -m postgres
+test-pg: db-up db-test
+	cd backend && DATABASE_URL=$(TEST_DATABASE_URL) uv run pytest -q -m postgres
 
-evals:
-	cd backend && DATABASE_URL=$(LOCAL_DATABASE_URL) uv run pytest -q -m eval -s
+evals: db-up db-test
+	cd backend && DATABASE_URL=$(TEST_DATABASE_URL) uv run pytest -q -m eval -s

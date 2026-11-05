@@ -8,7 +8,6 @@ from emporio.embeddings import E5Embedder
 from emporio.policies.application.ingest_policies import IngestPolicies
 from emporio.policies.infrastructure.pdf_sections import PdfPolicySource
 from emporio.policies.infrastructure.pg_policy_index import PgPolicyIndex
-from tests.integration.conftest import pg_conn  # noqa: F401
 
 pytestmark = [pytest.mark.eval, pytest.mark.postgres]
 
@@ -27,7 +26,7 @@ def _hit_rates(index: PgPolicyIndex) -> dict[int, float]:
     return {k: sum(r is not None and r <= k for r in ranks) / len(ranks) for k in (1, 3, 5)}
 
 
-def test_hybrid_retrieval_hit_at_5(pg_conn: psycopg.Connection) -> None:  # noqa: F811
+def test_hybrid_retrieval_hit_at_5(pg_conn: psycopg.Connection) -> None:
     embedder = E5Embedder()
     index = PgPolicyIndex(pg_conn, embedder)
     IngestPolicies(PdfPolicySource(), index)()

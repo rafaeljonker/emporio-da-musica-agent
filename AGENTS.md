@@ -11,8 +11,8 @@ Run from the repo root; all targets execute in `backend/`.
 - `make check`: lint + typecheck + import contracts + tests. Green before every commit, except the `(red)` commit of a TDD pair, where only the new test may fail.
 - `make test`: pytest only.
 - `make db`: start Postgres (host port 5434), migrate, ingest policies and products.
-- `make test-pg`: Postgres integration tests (need `make db-up`).
-- `make evals`: real-model retrieval eval (needs `make db`); not part of `make check`.
+- `make test-pg`: Postgres integration tests on a separate `emporio_test` database; never touches dev data.
+- `make evals`: real-model retrieval eval on `emporio_test` (ingests by itself, no `make db` needed); not part of `make check`.
 - `make fmt`: ruff format and `ruff check --fix`.
 
 ## Architecture rules
