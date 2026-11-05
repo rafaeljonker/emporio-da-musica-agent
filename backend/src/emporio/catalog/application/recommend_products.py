@@ -10,7 +10,7 @@ class RecommendProducts:
         self._index = index
 
     def __call__(self, need: str, limit: int = 5) -> Candidates | NoMatch:
-        if not need.strip():
+        if limit <= 0 or not need.strip():
             return NoMatch()
         by_id = {p.id: p for p in self._repo.products()}
         # Availability is filtered here, after retrieval, never in the index query.
