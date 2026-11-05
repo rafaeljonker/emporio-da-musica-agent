@@ -183,9 +183,15 @@ Date: 2026-11-05. PyPI versions fetched 2026-11-05 from `https://pypi.org/pypi/<
 | vector | 0.65 | 0.80 | 0.90 |
 | hybrid | 0.75 | 0.95 | 1.00 |
 
+Caveats:
+- Several questions use a distinctive word of their section (cnpj, sedex, black friday, lgpd, fabricante, pix, boquilha), so hybrid hit@5 = 1.00 is partly helped by FTS on those. The vector-vs-hybrid gap at k=5 comes from "domingo" and "esgotou".
+- Five cases are arguable and keep a single expected section: 1 vs 1.2, 7.1 vs 7.3, 3.1 vs 3, 3 vs 6.2, 4.2 vs 8.1/8.3.
+
 Hybrid (FTS + RRF) fixes "vocês abrem domingo?" and "o produto esgotou, e agora?" at k=5; hit@1 stays at 0.75, so the LLM must read all five hits.
 
 **Recommendation:** pure vector, k=5, plus the 20-question hit@5 ≥ 0.9 eval; add hybrid (FTS `portuguese` + unaccent, RRF) only if that eval fails.
+
+Update: the owner chose hybrid, and the measured table below confirms it.
 
 ## Recommended decisions for phase 3
 1. pdfplumber with a sequence-checked section parser (pure, in domain): 25 chunks, title-prefixed, cited by section id.
