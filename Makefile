@@ -44,7 +44,9 @@ migrate:
 ingest:
 	cd backend && DATABASE_URL=$(DATABASE_URL) uv run python -m emporio.ingest
 
-db: db-up migrate ingest
+# Always local: an exported DATABASE_URL (e.g. Railway) must not be migrated by accident.
+db: db-up
+	$(MAKE) migrate ingest DATABASE_URL=$(LOCAL_DATABASE_URL)
 
 test-pg: db-up db-test
 	cd backend && DATABASE_URL=$(TEST_DATABASE_URL) uv run pytest -q -m "postgres and not eval"
