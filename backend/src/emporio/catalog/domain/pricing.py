@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from dataclasses import dataclass
 from decimal import Decimal
 
@@ -29,3 +30,12 @@ def quote_price(product: Product, promotion: Promotion | None) -> PriceQuote:
     if promotion is not None and promotion.active:
         return PriceQuote(table, promotion, table.percent_off(promotion.percent), None)
     return PriceQuote(table, None, table, table.percent_off(PIX_DISCOUNT))
+
+
+def best_active_promotion(promotions: Iterable[Promotion]) -> Promotion | None:
+    """Highest percent among active promotions; a tie goes to the lowest promotion id."""
+    return min(
+        (p for p in promotions if p.active),
+        key=lambda p: (-p.percent, p.id),
+        default=None,
+    )

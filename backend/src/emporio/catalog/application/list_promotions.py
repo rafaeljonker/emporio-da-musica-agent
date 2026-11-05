@@ -1,5 +1,7 @@
+from collections import defaultdict
+
 from emporio.catalog.application.ports import CatalogRepository
-from emporio.catalog.domain.pricing import PriceQuote, Promotion, quote_price
+from emporio.catalog.domain.pricing import PriceQuote, Promotion, best_active_promotion, quote_price
 from emporio.catalog.domain.product import Product
 
 
@@ -8,15 +10,12 @@ class ListPromotions:
         self._repo = repo
 
     def __call__(self) -> tuple[tuple[Product, PriceQuote], ...]:
-        by_id = {p.id: p for p in self._repo.products()}
-        best: dict[int, Promotion] = {}
+        groups: defaultdict[int, list[Promotion]] = defaultdict(list)
         for promo in self._repo.promotions():
-            current = best.get(promo.product_id)
-            if promo.active and (current is None or promo.percent > current.percent):
-                best[promo.product_id] = promo
-        items = [
-            (by_id[pid], quote_price(by_id[pid], promo))
-            for pid, promo in best.items()
-            if pid in by_id and by_id[pid].is_available
-        ]
+            groups[promo.product_id].append(promo)
+        items: list[tuple[Product, PriceQuote]] = []
+        for product in self._repo.products():
+            best = best_active_promotion(groups.get(product.id, ()))
+            if best is not None and product.is_available:
+                items.append((product, quote_price(product, best)))
         return tuple(sorted(items, key=lambda item: item[0].name))
