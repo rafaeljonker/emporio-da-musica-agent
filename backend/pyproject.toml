@@ -1,7 +1,7 @@
 [project]
 name = "emporio"
 version = "0.1.0"
-description = "Add your description here"
+description = "Customer-service agent for Empório da Música (Artefact AI Engineer case)"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = []
@@ -25,6 +25,9 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF", "ANN", "BLE", "TRY", "DTZ", "S", "PT", "RET", "C4", "PIE", "PERF"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["emporio"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["S101", "ANN201"]
@@ -77,3 +80,23 @@ forbidden_modules = [
     "fastapi", "langchain", "langchain_core", "langgraph", "sqlalchemy", "psycopg",
     "duckdb", "httpx", "openai", "anthropic", "google",
 ]
+
+[[tool.importlinter.contracts]]
+name = "Domain and shared never import application or infrastructure"
+type = "forbidden"
+source_modules = [
+    "emporio.catalog.domain", "emporio.orders.domain",
+    "emporio.policies.domain", "emporio.support.domain", "emporio.shared",
+]
+forbidden_modules = [
+    "emporio.catalog.application", "emporio.catalog.infrastructure",
+    "emporio.orders.application", "emporio.orders.infrastructure",
+    "emporio.policies.application", "emporio.policies.infrastructure",
+    "emporio.support.application", "emporio.support.infrastructure",
+]
+
+[[tool.importlinter.contracts]]
+name = "Shared never imports a context"
+type = "forbidden"
+source_modules = ["emporio.shared"]
+forbidden_modules = ["emporio.catalog", "emporio.orders", "emporio.policies", "emporio.support"]
