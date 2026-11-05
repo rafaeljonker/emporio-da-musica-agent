@@ -66,6 +66,10 @@ class CsvCatalogRepository:
         items: list[T] = []
         with path.open(encoding="utf-8", newline="") as handle:
             for number, row in enumerate(csv.DictReader(handle), start=2):
+                # DictReader pads short rows with None and puts extras under a None key.
+                if None in row or None in row.values():
+                    exc = ValueError("missing or extra columns")
+                    raise CatalogDataError(path.name, number, exc)
                 try:
                     items.append(parse(row))
                 except (ValueError, TypeError, KeyError, InvalidOperation, DomainError) as exc:
