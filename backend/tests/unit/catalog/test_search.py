@@ -38,6 +38,24 @@ CATALOG = (
     product(
         id=111, name="Rozini RV-175 7 Cordas Elétrico Natural", category_id=VIOLAO, price="1699"
     ),
+    product(id=112, name="Tagima TW-7 7 Cordas Aço Natural", category_id=VIOLAO, price="999"),
+    product(id=93, name="Martin D-28 Dreadnought Natural", category_id=VIOLAO, price="11499"),
+    product(id=108, name="Martin D-28E Elétrico Aço Natural", category_id=VIOLAO, price="12000"),
+    product(
+        id=136,
+        name="Ibanez Bass 2X Electric Bass",
+        category_id=BAIXOS,
+        price="441",
+        status=ProductStatus.DISCONTINUED,
+        description="Contrabaixo Precision de 4 cordas com captação split-coil.",
+    ),
+    product(
+        id=144,
+        name="Teclado Sintetizador Roland Synth 3 Pro",
+        category_id=TECLADOS,
+        price="9351",
+        description="Teclado arranjador Yamaha com 61 teclas sensitivas.",
+    ),
     product(
         id=145, name="Fender Stratocaster American Pro II", category_id=GUITARRAS, price="12500"
     ),
@@ -78,7 +96,7 @@ CATALOG = (
 )
 
 
-ALL_VIOLOES = (89, 81, 111, 95, 90, 115, 100, 105)
+ALL_VIOLOES = (89, 81, 112, 111, 95, 90, 115, 100, 105, 93, 108)
 
 
 def search(
@@ -103,7 +121,7 @@ def test_brand_only_query_returns_all_candidates_sorted_by_price() -> None:
 
 
 def test_category_plural_with_max_price() -> None:
-    assert ids(search("violões", max_price=m("1000"))) == (89, 81)
+    assert ids(search("violões", max_price=m("1000"))) == (89, 81, 112)
 
 
 def test_category_only_query_lists_the_whole_category() -> None:
@@ -188,11 +206,11 @@ def test_shopping_words_are_ignored() -> None:
 
 
 def test_word_from_the_category_description_lists_the_category() -> None:
-    assert ids(search("teclado digital")) == (142, 143)
+    assert ids(search("teclado digital")) == (142, 144, 143)
 
 
 def test_piano_digital_lists_the_keyboards() -> None:
-    assert ids(search("piano digital")) == (142, 143)
+    assert ids(search("piano digital")) == (142, 144, 143)
 
 
 def test_two_categories_list_both() -> None:
@@ -203,3 +221,37 @@ def test_word_only_in_one_description_is_exact() -> None:
     result = search("jazz bass")
     assert isinstance(result, Exact)
     assert result.product.id == 135
+
+
+def test_empty_category_word_still_narrows_by_name() -> None:
+    assert ids(search("violão 7 cordas")) == (112, 111)
+
+
+def test_model_code_matches_hyphenated_name() -> None:
+    result = search("martin d28")
+    assert isinstance(result, Exact)
+    assert result.product.id == 93
+
+
+def test_glued_model_code_matches() -> None:
+    result = search("sn100")
+    assert isinstance(result, Exact)
+    assert result.product.id == 89
+
+
+def test_description_only_match_is_not_exact() -> None:
+    assert not isinstance(search("teclado yamaha"), Exact)
+
+
+def test_brand_only_in_a_description_is_not_exact() -> None:
+    assert not isinstance(search("baixo ibanez"), Exact)
+
+
+def test_bare_number_is_no_match() -> None:
+    assert isinstance(search("1000"), NoMatch)
+
+
+def test_unknown_number_is_never_fuzzed() -> None:
+    result = search("sn 1000")
+    assert not isinstance(result, Exact)
+    assert not (isinstance(result, Candidates) and 90 in ids(result))
