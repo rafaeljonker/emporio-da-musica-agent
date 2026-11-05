@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Entrar · Empório da Música (mockup)</title>
+  <link rel="icon" href="../../../../branding/emporio-da-musica/identity/assets/favicon-concept.jpg">
+  <link rel="stylesheet" href="mockup.css">
+  <style>
+    .login { min-height: 100dvh; display: flex; flex-direction: column; align-items: center; padding: 32px 16px 48px; }
+    .login-inner { width: 100%; max-width: 28rem; }
+    .wordmark { display: block; width: 100%; max-width: 300px; aspect-ratio: 16 / 7; object-fit: cover; margin: 0 auto 8px; }
+    .login h1 { margin: 0; font-size: clamp(1.6rem, 1.3rem + 1.4vw, 2.1rem); line-height: 1.15; text-align: center; }
+    .login .tagline { text-align: center; margin: 8px 0 24px; }
+    .card { background: var(--card); border-radius: var(--radius); padding: 24px; display: grid; gap: 16px; }
+    @media (min-width: 768px) { .login { justify-content: center; } .card { padding: 32px; } }
+    /* Raster wordmark has a cream plate; hide it in dark mode until the SVG logo lands (the h1 carries the name). */
+    @media (prefers-color-scheme: dark) { .wordmark { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="mk-bar" role="region" aria-label="Controles do mockup">
+    <strong>Mockup</strong>
+    <span>Qualquer e-mail entra. Com "erro" no e-mail: credenciais inválidas. Com "rede": falha de conexão.</span>
+    <a href="index.html">Galeria</a>
+  </div>
+  <main class="login surface-paper">
+    <div class="login-inner">
+      <img class="wordmark" src="../../../../branding/emporio-da-musica/identity/assets/logo-wordmark-concept.jpg" alt="Empório da Música">
+      <h1 class="font-display">Entra aí pra conversar com a Empório</h1>
+      <p class="tagline">A verdade de quem toca.</p>
+      <form id="form" class="card surface-wood" novalidate>
+        <div>
+          <label class="field-label" for="email">E-mail</label>
+          <input class="field" id="email" type="email" autocomplete="username" required aria-describedby="login-erro">
+        </div>
+        <div>
+          <label class="field-label" for="senha">Senha</label>
+          <input class="field" id="senha" type="password" autocomplete="current-password" required aria-describedby="login-erro">
+        </div>
+        <p id="login-erro" class="alert" role="alert"></p>
+        <p id="login-live" role="status" class="sr-only"></p>
+        <button id="entrar" class="btn btn-primary" type="submit" style="width:100%">Entrar</button>
+      </form>
+      <p class="muted small" style="text-align:center;margin-top:16px">Ambiente de demonstração. As credenciais foram enviadas no e-mail da entrega. Ao entrar, o assistente começa a ligar; na primeira vez leva uns 30 s.</p>
+    </div>
+  </main>
+  <script src="mockup.js"></script>
+  <script>
+    const btn = $("#entrar"), err = $("#login-erro");
+    const fields = ["#email", "#senha"].map($);
+    // aria-invalid only when the fields are the problem (empty / wrong credentials), never for a network error.
+    const fail = (msg, invalid = true) => {
+      err.innerHTML = icon("alert") + msg;
+      fields.forEach((f) => invalid ? f.setAttribute("aria-invalid", "true") : f.removeAttribute("aria-invalid"));
+      btn.textContent = "Entrar"; btn.removeAttribute("aria-busy"); $("#login-live").textContent = "";
+      (fields.find((f) => !f.value) || fields[0]).focus();
+    };
+    fields.forEach((f) => f.addEventListener("input", () => f.removeAttribute("aria-invalid")));
+    $("#form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (btn.getAttribute("aria-busy")) return;
+      const email = $("#email").value.trim();
+      if (!email || !$("#senha").value) return fail("Preenche o e-mail e a senha pra entrar.");
+      err.textContent = ""; btn.textContent = "Entrando…"; $("#login-live").textContent = "Entrando…"; btn.setAttribute("aria-busy", "true");
+      await sleep(900);
+      if (email.includes("erro")) return fail("E-mail ou senha não bateram. Confere e tenta de novo.");
+      if (email.includes("rede")) return fail("Não consegui falar com o servidor agora. Confere a conexão e tenta de novo.", false);
+      // Success: the /auth/login response already carries { mode, stage, started_at, expected_seconds }; POST /warm fires here.
+      sessionStorage.clear(); // new demo session (mockup: resets the simulated backend)
+      // (fire and forget), then the chat shell opens in warm-up.
+      location.href = "warmup.html?variant=gpu" + (params.has("embed") ? "&embed" : "");
+    });
+  </script>
+</body>
+</html>

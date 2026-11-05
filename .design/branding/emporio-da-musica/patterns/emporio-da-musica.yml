@@ -1,0 +1,257 @@
+name: emporio-da-musica
+description: Wooden-counter warmth on a Saturday morning — cream paper, spruce surfaces, walnut text, honey brand marks, one terracotta action color
+tags: [warm, wood, humanist, chat-first, soft-serif, earthy, honest, mobile-first]
+source: brand
+
+# Traceability
+#   color      → identity/color-system.md (Core Palette, Semantic Colors, Contrast Audit, Dark Mode Direction) + identity/palettes.json
+#   typography → identity/typography.md (Fraunces + Source Sans 3, scale, Fontsource loading)
+#   shape/elevation/motion/texture → identity/imagery-style.md (12px image mask, motion allow-list, grain recipes)
+#   intensity  → strategy/archetype.md (Everyperson 70% / Sage 30%)
+# style_base is empty: built from scratch (professional.yml used only as a format reference).
+#
+# WCAG 2.2 AA — every text pair below is a recorded ratio from color-system.md
+# (or computed with the same WCAG 2.x formula where marked "computed"):
+#   foreground on background            12.50   foreground on card (spruce)   9.75
+#   popover-foreground on popover       13.35   primary-foreground on primary  5.31
+#   accent-foreground on accent          4.66   muted-foreground on background 6.45
+#   muted-foreground on muted (spruce)   5.03   destructive on background      6.88
+#   cream on destructive (button label)  6.88   success on background / card   6.47 / 5.05
+#   warning on background                5.40   (warning is NEVER text on spruce: 4.22 fails)
+#   ring on background / card           12.50 / 9.75 (ring needs 2px cream offset on primary: 2.35 if touching)
+#   input border on background / card    6.45 / 5.03 (non-text 3:1, SC 1.4.11)
+#
+# Brand extensions not emitted by theme-css.js (add by hand in globals.css, see STYLE.md):
+#   --user-bubble: #3B2A1E (light) / #5A4130 (dark)        user message fill
+#   --user-bubble-foreground: #FAF4EA / #F3E9D8             12.50 / 7.82
+#   --primary-hover: #93401F (light, cream label 6.41) / #E58B66 (dark, night label 6.97)
+#   --brand: #C98A2B / #E0A94F                               decorative honey (avatar disc, rules, typing dots)
+#   --brand-text: #8A5A14                                     honey as text on cream/paper only (5.40 / 5.77 computed)
+#   --paper: #FFFCF6                                          raised elements on cream
+#   --rail: #3B2A1E (light) / #5A4130 (dark)                 chat header wood rail (refine 2026-11-05)
+#   --rail-foreground: #FAF4EA / #F3E9D8                      12.50 / 7.82 (recorded pairs)
+#   --rail-muted: #E9D8B8 / #C9B8A0                           subline on rail 9.75 / 4.86 computed
+#   --rail-rule: #C98A2B / #E0A94F                            3px honey bottom rule; 4.66 / 4.46 vs rail (non-text 3:1)
+#
+# Refine 2026-11-05 computed pairs (WCAG 2.x formula):
+#   success (moss) on paper 6.91 · walnut-muted on paper 6.89 · honey-deep on paper 5.77
+#   honey avatar disc on walnut rail 4.66 (non-text) · cream focus ring on rail 12.50
+
+tokens:
+  color:
+    # Core — shadcn/ui :root CSS vars
+    background: "#FAF4EA"           # cream — page, chat canvas
+    foreground: "#3B2A1E"           # walnut — all text (12.50)
+    card: "#E9D8B8"                 # spruce — cards, agent bubbles, header bar
+    card-foreground: "#3B2A1E"      # walnut on spruce 9.75
+    popover: "#FFFCF6"              # paper — sheets, menus, modal
+    popover-foreground: "#3B2A1E"   # walnut on paper 13.35
+    primary: "#A54A29"              # terracotta — ACTION ONLY (CTA, send). Moved from #B5532F (4.52) for margin
+    primary-foreground: "#FAF4EA"   # cream label 5.31; never dimmed, no opacity
+    secondary: "#E9D8B8"            # spruce — secondary button / chip fill
+    secondary-foreground: "#3B2A1E" # 9.75
+    accent: "#C98A2B"               # honey — selected/active marks, menu highlight (the memorable color)
+    accent-foreground: "#3B2A1E"    # walnut on honey 4.66 (cream on honey 2.68 is forbidden)
+    muted: "#E9D8B8"                # spruce
+    muted-foreground: "#6B5444"     # walnut muted — 6.45 on cream, 5.03 on spruce
+    destructive: "#9A2E24"          # oxblood — always with CircleAlert icon + words
+    border: "#D8C29C"               # grain line — decorative hairlines only (1.58 on cream, not a component boundary)
+    input: "#6B5444"                # walnut muted — input boundary must meet 3:1 (6.45 cream / 5.03 spruce); grain line would fail
+    ring: "#3B2A1E"                 # walnut focus ring, 2px, 2px cream offset
+
+    # Sidebar — not part of the POC chat UI; mapped coherently for shadcn completeness
+    sidebar: "#E9D8B8"
+    sidebar-foreground: "#3B2A1E"
+    sidebar-primary: "#A54A29"
+    sidebar-primary-foreground: "#FAF4EA"
+    sidebar-accent: "#C98A2B"
+    sidebar-accent-foreground: "#3B2A1E"
+    sidebar-border: "#D8C29C"
+    sidebar-ring: "#3B2A1E"
+
+    # Chart — no data viz in the POC. Wood/earth only; terracotta (action) and oxblood (error) excluded
+    chart-1: "#8A5A14"   # honey deep
+    chart-2: "#46602B"   # moss
+    chart-3: "#6B5444"   # walnut muted
+    chart-4: "#C98A2B"   # honey
+    chart-5: "#3B2A1E"   # walnut
+
+    # Extras
+    success: "#46602B"   # moss (adjusted from #4F6B32) — 6.47 cream / 5.05 spruce
+    warning: "#8A5A14"   # honey deep — text on cream/paper only
+    info: "#6B5444"      # walnut muted — no blue info state, ever
+
+  typography:
+    font-family-display: '"Fraunces", Georgia, "Times New Roman", serif'   # headings + brand moments only, never in chat
+    font-family-primary: '"Source Sans 3", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'
+    font-family-mono: "ui-monospace, SFMono-Regular, Menlo, monospace"  # system stack, no third typeface loaded (typography.md rule)
+    font-weight-heading: 600   # Fraunces 600 display/H1, 500 H2/H3; never 800-900 or 100-300
+    font-weight-body: 400      # Source Sans 3 400; 600 for buttons, names, prices
+    font-size-base: "16px"     # 16px floor for everything read or tapped in chat
+    line-height-base: 1.5
+
+  shape:
+    border-radius-sm: "6px"    # chips, small tags
+    border-radius-md: "8px"    # form inputs, icon squares
+    border-radius-lg: "12px"   # cards (matches the 12px image mask) → --radius
+    border-width: "1px"
+
+  elevation:
+    # Warm walnut-tinted, soft. Surfaces separate by fill (cream/spruce/paper), not shadow.
+    shadow-sm: "0 1px 2px rgb(59 42 30 / 0.06)"
+    shadow-md: "0 2px 6px rgb(59 42 30 / 0.08)"
+    shadow-lg: "0 8px 20px rgb(59 42 30 / 0.10)"
+    shadow-xl: "0 16px 32px rgb(59 42 30 / 0.12)"
+
+  spacing:
+    base: 4
+    scale: [4, 8, 12, 16, 24, 32, 48, 64, 96]
+
+  motion:
+    duration-fast: "150ms"     # message fade-in, hover
+    duration-normal: "250ms"
+    easing: "cubic-bezier(0.33, 1, 0.68, 1)"   # calm ease-out; breathing ring uses 4s ease-in-out
+
+dark_mode:
+  # "A loja depois das 18h" — color-system.md Dark Mode Direction
+  color:
+    background: "#1E1611"           # walnut night
+    foreground: "#F3E9D8"           # 14.82
+    card: "#2E221A"                 # dark walnut surface
+    card-foreground: "#F3E9D8"      # 12.84
+    popover: "#2E221A"
+    popover-foreground: "#F3E9D8"
+    primary: "#D9734C"              # 5.52 on base / 4.78 on surface
+    primary-foreground: "#1E1611"   # dark label 5.52 (cream on #D9734C is 2.68 — forbidden)
+    secondary: "#2E221A"
+    secondary-foreground: "#F3E9D8"
+    accent: "#E0A94F"               # lighter honey
+    accent-foreground: "#1E1611"    # 8.45
+    muted: "#2E221A"
+    muted-foreground: "#C9B8A0"     # 9.21 base / 7.98 surface
+    destructive: "#FC8777"          # computed: 7.53 base / 6.52 surface; night label 7.53. Was "pending dark audit"
+    border: "#564337"               # decorative hairline
+    input: "#8A7668"                # computed: 4.14 base / 3.58 surface (3:1 non-text)
+    ring: "#F3E9D8"                 # 14.82 / 12.84
+    sidebar: "#2E221A"
+    sidebar-foreground: "#F3E9D8"
+    sidebar-primary: "#D9734C"
+    sidebar-primary-foreground: "#1E1611"
+    sidebar-accent: "#E0A94F"
+    sidebar-accent-foreground: "#1E1611"
+    sidebar-border: "#564337"
+    sidebar-ring: "#F3E9D8"
+    chart-1: "#E0A94F"
+    chart-2: "#9ABA7E"
+    chart-3: "#C9B8A0"
+    chart-4: "#E58B66"
+    chart-5: "#F3E9D8"
+    success: "#9ABA7E"              # computed: 8.23 base / 7.13 surface (success-400)
+    warning: "#E0A94F"              # 8.45 base / 7.32 surface
+    info: "#C9B8A0"
+
+intensity:
+  variance: 3    # Sage calm + familiar chat patterns; one editorial moment (login/warm-up headline)
+  motion: 2      # only: ring breathing (warm-up), typing dots, 150ms message fade
+  density: 4     # chat is compact like WhatsApp; login and warm-up are airy
+
+patterns:
+  card:
+    border: "none on cream (spruce fill separates); {shape.border-width} solid {color.border} only when a card sits on spruce"
+    shadow: "none at rest; {elevation.shadow-sm} for paper sheets/popovers"
+    radius: "{shape.border-radius-lg}"
+    background: "{color.card} (spruce) with optional faint wood grain on large cards (login card) — never on text-dense cards"
+    padding: "p-6 (24px) mobile, p-8 desktop"
+  button-primary:
+    background: "{color.primary}; hover/pressed --primary-hover #93401F"
+    border: "none"
+    text: "Source Sans 3 600, 16px, sentence case, {color.primary-foreground} at full opacity"
+    radius: "rounded-full (pill); send button is a 44px circle"
+  button-secondary:
+    background: "transparent on spruce, {color.secondary} on cream"
+    border: "{shape.border-width} solid {color.input}"
+    text: "Source Sans 3 600, 16px, sentence case, {color.foreground}"
+    radius: "rounded-full (pill)"
+  input:
+    border: "{shape.border-width} solid {color.input}"
+    radius: "{shape.border-radius-md}; chat composer is rounded-full"
+    background: "paper #FFFCF6 (popover token)"
+    focus: "2px {color.ring} outline, 2px cream offset; border unchanged"
+  badge:
+    shape: "rounded-full, px-2.5 py-0.5, text-sm (14px), icon 16px leading"
+    text: "Source Sans 3 600, sentence case; spruce fill + walnut text; status badges use semantic text color + icon + word, never color alone; never terracotta (not clickable)"
+  nav:
+    style: "chat header is the wood rail: solid --rail (walnut) fill, 3px solid --rail-rule (honey) bottom edge, no texture; avatar-disc-concept (honey disc) + 'Assistente da Empório' in --rail-foreground (12.50) + subline in --rail-muted (9.75); focus ring inside the rail is cream, not walnut"
+    links: "walnut, underline offset 3px; terracotta text links only on cream (5.31), terracotta deep #93401F on spruce (5.00)"
+  bubble-handoff:
+    use: "limit admitted / handoff to staff — the agent says it does not know or must confirm; a calm state, not an error"
+    container: "same agent bubble ({color.card} fill, {color.card-foreground} text); no border, no tint, no shake"
+    label: "first line inside the bubble: Lucide UserRound (or Clock when a return time is promised) 16px + short label, Source Sans 3 600, 14px, {color.muted-foreground} (5.03 on spruce)"
+    copy: "label 'Repassado pra equipe'; body e.g. 'Isso eu preciso confirmar com a equipe. Já deixei registrado pra eles.'"
+    a11y: "label is real text (not aria-only); bubble announced like any message, no role=alert"
+    never: "terracotta (not clickable), oxblood/CircleAlert (not an error), honey fill, spinner"
+  product-card:
+    use: "product shown inside the chat, incl. the cheaper-option recommendation ('Pro seu nível, o C40 de R$ 599,90 dá conta')"
+    container: "{color.popover} (paper) in the agent group, {shape.border-radius-lg}, 1px {color.border} hairline + {elevation.shadow-sm}, p-4, max-w-[80%]"
+    name: "Source Sans 3 600, 16px, {color.foreground} (13.35 on paper)"
+    honest-badge: "rounded-full on paper, 1px {color.border}, Lucide CircleCheck 16px + 'Na medida pro seu nível', 14px 600 in {color.success} (moss 6.91 on paper; 5.05 if ever on spruce)"
+    price: "final price Source Sans 3 600, 20px, tabular figures, {color.foreground}; PIX line 14px {color.muted-foreground} (6.89 on paper)"
+    promo-rule: "always three parts on one line: 'De R$ 2.399' {color.muted-foreground} with line-through (word 'De' carries meaning, not the strike alone) + '18% off' 600 in {color.warning} honey deep (5.77 on paper; never on spruce, 4.22) + final 'R$ 1.967,18' 600 {color.foreground}. PIX 5% never stacked on promo"
+    never: "terracotta badge or price, red sale banner, honey-deep text on spruce, a discount without the original price"
+  layout:
+    archetype: "centered"
+    max-width: "max-w-2xl for chat column; max-w-md for login/warm-up card; 60ch for prose"
+    section-spacing: "chat: 8px between same-sender bubbles, 16px on speaker change; screens: py-12 to py-16"
+    grid-gap: "gap-4 to gap-6"
+    surfaces: "paper grain on cream canvas (opacity .05), faint wood grain on login card; chat header is the solid wood rail (no grain); flat fills on bubbles, inputs, buttons"
+    decoration: "one walnut line drawing per screen (tuning pegs, rosette); soundhole-rosette tile at 4% on login/warm-up canvas; no gradients across surfaces"
+
+constraints:
+  never:
+    - "terracotta on anything that is not clickable — if it is terracotta and not an action, it is a bug"
+    - "blue or cool grey anywhere, including links and info states"
+    - "cream text on honey (2.68) or cream label on dark-mode terracotta (2.68)"
+    - "honey #C98A2B as text on any light surface; honey deep #8A5A14 as text on spruce (4.22)"
+    - "terracotta #A54A29 as text on spruce (3.53) — use #93401F"
+    - "Fraunces in chat bubbles, buttons, labels, prices or timestamps"
+    - "ALL CAPS headings or labels; a third typeface; script or handwriting fonts"
+    - "markdown in chat bubbles (no bold, lists, headers)"
+    - "emoji in UI copy; robot, sparkle or AI icons for the assistant; a face on the avatar"
+    - "spinners, progress bars or fake percentages on the warm-up screen; rotating the logo"
+    - "texture behind chat bubbles, inputs, buttons or any text under 18px"
+    - "gradients across large surfaces; red sale banners; black-and-gold pairing; pure black"
+    - "body or interactive text under 16px (caption/body-small only for non-interactive metadata)"
+  always:
+    - "terracotta for the single primary action per view; cream label at full opacity"
+    - "walnut 2px focus ring with 2px cream offset, visible on every focusable element"
+    - "semantic states carry icon + words (CircleCheck moss, CircleAlert oxblood) — never color alone"
+    - "agent bubbles spruce/walnut, user bubbles walnut/cream; avatar once per agent group"
+    - "tabular figures on the warm-up timer and every price in UI"
+    - "sentence case; pt-BR copy following voice-and-tone.md; 'Empório' always with the accent"
+    - "Lucide outline icons at strokeWidth 1.75 with absoluteStrokeWidth; aria-label in pt-BR on icon-only buttons"
+    - "honor prefers-reduced-motion (no animation) and prefers-reduced-data (no grain); the wood rail is solid color and stays"
+    - "the wood rail on every chat screen: walnut header + 3px honey bottom rule"
+    - "unknown fact = bubble-handoff state (walnut-muted label + UserRound/Clock), never a guess and never an error style"
+    - "when the cheaper instrument fits, say so with the honest badge; promotions show original + % + final"
+    - "self-hosted fonts via Fontsource, latin + latin-ext subsets"
+
+effects:
+  interaction-vocabulary: [warm-darken, settle-press, fade-arrive, ring-breathe, dot-pulse]
+  hover:
+    card: "none — cards are not interactive by default; selectable rows get spruce→honey 4px left marker"
+    button: "warm-darken — primary #A54A29 → #93401F; secondary gains spruce fill"
+    link: "underline thickens 1px → 2px, color unchanged"
+  active:
+    button: "settle-press — #93401F + scale-[0.98], 100ms"
+  focus:
+    general: "outline-2 outline-ring outline-offset-2 (cream gap via offset on cream/spruce; explicit 2px cream box-shadow ring on terracotta)"
+  transition: "150ms cubic-bezier(0.33, 1, 0.68, 1) for color/opacity; no layout animation"
+  ambient:
+    - "ring-breathe — Boca icon scale 1 → 1.04, opacity → .85, 4s ease-in-out infinite, warm-up screen only"
+    - "dot-pulse — three honey typing dots, staggered opacity pulse 1.2s"
+    - "fade-arrive — new message opacity 0 → 1 + translateY 4px → 0, 150ms"
+  surfaces:
+    wood-rail: "chat header: background --rail (#3B2A1E / dark #5A4130), border-bottom 3px solid --rail-rule (honey #C98A2B / dark #E0A94F). Solid colors only — no image, no grain — so it survives prefers-reduced-data and dark mode; texture never sits behind its text. Static (no motion)"
+
+compatibility: []
+clashes: []

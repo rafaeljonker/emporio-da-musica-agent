@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- Favicon variant: no rosette, heavier strokes. -->
+  <circle cx="128" cy="128" r="128" fill="#C98A2B"/>
+  <circle cx="128" cy="152" r="42" fill="#FAF4EA" stroke="#3B2A1E" stroke-width="22"/>
+  <line x1="104" y1="70" x2="152" y2="48" stroke="#3B2A1E" stroke-width="22" stroke-linecap="round"/>
+</svg>

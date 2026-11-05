@@ -14,3 +14,12 @@ node_modules/
 .envrc
 dist/
 *.egg-info/
+
+# GSP (get-shit-pretty) local install — reinstall with: bunx get-shit-pretty@0.10.0 --claude --local
+.claude/VERSION
+.claude/agents/gsp-*
+.claude/skills/get-shit-pretty/
+.claude/skills/gsp-*/
+.claude/hooks/
+.claude/templates/
+.claude/settings.json

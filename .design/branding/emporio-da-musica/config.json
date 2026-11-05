@@ -1,0 +1,22 @@
+{
+  "version": "0.10.0",
+  "project_type": "brand",
+  "brand": {
+    "name": "emporio-da-musica",
+    "created": "2026-11-05"
+  },
+  "brand_mode": "new",
+  "e2e": true,
+  "evolution_scope": {
+    "preserve": [],
+    "evolve": [],
+    "replace": []
+  },
+  "system_config": {
+    "tech_stack": "Vite + React + TypeScript + Tailwind CSS v4 + shadcn/ui (Radix); Lucide icons; Fontsource self-hosted fonts",
+    "system_strategy": "generate",
+    "style_preset": "",
+    "style_base": []
+  },
+  "gsp_version": "0.10.0"
+}
