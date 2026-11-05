@@ -17,7 +17,9 @@ CATEGORIES = (
     category(id=VIOLAO, name="Violões"),
     category(id=METAIS, name="Instrumentos de Sopro (Metais)"),
     category(id=CORDAS, name="Cordas Orquestrais"),
-    category(id=UKULELES, name="Ukuleles"),
+    category(
+        id=UKULELES, name="Ukuleles", description="Ukuleles soprano, concert, tenor e barítono"
+    ),
 )
 
 CATALOG = (
@@ -40,7 +42,14 @@ CATALOG = (
     ),
     product(id=112, name="Tagima TW-7 7 Cordas Aço Natural", category_id=VIOLAO, price="999"),
     product(id=93, name="Martin D-28 Dreadnought Natural", category_id=VIOLAO, price="11499"),
-    product(id=108, name="Martin D-28E Elétrico Aço Natural", category_id=VIOLAO, price="12000"),
+    product(
+        id=108,
+        name="Martin D-28E Elétrico Aço Natural",
+        category_id=VIOLAO,
+        price="12000",
+        description="O lendário Martin D-28 com captação LR Baggs Anthem.",
+    ),
+    product(id=116, name="Kala KA-15S Soprano Mogno", category_id=UKULELES, price="199.90"),
     product(
         id=136,
         name="Ibanez Bass 2X Electric Bass",
@@ -217,10 +226,8 @@ def test_two_categories_list_both() -> None:
     assert set(ids(search("violões e guitarras"))) == {*ALL_VIOLOES, 145}
 
 
-def test_word_only_in_one_description_is_exact() -> None:
-    result = search("jazz bass")
-    assert isinstance(result, Exact)
-    assert result.product.id == 135
+def test_word_only_in_one_description_is_a_single_candidate() -> None:
+    assert ids(search("jazz bass")) == (135,)
 
 
 def test_empty_category_word_still_narrows_by_name() -> None:
@@ -255,3 +262,15 @@ def test_unknown_number_is_never_fuzzed() -> None:
     result = search("sn 1000")
     assert not isinstance(result, Exact)
     assert not (isinstance(result, Candidates) and 90 in ids(result))
+
+
+def test_glued_code_with_trailing_letter_matches() -> None:
+    result = search("ka15s")
+    assert isinstance(result, Exact)
+    assert result.product.id == 116
+
+
+def test_described_word_that_names_products_still_narrows() -> None:
+    result = search("ukulele soprano")
+    assert isinstance(result, Exact)
+    assert result.product.id == 116
