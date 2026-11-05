@@ -1,5 +1,7 @@
 from collections.abc import Mapping, Sequence
 
+import pytest
+
 from emporio.catalog.application.recommend_products import RecommendProducts
 from emporio.catalog.domain.product import Product, ProductStatus
 from emporio.catalog.domain.search import Candidates, NoMatch
@@ -81,3 +83,14 @@ def test_recommend_skips_ids_missing_from_catalog() -> None:
     a = product(id=1)
 
     assert _recommend([99, 1], a)("x") == Candidates((a,))
+
+
+@pytest.mark.parametrize("limit", [0, -1])
+def test_recommend_with_non_positive_limit_returns_no_match_without_asking_index(
+    limit: int,
+) -> None:
+    index = FakeIndex([1, 2])
+    recommend = RecommendProducts(FakeCatalogRepository([product(id=1), product(id=2)]), index)
+
+    assert recommend("quero algo", limit) == NoMatch()
+    assert index.asked is None
