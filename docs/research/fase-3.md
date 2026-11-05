@@ -29,7 +29,7 @@ Date: 2026-11-05. PyPI versions fetched 2026-11-05 from `https://pypi.org/pypi/<
   - Its built-in model list has `multilingual-e5-large` but **not e5-small** (checked with `TextEmbedding.list_supported_models()`).
   - The README's own `add_custom_model` example uses exactly `intfloat/multilingual-e5-small` with `pooling=PoolingType.MEAN, normalization=True, dim=384, model_file="onnx/model.onnx"`. I ran it: the output is 384-dimensional with norm 1.0.
   - Runtime stack: onnxruntime 1.31.1, tokenizers, huggingface-hub and numpy. No torch.
-  - Measured: venv 141 MB, import 0.45 s, model load 1.2 s, about 5 ms per query on CPU.
+  - Measured: venv 141 MB, import 0.45 s, model load 1.2 s, about 5 ms per query on CPU. End to end, about 30 ms per search locally (embed ~5 ms + SQL).
   - The onnxruntime manylinux x86_64 wheel is 22.7 MB.
 - **sentence-transformers 6.2.0** with torch 2.15.0:
   - Measured on Mac: venv 913 MB, warm import 6.1 s, load 4.1 s, 15 ms per query.
@@ -83,7 +83,7 @@ Date: 2026-11-05. PyPI versions fetched 2026-11-05 from `https://pypi.org/pypi/<
   - The runner creates `schema_migrations(version text PRIMARY KEY, applied_at timestamptz DEFAULT now())`.
   - It applies the not-yet-applied files in sorted order, each in its own transaction.
   - Never use `CREATE INDEX CONCURRENTLY` in these files, because it cannot run inside a transaction.
-- `make up` runs it as compose up, wait for `pg_isready`, `make migrate`, then `make ingest`. The same command works against Railway with `DATABASE_URL` set.
+- `make db` runs it as compose up, wait for `pg_isready`, `make migrate`, then `make ingest`. `make migrate ingest` with `DATABASE_URL` set does the same against Railway.
 
 **Recommendation:** plain SQL files + a ~25-line psycopg runner (`make migrate`), no new dependency.
 
@@ -158,7 +158,7 @@ Date: 2026-11-05. PyPI versions fetched 2026-11-05 from `https://pypi.org/pypi/<
   - `make test-pg` runs them against `docker compose`.
 - **CI:**
   - Use a GitHub Actions **service container** `pgvector/pgvector:0.8.7-pgNN` with a `pg_isready` health check (Linux runner only; https://docs.github.com/en/actions/tutorials/use-containerized-services/create-postgresql-service-containers). No new dependency.
-  - testcontainers 4.15.0 (Apache) would add a dependency and Docker-socket handling for the same result, since `docker compose` already exists locally for `make up`.
+  - testcontainers 4.15.0 (Apache) would add a dependency and Docker-socket handling for the same result, since `docker compose` already exists locally for `make db`.
 - One **eval test** (see §9) uses the real e5 model. It is marked `eval`, runs in `make evals` and in a CI job with the HF cache keyed on the model revision, and is not part of `make check`.
 
 **Recommendation:** fakes for unit tests, `postgres`-marked integration tests skipped without `DATABASE_URL`, GitHub service container in CI, no testcontainers.
@@ -196,7 +196,7 @@ Update: the owner chose hybrid, and the measured table above confirms it.
 ## Recommended decisions for phase 3
 1. pdfplumber with a sequence-checked section parser (pure, in domain): 25 chunks, title-prefixed, cited by section id.
 2. fastembed 0.9.1 with e5-small ONNX (`add_custom_model`), model baked into the image; no torch. Lives in `emporio/embeddings.py`, used only by infrastructure.
-3. psycopg 3.3 (sync) + psycopg-pool + pgvector 0.5.1; `vector(384)`, HNSW cosine; plain SQL migrations with a tiny runner; `make up` = compose, migrate, ingest.
+3. psycopg 3.3 (sync) + psycopg-pool + pgvector 0.5.1; `vector(384)`, HNSW cosine; plain SQL migrations with a tiny runner; `make db` = compose, migrate, ingest.
 4. Railway default Postgres (verify `vector` is available), public proxy with `sslmode=require`, no pooler, no sleeping, daily backup.
 5. Store hours as a pure function, holidays injected, `tzdata` dependency, `Clock.now()`; retrieval eval gate hit@5 ≥ 0.9.
 
