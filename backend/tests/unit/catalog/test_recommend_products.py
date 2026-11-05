@@ -65,3 +65,13 @@ def test_blank_need_is_no_match() -> None:
 
 def test_no_available_product_is_no_match() -> None:
     assert _recommend([1], product(id=1, stock=0))("x") == NoMatch()
+
+
+def test_limit_above_pool_asks_index_for_limit() -> None:
+    items = [product(id=i) for i in range(1, 13)]
+    index = FakeIndex(range(1, 13))
+
+    result = RecommendProducts(FakeCatalogRepository(tuple(items)), index)("x", limit=12)
+
+    assert index.asked == ("x", 12)
+    assert result == Candidates(tuple(items))
