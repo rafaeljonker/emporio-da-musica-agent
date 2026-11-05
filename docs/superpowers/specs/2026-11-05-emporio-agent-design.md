@@ -130,15 +130,21 @@ They evaluate **"lógica, clareza e iniciativa"** (logic, clarity and initiative
 **Layers per domain:**
 - `domain/` (entities and pure rules, no LangChain/SQL/IO);
 - `application/` (use cases);
-- `infrastructure/` (DuckDB-CSV, Postgres/pgvector, vLLM and provider adapters, embeddings and MCP).
+- `infrastructure/` (stdlib `csv` repositories, Postgres/pgvector, vLLM and provider adapters, embeddings and MCP).
 
 The agent's tools are a thin layer in `support/` that calls the use cases. A rule in `.claude/rules/` with `paths: **/domain/**` reinforces purity.
+
+### 7.2.1 Phase 2 rulings
+- **Stdlib only in the data path:** CSVs are read with the stdlib `csv` module into memory (a few dozen products, about 20 orders); DuckDB is unnecessary at this size and the repository port lets it be swapped later.
+- **`difflib` instead of rapidfuzz:** keeps the domain stdlib-only (domain-purity contract); typo tolerance is enough for a catalog this size.
+- **Search grading:** a result is Exact only when every remaining query word hits a name token of a single product (fuzzy needs score ≥ 0.9 with no runner-up within 0.05; model codes with digits never match fuzzily); everything else is Candidates and the agent asks. Category words tolerate typos ("violuao", "guitara", "ukelele").
+- **Identity:** an unknown order and a wrong e-mail/phone return the same error, so the agent never reveals which order numbers exist.
 
 ### 7.3 Architecture
 ```
 React (Vite+TS, GSP design system) ──POST /chat (SSE)──► FastAPI (Python)
         │                                                  │ LangGraph: guard → agent ⇄ tools
-        └── bubbles via SSE ◄─────────────────────────────┤ catalog/orders → DuckDB (cleaned CSVs)
+        └── bubbles via SSE ◄─────────────────────────────┤ catalog/orders → stdlib csv (in memory)
                                                            ├ policies → pgvector
                                                            └ history/metrics → Postgres
     scripts/ingest_policies.py (Python): PDF → chunks by section → e5 embeddings (CPU) → pgvector
@@ -155,7 +161,8 @@ React (Vite+TS, GSP design system) ──POST /chat (SSE)──► FastAPI (Pyth
   - **Anonymous:** it asks for the order number and the e-mail or phone, and only shows it if both match.
   - **Never** exposes another customer's data. This is tested.
 - **Tools:**
-  - `search_products`: fuzzy with `rapidfuzz`, category and price-range filters, ambiguity becomes a question to the customer;
+  - `search_products`: accent/plural-normalized token match with `difflib` typo tolerance ("violuao" finds "violão"), category and price-range filters; results are graded Exact/Candidates and ambiguity becomes a question to the customer;
+  - `recommend_products` (phase 3): semantic search over product descriptions (e5 + pgvector) for open needs ("algo pra tocar MPB em casa"); returns Candidates only, never an exact match, and prices still come from the catalog;
   - `get_product`;
   - `list_active_promotions`;
   - `calc_installments`: deterministic;
@@ -163,7 +170,7 @@ React (Vite+TS, GSP design system) ──POST /chat (SSE)──► FastAPI (Pyth
   - `check_return_eligibility`;
   - `store_now`;
   - `search_policies`.
-- **"Today" (design decision):** the orders run from 10/2025 to 03/2026. With the real date, all of them would be outside the withdrawal window. So `STORE_TODAY` is **mandatory** and defaults to a date close to 03/2026, chosen so that there are orders inside and outside the window. It is documented as an assumption.
+- **"Today" (design decision):** the orders run from 10/2025 to 03/2026. With the real date, all of them would be outside the withdrawal window. So `STORE_TODAY` is **mandatory** and defaults to **2026-02-20**, chosen so that there are orders inside and outside the window (order 7 is regret-eligible, order 5 is not). It is documented as an assumption, together with the data quirks: some orders are dated after that day, product #135 is named "Music Man Bass 1X" but described as a Fender Jazz Bass, the installment rules conflict (section 3.1 wins), and a delivered order's delivery date is taken as `estimated_delivery`.
 
 ### 7.4 Human voice
 - **Voice guide:** lives in `src/support/voice/`, with the tone from section 7.1 of the policy ("informal mas profissional, amigo que entende de música"), good and bad examples taken from the store's own scenarios and the list of AI tells (sources: Wikipedia's "Signs of AI writing" guide and WhatsApp customer-service guides). It feeds the persona prompt and is the same voice defined in the GSP brand strategy stage. The guide and the persona prompts are written in Portuguese (pt-BR); the persona prompt language (PT instructions vs EN instructions with PT examples) will be A/B-tested in the phase 4 evals, with PT as the default.
@@ -207,7 +214,7 @@ flowchart LR
   A -->|triggers| W[/warm → Modal GPU/]
   U -->|POST /chat SSE| H[support.application.handle_message]
   H --> G[LangGraph: guard → agent ⇄ tools]
-  G -->|tools| C[catalog use cases] --> R1[(CSV via DuckDB)]
+  G -->|tools| C[catalog use cases] --> R1[(CSV via stdlib csv)]
   G -->|tools| O[orders use cases] --> R1
   G -->|tools| P[policies.search] --> V[(Postgres + pgvector)]
   G -->|LLM port| L{{Gemma 4 31B · vLLM · Modal GPU<br/>or Gemini/OpenAI/Anthropic via flag}}
@@ -403,7 +410,7 @@ These enter the project (FastAPI + Pydantic remains the web base):
 |---|---|---|---|
 | **0. Foundation** | repo, AGENTS.md/CLAUDE.md, `.claude/rules` and skills, uv + ruff + pyright + pre-commit + gitleaks, CI, Makefile, `data/`, spec and ADR 0001 committed | AGENTS.md and skills (Anthropic docs), uv, ruff, pre-commit, gitleaks, import-linter, GitHub Actions | Thu 05/11 night |
 | **1. Design** | lean GSP (voice strategy → identity → tokens), mockups to choose from (login, warm-up, chat with bubbles), WCAG critique | GSP, messaging-app-style chat UI patterns, UX of long, explanatory loading | Thu night / Fri morning |
-| **2. Pure domains** | catalog, orders and `shared` (domain + application + CSV/DuckDB repositories), all the data traps as tests | DDD in Python (layout, import-linter), DuckDB, rapidfuzz, PT-BR normalization | Fri 06/11 |
+| **2. Pure domains** | catalog, orders and `shared` (domain + application + stdlib `csv` repositories), all the data traps as tests | DDD in Python (layout, import-linter), stdlib csv/difflib, PT-BR normalization | Fri 06/11 |
 | **3. Policy RAG** | chunking by section, e5 embeddings on CPU, schema and migrations, pgvector (HNSW index), ingestion, local docker compose | pgvector (indexes, cosine distance), psycopg 3 or SQLAlchemy, LangGraph's Postgres checkpointer, Neon × Supabase (free tier, pooling in serverless), multilingual-e5 (query/passage prefixes), PDF extraction | Fri 06/11 |
 | **4. Agent** | MCP server for the tools, LangGraph graph (guard → agent ⇄ tools), provider port (Gemma/vLLM, Gemini, OpenAI, Anthropic), voice + bubbles + detector, evals | FastMCP and langchain-mcp-adapters, LangGraph (current API), vLLM + Gemma 4 tool parser, init_chat_model of the 4 providers, structured output | Sat 07/11 |
 | **5. API + Frontend** | FastAPI (demo login, `/warm` and `/warm/status`, `/chat` SSE), React with design system (login → warm-up screen → chat with bubbles and "digitando…"), `make up` and `make e2e` (Playwright) | SSE in FastAPI, simple secure auth, SSE in React (EventSource/fetch stream), Playwright | Sat 07/11 night / Sun 08/11 |
