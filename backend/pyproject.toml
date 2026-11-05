@@ -188,4 +188,4 @@ source_modules = [
     "emporio.catalog.application", "emporio.orders.application",
     "emporio.policies.application", "emporio.support.application",
 ]
-forbidden_modules = ["emporio.paths", "emporio.db", "emporio.migrate"]
+forbidden_modules = ["emporio.paths", "emporio.db", "emporio.migrate", "emporio.embeddings"]
