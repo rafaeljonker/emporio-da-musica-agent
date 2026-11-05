@@ -1,10 +1,10 @@
 export PATH := $(CURDIR)/backend/.venv/bin:$(PATH)
 
-.PHONY: help setup fmt lint typecheck imports test check db-up migrate db test-pg
+.PHONY: help setup fmt lint typecheck imports test check db-up migrate db test-pg ingest evals
 .DEFAULT_GOAL := help
 
 help:
-	@echo "targets: setup fmt lint typecheck imports test check db-up migrate db test-pg"
+	@echo "targets: setup fmt lint typecheck imports test check db-up migrate db test-pg ingest evals"
 
 setup:
 	cd backend && uv sync && uv run pre-commit install --config ../.pre-commit-config.yaml
@@ -35,7 +35,13 @@ db-up:
 migrate:
 	cd backend && DATABASE_URL=$(LOCAL_DATABASE_URL) uv run python -m emporio.migrate
 
-db: db-up migrate
+ingest:
+	cd backend && DATABASE_URL=$(LOCAL_DATABASE_URL) uv run python -m emporio.ingest
+
+db: db-up migrate ingest
 
 test-pg:
 	cd backend && DATABASE_URL=$(LOCAL_DATABASE_URL) uv run pytest -q -m postgres
+
+evals:
+	cd backend && DATABASE_URL=$(LOCAL_DATABASE_URL) uv run pytest -q -m eval -s

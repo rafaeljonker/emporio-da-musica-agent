@@ -10,6 +10,9 @@ Run from the repo root; all targets execute in `backend/`.
 - `make setup`: install deps and pre-commit hooks.
 - `make check`: lint + typecheck + import contracts + tests. Green before every commit, except the `(red)` commit of a TDD pair, where only the new test may fail.
 - `make test`: pytest only.
+- `make db`: start Postgres (host port 5434), migrate, ingest policies and products.
+- `make test-pg`: Postgres integration tests (need `make db-up`).
+- `make evals`: real-model retrieval eval (needs `make db`); not part of `make check`.
 - `make fmt`: ruff format and `ruff check --fix`.
 
 ## Architecture rules
@@ -44,6 +47,8 @@ Never write keys or real values in any file. Use `.env` (git-ignored); `.env.exa
 
 ## Gotchas
 - Files in `data/` have spaces and accents in their names; never hardcode them, use `emporio.paths`.
+- `DATABASE_URL` is the only DB setting; the Make targets set the local one. Without it, `postgres` tests skip.
+- First use of the e5 embedder downloads about 470 MB (fastembed cache); `make db` and `make evals` need it.
 - `data/` is read-only source material.
 
 ## Code style

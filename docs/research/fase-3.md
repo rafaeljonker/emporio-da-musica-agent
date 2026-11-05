@@ -175,6 +175,16 @@ Date: 2026-11-05. PyPI versions fetched 2026-11-05 from `https://pypi.org/pypi/<
 - Minimal eval to include: `backend/evals/policies_retrieval.yaml` with about 20 `{question, expected_section}` pairs (the set above), and a test asserting hit@5 ≥ 0.9 and printing hit@1.
   - The same file calibrates any "no relevant policy" score cut-off. Do not hard-code one, because e5 scores sit at 0.7–1.0.
 
+### Measured retrieval
+20 customer questions (`backend/evals/policies_retrieval.toml`), real e5-small, 25 chunks, k=5, via `make evals`:
+
+| mode | hit@1 | hit@3 | hit@5 |
+|---|---|---|---|
+| vector | 0.65 | 0.80 | 0.90 |
+| hybrid | 0.75 | 0.95 | 1.00 |
+
+Hybrid (FTS + RRF) fixes "vocês abrem domingo?" and "o produto esgotou, e agora?" at k=5; hit@1 stays at 0.75, so the LLM must read all five hits.
+
 **Recommendation:** pure vector, k=5, plus the 20-question hit@5 ≥ 0.9 eval; add hybrid (FTS `portuguese` + unaccent, RRF) only if that eval fails.
 
 ## Recommended decisions for phase 3
