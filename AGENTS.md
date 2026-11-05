@@ -25,6 +25,8 @@ Enforced by `import-linter` (`make imports`).
 | `*/infrastructure` | `application`, `domain` and external libs |
 | `api/`, `cli.py` | `support.application` and `config` (never another domain's `infrastructure`, only via the factory) |
 
+`emporio.db`, `embeddings`, `migrate` are leaf technical modules usable only by infrastructure; `emporio.ingest` is the composition root.
+
 Domain has no IO and no frameworks. One use case per file.
 
 ## TDD

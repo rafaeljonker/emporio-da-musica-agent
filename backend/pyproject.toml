@@ -97,6 +97,21 @@ forbidden_modules = [
     "pydantic", "pandas", "requests", "rapidfuzz",
     "numpy", "fastembed", "pdfplumber", "pgvector", "psycopg_pool",
     "csv", "os", "pathlib", "sqlite3", "socket", "subprocess", "urllib", "http", "shutil",
+    "tempfile", "glob", "io", "ssl", "smtplib", "asyncio", "threading", "logging",
+]
+
+[[tool.importlinter.contracts]]
+name = "Application stays framework-free"
+type = "forbidden"
+source_modules = [
+    "emporio.catalog.application", "emporio.orders.application",
+    "emporio.policies.application", "emporio.support.application",
+]
+forbidden_modules = [
+    "fastapi", "langchain", "langchain_core", "langgraph", "sqlalchemy", "psycopg",
+    "duckdb", "httpx", "openai", "anthropic", "google",
+    "pydantic", "pandas", "requests", "rapidfuzz",
+    "numpy", "fastembed", "pdfplumber", "pgvector", "psycopg_pool",
 ]
 
 [[tool.importlinter.contracts]]
@@ -180,7 +195,7 @@ modules = [
 ]
 
 [[tool.importlinter.contracts]]
-name = "Only infrastructure may use emporio.paths"
+name = "Only infrastructure may use technical modules"
 type = "forbidden"
 source_modules = [
     "emporio.catalog.domain", "emporio.orders.domain",
@@ -188,4 +203,52 @@ source_modules = [
     "emporio.catalog.application", "emporio.orders.application",
     "emporio.policies.application", "emporio.support.application",
 ]
-forbidden_modules = ["emporio.paths", "emporio.db", "emporio.migrate", "emporio.embeddings"]
+forbidden_modules = [
+    "emporio.paths", "emporio.db", "emporio.migrate", "emporio.embeddings", "emporio.ingest",
+]
+
+[[tool.importlinter.contracts]]
+name = "Technical modules never import a context"
+type = "forbidden"
+source_modules = ["emporio.db", "emporio.embeddings", "emporio.migrate"]
+forbidden_modules = ["emporio.catalog", "emporio.orders", "emporio.policies", "emporio.support"]
+
+[[tool.importlinter.contracts]]
+name = "Catalog infrastructure never imports another context's domain or application"
+type = "forbidden"
+source_modules = ["emporio.catalog.infrastructure"]
+forbidden_modules = [
+    "emporio.orders.domain", "emporio.orders.application",
+    "emporio.policies.domain", "emporio.policies.application",
+    "emporio.support.domain", "emporio.support.application",
+]
+
+[[tool.importlinter.contracts]]
+name = "Orders infrastructure never imports another context's domain or application"
+type = "forbidden"
+source_modules = ["emporio.orders.infrastructure"]
+forbidden_modules = [
+    "emporio.catalog.domain", "emporio.catalog.application",
+    "emporio.policies.domain", "emporio.policies.application",
+    "emporio.support.domain", "emporio.support.application",
+]
+
+[[tool.importlinter.contracts]]
+name = "Policies infrastructure never imports another context's domain or application"
+type = "forbidden"
+source_modules = ["emporio.policies.infrastructure"]
+forbidden_modules = [
+    "emporio.catalog.domain", "emporio.catalog.application",
+    "emporio.orders.domain", "emporio.orders.application",
+    "emporio.support.domain", "emporio.support.application",
+]
+
+[[tool.importlinter.contracts]]
+name = "Support infrastructure never imports another context's domain or application"
+type = "forbidden"
+source_modules = ["emporio.support.infrastructure"]
+forbidden_modules = [
+    "emporio.catalog.domain", "emporio.catalog.application",
+    "emporio.orders.domain", "emporio.orders.application",
+    "emporio.policies.domain", "emporio.policies.application",
+]
