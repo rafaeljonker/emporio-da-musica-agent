@@ -47,7 +47,7 @@ Never write keys or real values in any file. Use `.env` (git-ignored); `.env.exa
 
 ## Gotchas
 - Files in `data/` have spaces and accents in their names; never hardcode them, use `emporio.paths`.
-- `DATABASE_URL` is the only DB setting; the Make targets set the local one. Without it, `postgres` tests skip.
+- `DATABASE_URL` is the only DB setting. `make db`, `make test-pg` and `make evals` set their own URL; `make test`/`make check` ignore any exported `DATABASE_URL`; Postgres tests only run against a database whose name ends in `_test`.
 - First use of the e5 embedder downloads about 470 MB (fastembed cache); `make db` and `make evals` need it.
 - `data/` is read-only source material.
 

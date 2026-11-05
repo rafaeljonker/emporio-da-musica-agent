@@ -6,12 +6,14 @@ import pytest
 
 from emporio.db import connect
 from emporio.migrate import apply_migrations
+from tests.pg_guard import pg_skip_reason
 
 
 @pytest.fixture
 def pg_conn() -> Iterator[psycopg.Connection]:
-    if not os.environ.get("DATABASE_URL"):
-        pytest.skip("DATABASE_URL not set; run `make test-pg`")
+    reason = pg_skip_reason(os.environ.get("DATABASE_URL"))
+    if reason:
+        pytest.skip(reason)
     conn = connect()
     apply_migrations(conn)
     yield conn

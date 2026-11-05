@@ -22,7 +22,7 @@ imports:
 	cd backend && uv run lint-imports
 
 test:
-	cd backend && uv run pytest -q
+	cd backend && env -u DATABASE_URL uv run pytest -q
 
 check: lint typecheck imports test
 

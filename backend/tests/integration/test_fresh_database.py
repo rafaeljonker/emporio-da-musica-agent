@@ -8,13 +8,15 @@ from pgvector import Vector
 
 from emporio.db import connect, database_url
 from emporio.migrate import apply_migrations
+from tests.pg_guard import pg_skip_reason
 
 pytestmark = pytest.mark.postgres
 
 
 def test_fresh_database_migrate_then_insert_vector() -> None:
-    if not os.environ.get("DATABASE_URL"):
-        pytest.skip("DATABASE_URL not set; run `make test-pg`")
+    reason = pg_skip_reason(os.environ.get("DATABASE_URL"))
+    if reason:
+        pytest.skip(reason)
     base = urlsplit(database_url())
     name = f"emporio_fresh_{uuid.uuid4().hex[:8]}"
     fresh_url = urlunsplit(base._replace(path=f"/{name}"))
