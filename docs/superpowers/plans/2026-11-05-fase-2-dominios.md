@@ -1,5 +1,16 @@
 # Phase 2: Pure domains (catalog, orders, shared) — implementation plan
 
+## Superseded by rulings
+
+These decisions were made after the plan was written and override the task interfaces below:
+
+- Search `max_price` moved to the `SearchProducts` use case and filters on the final promotional price.
+- `ReturnReason` is a `StrEnum` with codes `cancelled`, `not_delivered`, `no_delivery_date`, `within_regret_window`, `within_defect_window`, `defect_window_closed` (there is no `regret_window_closed`).
+- `CheckReturnEligibility` raises `OrderNotFound` for an unknown order or another customer's order.
+- `GetOrderStatus` raises `IdentityMismatch` for an unknown order or a wrong identity.
+- `CsvOrderRepository` is split into `CsvOrderRepository` and `CsvCustomerRepository`.
+
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** implement the store rules the agent depends on, as pure, tested Python: money and pt-BR formatting, text normalization, clock, catalog (availability, promo/PIX pricing, installments, product search) and orders (identity check, status, return eligibility), plus CSV repositories over the case data.
