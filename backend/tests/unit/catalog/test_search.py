@@ -274,3 +274,30 @@ def test_described_word_that_names_products_still_narrows() -> None:
     result = search("ukulele soprano")
     assert isinstance(result, Exact)
     assert result.product.id == 116
+
+
+def test_category_typos_are_tolerated() -> None:
+    for query, category_id in [
+        ("violuao", VIOLAO),
+        ("vilão", VIOLAO),
+        ("guitara", GUITARRAS),
+        ("ukelele", UKULELES),
+    ]:
+        result = search(query)
+        assert isinstance(result, Candidates), query
+        assert {p.category_id for p in result.products} == {category_id}, query
+
+
+def test_category_typo_with_price_ceiling() -> None:
+    result = search("violuao ate 1000", max_price=m("1000"))
+    assert isinstance(result, Candidates)
+    assert set(ids(result)) == {89, 81, 112, 111}
+
+
+def test_category_typo_never_overrides_a_brand_or_unrelated_word() -> None:
+    kala = search("kala")
+    assert isinstance(kala, Candidates)
+    assert all("Kala" in p.name for p in kala.products)
+    assert isinstance(search("violino"), NoMatch)
+    assert isinstance(search("bateria eletronica roland"), NoMatch)
+    assert isinstance(search("baixo"), Candidates)
