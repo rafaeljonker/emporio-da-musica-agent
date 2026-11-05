@@ -14,7 +14,9 @@ def m(value: str) -> Money:
 
 
 def test_takamine_returns_four_candidates() -> None:
-    assert len(SearchProducts(repo)("takamine").products) == 4  # type: ignore[union-attr]
+    r = SearchProducts(repo)("takamine")
+    assert isinstance(r, Candidates)
+    assert len(r.products) == 4
 
 
 def test_gd20_price_and_pix() -> None:
