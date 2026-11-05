@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, time
 from typing import Protocol
 from zoneinfo import ZoneInfo
 
@@ -10,16 +10,24 @@ DEFAULT_STORE_TODAY = date(2026, 2, 20)
 
 class Clock(Protocol):
     def today(self) -> date: ...
+    def now(self) -> datetime: ...
 
 
 class SystemClock:
     def today(self) -> date:
-        return datetime.now(STORE_TZ).date()
+        return self.now().date()
+
+    def now(self) -> datetime:
+        return datetime.now(STORE_TZ)
 
 
 @dataclass(frozen=True)
 class FixedClock:
     fixed: date
+    at: time = time(12, 0)
 
     def today(self) -> date:
         return self.fixed
+
+    def now(self) -> datetime:
+        return datetime.combine(self.fixed, self.at, tzinfo=STORE_TZ)
