@@ -1,5 +1,4 @@
 from decimal import Decimal
-from typing import Any
 
 from emporio.catalog.domain.pricing import Promotion
 from emporio.catalog.domain.product import Product, ProductStatus
@@ -10,31 +9,26 @@ def m(value: str) -> Money:
     return Money.from_str(value)
 
 
-def product(**overrides: Any) -> Product:  # noqa: ANN401
-    fields: dict[str, Any] = {
-        "id": 1,
-        "name": "Violao",
-        "category_id": 1,
-        "description": "",
-        "price": "1000",
-        "stock": 5,
-        "status": ProductStatus.ACTIVE,
-        "specs": (),
-    }
-    fields.update(overrides)
-    if isinstance(fields["price"], str):
-        fields["price"] = m(fields["price"])
-    return Product(**fields)
+def product(
+    *,
+    id: int = 1,
+    name: str = "Violao",
+    category_id: int = 1,
+    description: str = "",
+    price: str = "1000",
+    stock: int = 5,
+    status: ProductStatus = ProductStatus.ACTIVE,
+    specs: tuple[tuple[str, str], ...] = (),
+) -> Product:
+    return Product(id, name, category_id, description, m(price), stock, status, specs)
 
 
-def promo(**overrides: Any) -> Promotion:  # noqa: ANN401
-    fields: dict[str, Any] = {
-        "id": 1,
-        "product_id": 1,
-        "percent": "10",
-        "label": "Promo",
-        "active": True,
-    }
-    fields.update(overrides)
-    fields["percent"] = Decimal(fields["percent"])
-    return Promotion(**fields)
+def promo(
+    *,
+    id: int = 1,
+    product_id: int = 1,
+    percent: str = "10",
+    label: str = "Promo",
+    active: bool = True,
+) -> Promotion:
+    return Promotion(id, product_id, Decimal(percent), label, active)
