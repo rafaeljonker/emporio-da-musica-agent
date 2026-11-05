@@ -35,3 +35,7 @@ def test_normalize_phone_keeps_digits_and_strips_country_code():
 
 def test_identity_mismatch_message_carries_no_data():
     assert str(IdentityMismatch()) == "identity does not match the order's customer"
+
+
+def test_phone_without_ddd_never_matches():
+    assert matches_identity(cust(phone="(67) 98432-1098"), "984321098") is False

@@ -68,7 +68,7 @@ def test_both_windows_closed():
     e = check_return(order(order_date=date(2026, 1, 1), estimated_delivery=date(2026, 1, 5)), TODAY)
     assert not e.regret_eligible
     assert not e.defect_eligible
-    assert e.reason == "regret_window_closed"
+    assert e.reason == "defect_window_closed"
 
 
 def test_delivered_without_delivery_date_has_no_regret_window():
