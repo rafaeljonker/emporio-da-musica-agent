@@ -57,7 +57,14 @@ def search_products(
         found = _match_words(pool, words) if words else _NOTHING
     else:
         in_category = tuple(p for p in pool if p.category_id in category_ids)
-        rest = tuple(w for w in rest if not w.isdigit())
+        # Words the category itself describes ("teclado digital") add nothing to the filter.
+        described = tuple(
+            t
+            for c in categories
+            if c.id in category_ids
+            for t in tokens(c.name + " " + c.description)
+        )
+        rest = tuple(w for w in rest if not w.isdigit() and not _word_hits(w, described))
         found = _match_words(in_category, rest) if rest else _Match(in_category, may_be_exact=True)
         if not found.products and words:
             # A category word may be part of a product name ("7 Cordas"): retry without the
@@ -89,7 +96,7 @@ def _match_categories(
     if not matched:
         return None, words
     first, *others = matched
-    return first.intersection(*others), tuple(w for w in words if not by_word[w])
+    return first.union(*others), tuple(w for w in words if not by_word[w])
 
 
 def _match_words(pool: tuple[Product, ...], words: tuple[str, ...]) -> _Match:
@@ -108,7 +115,10 @@ def _match_words(pool: tuple[Product, ...], words: tuple[str, ...]) -> _Match:
 
 
 def _contained(pool: tuple[Product, ...], words: tuple[str, ...]) -> tuple[Product, ...]:
-    return tuple(p for p in pool if all(_word_hits(w, tokens(p.name)) for w in words))
+    # Name or description: "jazz bass" finds the bass whose description says Jazz Bass.
+    return tuple(
+        p for p in pool if all(_word_hits(w, tokens(p.name + " " + p.description)) for w in words)
+    )
 
 
 def _word_hits(word: str, name: tuple[str, ...]) -> bool:
