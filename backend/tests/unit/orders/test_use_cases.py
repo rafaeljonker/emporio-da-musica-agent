@@ -7,6 +7,7 @@ from emporio.orders.application.get_order_status import GetOrderStatus
 from emporio.orders.application.list_customer_orders import ListCustomerOrders
 from emporio.orders.domain.errors import OrderNotFound
 from emporio.orders.domain.identity import IdentityMismatch
+from emporio.orders.domain.return_policy import ReturnEligibility
 from emporio.shared.clock import FixedClock
 from tests.unit.orders.factories import cust, order
 from tests.unit.orders.fakes import FakeCustomerRepository, FakeOrderRepository
@@ -22,6 +23,11 @@ def _status() -> GetOrderStatus:
 
 def test_get_order_status_returns_order_for_matching_identity() -> None:
     assert _status()(10, "pedro.oliveira@jmail.com").id == 10
+
+
+def test_get_order_status_rejects_other_customers_order() -> None:
+    with pytest.raises(IdentityMismatch):
+        _status()(11, "pedro.oliveira@jmail.com")
 
 
 def test_get_order_status_rejects_wrong_identity() -> None:
@@ -62,4 +68,19 @@ def test_return_eligibility_uses_injected_clock() -> None:
     orders = FakeOrderRepository((order(id=10, customer_id=1),))
     early = CheckReturnEligibility(orders, FixedClock(date(2026, 2, 12)))(10, 1)
     late = CheckReturnEligibility(orders, FixedClock(date(2026, 6, 1)))(10, 1)
-    assert early != late
+    assert early == ReturnEligibility(
+        True,
+        True,
+        date(2026, 2, 10),
+        date(2026, 2, 17),
+        date(2026, 3, 3),
+        "within_regret_window",
+    )
+    assert late == ReturnEligibility(
+        False,
+        False,
+        date(2026, 2, 10),
+        date(2026, 2, 17),
+        date(2026, 3, 3),
+        "defect_window_closed",
+    )
