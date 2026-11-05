@@ -1,5 +1,7 @@
+from decimal import Decimal
 from typing import Any
 
+from emporio.catalog.domain.pricing import Promotion
 from emporio.catalog.domain.product import Product, ProductStatus
 from emporio.shared.money import Money
 
@@ -23,3 +25,16 @@ def product(**overrides: Any) -> Product:  # noqa: ANN401
     if isinstance(fields["price"], str):
         fields["price"] = m(fields["price"])
     return Product(**fields)
+
+
+def promo(**overrides: Any) -> Promotion:  # noqa: ANN401
+    fields: dict[str, Any] = {
+        "id": 1,
+        "product_id": 1,
+        "percent": "10",
+        "label": "Promo",
+        "active": True,
+    }
+    fields.update(overrides)
+    fields["percent"] = Decimal(fields["percent"])
+    return Promotion(**fields)
