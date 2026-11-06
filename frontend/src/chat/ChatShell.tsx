@@ -1,5 +1,5 @@
 import { Laptop, LogOut } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { logout } from '@/api/client'
 import type { WarmStatus } from '@/api/types'
 import avatar from '@/assets/avatar.jpg'
@@ -11,9 +11,13 @@ import { useQueuedMessage } from '@/warmup/useQueuedMessage'
 import { useWarmStatus } from '@/warmup/useWarmStatus'
 import { WarmupStatus } from '@/warmup/WarmupStatus'
 import { Composer } from './Composer'
+import { DemoStrip } from './DemoStrip'
+import { EmptyState } from './EmptyState'
+import type { TurnRecord } from './metrics'
+import { MetricsDetails } from './MetricsDetails'
 import { TypingIndicator } from './TypingIndicator'
 import { Transcript } from './Transcript'
-import { useChatStream } from './useChatStream'
+import { isExchange, useChatStream } from './useChatStream'
 
 const READY_LINGER_MS = 800 // the all-done list stays this long
 const READY_FOCUS_MS = 2000 // "Pronto pra conversar." is spoken before any focus move
@@ -21,12 +25,15 @@ const READY_FOCUS_MS = 2000 // "Pronto pra conversar." is spoken before any focu
 interface Props {
   warm: WarmStatus | null
   fromLogin: boolean
+  customerId: number | null
   onSignedOut: () => void
+  onExpired: () => void
 }
 
-export function ChatShell({ warm, fromLogin, onSignedOut }: Props) {
-  const { exchanges, busy, send } = useChatStream(onSignedOut)
-  const { status, elapsed, networkError, retry } = useWarmStatus(warm, onSignedOut)
+export function ChatShell({ warm, fromLogin, customerId: initialCustomer, onSignedOut, onExpired }: Props) {
+  const { entries, busy, send, resend, addDivider } = useChatStream(onExpired)
+  const { status, elapsed, networkError, retry } = useWarmStatus(warm, onExpired)
+  const [customerId, setCustomerId] = useState(initialCustomer)
   const [said, setSaid] = useState<Announcement | null>(null)
   const announce = useCallback((text: string) => setSaid((s) => ({ n: (s?.n ?? 0) + 1, text })), [])
 
@@ -52,7 +59,17 @@ export function ChatShell({ warm, fromLogin, onSignedOut }: Props) {
 
   // provider_api never warms, whatever the seed said.
   const warming = !panelGone && status?.mode !== 'provider_api'
-  const queue = useQueuedMessage(!warming, send, fromLogin)
+  const queue = useQueuedMessage(!warming, send, fromLogin, customerId)
+
+  const turns = useMemo(
+    () =>
+      entries.flatMap((e): TurnRecord[] =>
+        isExchange(e) && e.turn.metrics ? [{ metrics: e.turn.metrics, screenMs: e.screenMs ?? 0 }] : [],
+      ),
+    [entries],
+  )
+  // The measured cold start; provider_api never warms.
+  const warmupSeconds = status?.stage === 'ready' && status.mode !== 'provider_api' ? Math.round(status.elapsed_seconds) : null
   const [text, setText] = useState(queue.restored)
 
   const undo = () => {
@@ -72,8 +89,9 @@ export function ChatShell({ warm, fromLogin, onSignedOut }: Props) {
   }
 
   return (
-    <div className="flex h-dvh flex-col">
-      <header className="sticky top-0 z-10 border-b-[3px] border-rail-rule bg-rail pt-[env(safe-area-inset-top)] text-rail-foreground [&_:focus-visible]:outline-rail-foreground">
+    // Short viewports (400% zoom ≈ 320 × 256): the page scrolls instead of squeezing the log to 0 (SC 1.4.10).
+    <div className="flex h-dvh flex-col short:h-auto short:min-h-dvh">
+      <header className="sticky top-0 z-10 short:static border-b-[3px] border-rail-rule bg-rail pt-[env(safe-area-inset-top)] text-rail-foreground [&_:focus-visible]:outline-rail-foreground">
         <div className="mx-auto flex w-full max-w-2xl items-center gap-3 px-4 py-3">
           <img src={avatar} alt="" className="size-10 shrink-0 rounded-full" />
           <div className="min-w-0 flex-1">
@@ -90,6 +108,16 @@ export function ChatShell({ warm, fromLogin, onSignedOut }: Props) {
           </Button>
         </div>
       </header>
+      <DemoStrip
+        customerId={customerId}
+        onSwitched={(id, divider) => {
+          setCustomerId(id)
+          addDivider(divider)
+        }}
+        onSessionExpired={onExpired}
+      >
+        <MetricsDetails turns={turns} warmupSeconds={warmupSeconds} local={status?.mode === 'local_cpu'} />
+      </DemoStrip>
       {!warming && status?.mode === 'local_cpu' && (
         <p className="border-b border-border">
           <span className="mx-auto flex w-full max-w-2xl gap-2 px-4 py-2 text-sm text-muted-foreground">
@@ -109,9 +137,10 @@ export function ChatShell({ warm, fromLogin, onSignedOut }: Props) {
             announce={announce}
           />
         )}
-        <Transcript exchanges={exchanges} queued={queue.queued?.lines} onUndo={undo} />
+        {!warming && !entries.length && !queue.queued && <EmptyState />}
+        <Transcript entries={entries} queued={queue.queued?.lines} onUndo={undo} onResend={resend} />
         <StatusRegion said={said}>
-          <TypingIndicator typing={exchanges.at(-1)?.turn.typing ?? false} />
+          <TypingIndicator typing={entries.some((e) => isExchange(e) && e.turn.typing)} />
         </StatusRegion>
         <Composer
           busy={busy}

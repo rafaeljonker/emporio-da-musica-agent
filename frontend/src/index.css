@@ -6,6 +6,7 @@
 @import "@fontsource-variable/fraunces/wght-italic.css";
 
 @custom-variant dark (&:is(.dark *));
+@custom-variant short (@media (max-height: 480px));
 
 @theme inline {
     --font-heading: var(--font-sans);

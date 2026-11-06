@@ -9,14 +9,15 @@ import { Label } from '@/components/ui/label'
 import { copy } from '@/copy'
 import { ceil10 } from '@/warmup/format'
 
-type LoginError = 'empty' | 'invalid' | 'network' | null
+type LoginError = 'empty' | 'invalid' | 'network' | 'expired' | null
 
 const ERROR_ID = 'login-erro'
 
-export function LoginScreen({ onSignedIn }: { onSignedIn: (warm: WarmStatus) => void }) {
+export function LoginScreen({ expired, onSignedIn }: { expired?: boolean; onSignedIn: (warm: WarmStatus) => void }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState<LoginError>(null)
+  // After an expiry the line sits where login errors go; the fields are not marked.
+  const [error, setError] = useState<LoginError>(expired ? 'expired' : null)
   const [invalid, setInvalid] = useState({ email: false, password: false })
   const [submitting, setSubmitting] = useState(false)
   const emailRef = useRef<HTMLInputElement>(null)

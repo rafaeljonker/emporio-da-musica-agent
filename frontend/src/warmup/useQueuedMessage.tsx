@@ -12,6 +12,7 @@ export function useQueuedMessage(
   ready: boolean,
   send: (text: string) => Promise<boolean>,
   restoreToComposer: boolean,
+  customerId: number | null,
 ) {
   const [initial] = useState(() => {
     const stored = load()
@@ -32,8 +33,7 @@ export function useQueuedMessage(
     void send(undo(queued)).then((sessionOk) => sessionOk && save(null))
   }, [ready, queued, send])
 
-  // ponytail: customerId stays null until the customer selector lands (Task 8).
-  const add = useCallback((line: string) => setQueued((q) => enqueue(q, line, null)), [])
+  const add = useCallback((line: string) => setQueued((q) => enqueue(q, line, customerId)), [customerId])
   /** Removes the queue and returns its text for the composer. */
   const take = useCallback(() => {
     setQueued(null)
