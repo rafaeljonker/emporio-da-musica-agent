@@ -2,7 +2,7 @@
 
 Phase 6 numbers: GPU sizing, cold start, the load test and the cost per conversation. Everything here was measured on 2026-11-06 unless it says **estimate**, in which case the basis is given next to it. The Modal budget for this phase was $8 of credit with no card on file, which is why some measurements were skipped (see "What was not measured").
 
-Prices: Modal list prices read on 2026-11-06 (H100 $3.95/h, L40S $1.95/h, H200 $4.54/h; `deploy/modal_api.py` `GPU_PRICES`), Gemini list prices from `backend/src/emporio/config.py` (`Settings.prices`), and `usd_brl` 5.50 (config default).
+Prices: Modal list prices read on 2026-11-06 (H100 $3.95/h and L40S $1.95/h from `deploy/modal_api.py` `GPU_PRICES`; H200 $4.54/h from `docs/research/fase-6.md`), Gemini list prices from `backend/src/emporio/config.py` (`Settings.prices`), and `usd_brl` 5.50 (config default).
 
 ## 1. GPU sizing
 
@@ -21,6 +21,7 @@ How to read the rows, honestly:
 - **The Gemini run** is after the strict tool schemas and with the Flash-Lite guard. Its one fail (`recomendacao_mpb`) recommended Yamaha nylon guitars that are not in the case's expected list; it stays a fail.
 - **The spike baseline** used a different suite (14 cases) and an older vLLM, so it is a reference point, not a like-for-like comparison. The BF16 baseline on H100 was skipped for budget (owner decision), so FP8 vs BF16 on the same GPU and suite was never measured.
 - **Tokens/s** were not recorded for either GPU run.
+- **Both committed Gemma reports are pre-fix runs.** `backend/evals/reports/gemma-h100-fp8.md` and `gemma-l40s-fp8.md` predate the final verifier and bubble code (the L40S transcripts still end sentences with a period); only `gemini.md` ran on the final code. Rerun `make evals PROVIDER=gemma` before citing them as proof of the fixes on Gemma.
 
 **Choice:** H100 FP8 is the Gemma default (`emporio-llm-h100-fp8`): the L40S is half the price per hour but its median reply (4.9 s) misses the spec's ≤ 3 s, and it takes longer per reply, so it is not cheaper per reply either (section 4).
 
@@ -60,6 +61,8 @@ What would meet 30 s, in order of expected payoff (none of it measured):
 
 Owner decision (2026-11-06): the hosted demo at https://emporio.fastmind.site runs `gemini-3.8-flash` (guard on Flash-Lite). Two reasons: no GPU cold start for an evaluator (about 3.5 min on H100), and the Modal credit ($8, no card) would not cover many evaluator sessions on a GPU (section 4). Gemini passed the same 22 cases with 0 AI tells.
 
+It **misses the spec's ≤ 3 s reply target**: p50 7.30 s, p95 11.37 s (the guard adds a second, sequential model call per turn). It was chosen anyway: an evaluator who meets a 3.5 min GPU cold start or a drained credit sees no reply at all, while a 7 s reply still works; the H100 is the option that meets 3 s once the GPU is warm.
+
 Gemma stays one flag away, with no code change:
 
 ```
@@ -73,7 +76,7 @@ The vLLM URL is resolved at runtime from the deployed app, never stored in git.
 
 ### Method
 - **Tool:** Locust 2.47.0, `loadtest/locustfile.py` (`make loadtest ARGS="..."`), plain `HttpUser` so the measured time includes the whole SSE body. Each virtual user logs in once, switches to a random demo customer, then posts one of five pt-BR messages every 3–8 s; a turn counts as a success only if the stream ends in `event: done`.
-- **Target:** a throwaway Modal app `emporio-api-loadtest` (`make deploy-api LOADTEST=1`) with the **scripted (fake) model**, so it measures our infrastructure, not an LLM: one container (`max_containers=1`), real Railway Postgres over its TCP proxy, real Langfuse Cloud tracing, `DB_POOL_MAX=20`, and `RATE_LIMIT_MULTIPLIER=100`. The multiplier only boots together with `EMPORIO_FAKE_MODEL=1` (a config check), so raised limits can never reach a real model. The app was stopped after the runs.
+- **Target:** a throwaway Modal app `emporio-api-loadtest` (`make deploy-api LOADTEST=1`) with the **scripted (fake) model**, so it measures our infrastructure, not an LLM: one container (`max_containers=1`), real Railway Postgres over its TCP proxy, real Langfuse Cloud tracing, `DB_POOL_MAX=20`, and `RATE_LIMIT_MULTIPLIER=100`. The multiplier only boots together with `EMPORIO_FAKE_MODEL=1` (a config check), so raised limits can never reach a real model. The app was stopped after the runs (`make loadtest-down`). The deployed demo runs the default `DB_POOL_MAX=4`, so the figures below hold for a pool of 20, not for the demo's own throughput.
 - **Load generator:** one laptop.
 
 ### The bottleneck found
@@ -138,7 +141,7 @@ At 1k conversations a month an API model is one to two orders of magnitude cheap
 
 ## 6. Langfuse Cloud budget
 
-Langfuse Cloud (EU, Hobby plan: 50k units/month) traces every turn, and the load-test app shared the demo's project (no separate project was created). The test traffic sent to it was about 1,618 fake turns from Locust (35 + 249 + 1,334) plus three in-container probes of 20 parallel turns, on top of the eval runs and the demo smoke tests. Units per fake turn were **not counted**; at the research estimate of 5–15 observations plus one trace per turn, the load tests used roughly 10k–27k units (estimate), so check the usage page before any further load run, or point it at a separate project.
+Langfuse Cloud (EU, Hobby plan: 50k units/month) traces every turn, and the load-test app shared the demo's project (no separate project was created). The test traffic sent to it was about 1,618 fake turns from Locust (35 + 249 + 1,334) plus three in-container probes of 20 parallel turns, on top of the eval runs and the demo smoke tests. Units per fake turn were **not counted**; at the research estimate of 5–15 observations plus one trace per turn, the load tests used roughly 10k–27k units (estimate). The upper bound exceeds the ≤ 20k units the phase plan allowed for load tests, and since units were not counted it may have done so; so check the usage page before any further load run, or point it at a separate project.
 
 ## What was not measured
 Skipped by owner decision for budget ($8 of credit, no card): the BF16 baseline on H100, the GPU memory snapshot and the real-model load test. Not re-run after fixes: the H100 FP8 evals. Not recorded: tokens/s on either GPU. Built but not yet measured: `make up PROVIDER=local` on the owner's machine.
