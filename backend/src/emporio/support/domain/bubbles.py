@@ -6,14 +6,17 @@ MAX_TOTAL_DELAY_MS = 3000
 
 
 CHANNEL_BLOCK = re.compile(r"<\|channel>.*?<channel\|>", re.DOTALL)
+# A block cut before its closing token (generation stopped mid-thought) runs to the end.
+UNCLOSED_CHANNEL = re.compile(r"<\|channel>.*\Z", re.DOTALL)
 CHANNEL_TOKEN = re.compile(r"<\|channel>|<channel\|>")
 # A single closing "." per line, never "..." (WhatsApp messages rarely end in a period).
 FINAL_PERIOD = re.compile(r"(?<!\.)\.[ \t]*$", re.MULTILINE)
 
 
 def strip_channel_markup(text: str) -> str:
-    """Gemma 4 thinking-channel blocks (empty or not) and stray channel tokens, removed."""
-    return CHANNEL_TOKEN.sub("", CHANNEL_BLOCK.sub("", text)).strip()
+    """Gemma 4 thinking-channel blocks (empty, unclosed or not) and stray tokens, removed."""
+    text = UNCLOSED_CHANNEL.sub("", CHANNEL_BLOCK.sub("", text))
+    return CHANNEL_TOKEN.sub("", text).strip()
 
 
 def raw_bubbles(text: str) -> tuple[str, ...]:
