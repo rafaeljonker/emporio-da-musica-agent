@@ -21,6 +21,10 @@ SETTINGS = Settings(_env_file=None, store_today="2026-02-20")  # pyright: ignore
 ANON = ChannelIdentity("web", None, "s1")
 
 
+def no_name(_id: int) -> str | None:
+    return None
+
+
 def _metrics(trace_id: str = "t-1") -> TurnMetrics:
     return TurnMetrics(
         "web:anon:s1", "gemma", "m", Scope.LOJA, 1, 1, 0, 1, (), 5, 1, 2, 0, None, trace_id
@@ -74,7 +78,7 @@ def _runner(
     graph = build_graph(
         model, build_tools(make_box()), lambda _m: Scope.LOJA, saver or InMemorySaver()
     )
-    return GraphRunner(graph, SETTINGS, RecordingTracer()), graph
+    return GraphRunner(graph, SETTINGS, RecordingTracer(), no_name), graph
 
 
 def _usage(text: str, i: int, o: int) -> AIMessage:
@@ -101,12 +105,23 @@ def test_runner_sums_tokens_and_counts_calls_and_tools() -> None:
 
 
 def test_runner_prices_turn_with_settings_prices() -> None:
-    model = FakeToolCallingModel(messages=iter([_usage("Oi.", 1_000_000, 1_000_000)]))
+    cached = AIMessage(
+        "Oi.",
+        usage_metadata={
+            "input_tokens": 1_000_000,
+            "output_tokens": 1_000_000,
+            "total_tokens": 2_000_000,
+            "input_token_details": {"cache_read": 500_000},
+        },
+    )
+    model = FakeToolCallingModel(messages=iter([cached]))
     graph = build_graph(model, build_tools(make_box()), lambda _m: Scope.LOJA, InMemorySaver())
     priced = Settings(_env_file=None, LLM_PROVIDER="openai")  # pyright: ignore[reportCallIssue]
-    _, _, m = GraphRunner(graph, priced, RecordingTracer()).run(ANON, "oi")
+    _, _, m = GraphRunner(graph, priced, RecordingTracer(), no_name).run(ANON, "oi")
     assert m.model == "gpt-6-luna"
-    assert m.cost_brl == (Decimal("0.10") + Decimal("0.50")) * Decimal("5.50")
+    assert m.cached_tokens == 500_000
+    usd = Decimal("0.10") * Decimal("0.5") + Decimal("0.01") * Decimal("0.5") + Decimal("0.50")
+    assert m.cost_brl == usd * Decimal("5.50")
 
 
 class _Exploding:
@@ -120,7 +135,7 @@ class _Exploding:
 @pytest.mark.parametrize("error", [GraphRecursionError("loop"), RuntimeError("boom")])
 def test_runner_turns_graph_failure_into_chat_error(error: Exception) -> None:
     graph: AgentGraph = _Exploding(error)  # pyright: ignore[reportAssignmentType]  # stub graph
-    text, scope, m = GraphRunner(graph, SETTINGS, RecordingTracer()).run(ANON, "oi")
+    text, scope, m = GraphRunner(graph, SETTINGS, RecordingTracer(), no_name).run(ANON, "oi")
     assert (text, scope) == (CHAT_ERROR, Scope.LOJA)
     assert (m.trace_id, m.llm_calls) == ("trace-1", 0)
     assert m.ms_total >= 0
@@ -136,3 +151,37 @@ def test_new_customer_gets_fresh_thread() -> None:
     texts = [m.text for m in state.values["messages"]]
     assert texts == ["e o meu?", "Oi, Bia."]
     assert all(isinstance(m, HumanMessage | AIMessage) for m in state.values["messages"])
+
+
+class DbDown(Exception):
+    pass
+
+
+def test_empty_final_answer_becomes_chat_error() -> None:
+    runner, _ = _runner(FakeToolCallingModel(messages=iter([AIMessage("")])))
+    text, scope, _ = runner.run(ANON, "oi")
+    assert (text, scope) == (CHAT_ERROR, Scope.LOJA)
+
+
+def test_failing_name_lookup_returns_chat_error() -> None:
+    def boom(_id: int) -> str | None:
+        raise DbDown
+
+    graph = build_graph(
+        FakeToolCallingModel(messages=iter([AIMessage("x")])),
+        build_tools(make_box()),
+        lambda _m: Scope.LOJA,
+        InMemorySaver(),
+    )
+    runner = GraphRunner(graph, SETTINGS, RecordingTracer(), boom)
+    text, scope, m = runner.run(ChannelIdentity("web", 14, "s"), "oi")
+    assert (text, scope, m.trace_id) == (CHAT_ERROR, Scope.LOJA, "trace-1")
+
+
+def test_metrics_save_failure_keeps_the_reply() -> None:
+    class Raising:
+        def save(self, m: TurnMetrics) -> None:
+            raise DbDown
+
+    reply = HandleMessage(FakeRunner("Temos sim."), Raising())(ANON, "oi")
+    assert reply.bubbles == ("Temos sim.",)
