@@ -1,14 +1,12 @@
 /** Messages typed during warm-up; sent once, joined by "\n", when the model is ready. */
 export interface QueuedMessage {
   lines: string[]
-  customerId: number | null
 }
 
 const KEY = 'emporio.queued'
 
-export const enqueue = (q: QueuedMessage | null, line: string, customerId: number | null): QueuedMessage => ({
+export const enqueue = (q: QueuedMessage | null, line: string): QueuedMessage => ({
   lines: [...(q?.lines ?? []), line],
-  customerId,
 })
 
 export const undo = (q: QueuedMessage) => q.lines.join('\n')

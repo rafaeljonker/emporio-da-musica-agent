@@ -13,15 +13,15 @@ describe('queued message', () => {
   afterEach(() => vi.unstubAllGlobals())
 
   it('undo joins queued lines with newline', () => {
-    const q = enqueue(enqueue(null, 'Oi', null), 'Quanto tá o C40?', 14)
-    expect(q).toEqual({ lines: ['Oi', 'Quanto tá o C40?'], customerId: 14 })
+    const q = enqueue(enqueue(null, 'Oi'), 'Quanto tá o C40?')
+    expect(q).toEqual({ lines: ['Oi', 'Quanto tá o C40?'] })
     expect(undo(q)).toBe('Oi\nQuanto tá o C40?')
   })
 
   it('queued message survives reload via sessionStorage', () => {
-    save(enqueue(null, 'Oi', null))
+    save(enqueue(null, 'Oi'))
     expect(sessionStorage.getItem('emporio.queued')).not.toBeNull()
-    expect(load()).toEqual({ lines: ['Oi'], customerId: null })
+    expect(load()).toEqual({ lines: ['Oi'] })
     save(null)
     expect(load()).toBeNull()
   })

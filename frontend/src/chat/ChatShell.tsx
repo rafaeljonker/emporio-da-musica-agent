@@ -68,7 +68,7 @@ export function ChatShell({ warm, fromLogin, customerId: initialCustomer, onSign
 
   // provider_api never warms, whatever the seed said.
   const warming = !panelGone && status?.mode !== 'provider_api'
-  const queue = useQueuedMessage(!warming, send, fromLogin, customerId)
+  const queue = useQueuedMessage(!warming, send, fromLogin)
 
   // Local mode runs on the user's machine: cost is R$ 0, the same as the panel says.
   const local = status?.mode === 'local_cpu'
