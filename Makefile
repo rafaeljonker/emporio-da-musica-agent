@@ -1,10 +1,10 @@
 export PATH := $(CURDIR)/backend/.venv/bin:$(PATH)
 
-.PHONY: help setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp web-install web-build check-web up-preflight web-config up dev e2e
+.PHONY: help setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp deploy-llm web-install web-build check-web up-preflight web-config up dev e2e
 .DEFAULT_GOAL := help
 
 help:
-	@echo "targets: up dev e2e setup fmt lint typecheck imports test check web-install web-build check-web db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp"
+	@echo "targets: up dev e2e setup fmt lint typecheck imports test check web-install web-build check-web db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp deploy-llm"
 
 setup:
 	cd backend && uv sync && uv run pre-commit install --config ../.pre-commit-config.yaml
@@ -12,9 +12,12 @@ setup:
 fmt:
 	cd backend && uv run ruff format . && uv run ruff check --fix .
 
+# Outside backend/, linted with its config; loadtest/ joins once it exists.
+LINT_EXTRA = e2e deploy $(wildcard loadtest)
+
 lint:
 	cd backend && uv run ruff check . && uv run ruff format --check .
-	ruff check --config backend/pyproject.toml e2e && ruff format --config backend/pyproject.toml --check e2e
+	ruff check --config backend/pyproject.toml $(LINT_EXTRA) && ruff format --config backend/pyproject.toml --check $(LINT_EXTRA)
 
 typecheck:
 	cd backend && uv run basedpyright
@@ -151,3 +154,9 @@ E2E_FAKE = $(if $(filter command line,$(origin PROVIDER)),,EMPORIO_FAKE_MODEL=1)
 e2e: db langfuse-up web-build
 	cd backend && uv run playwright install chromium
 	$(E2E_FAKE) $(WEB_ENV) uv run --project backend pytest e2e -q
+
+# Deploys the vLLM app emporio-llm-<gpu>-<weights> on Modal (costs GPU time once it is called).
+GPU ?= H100
+WEIGHTS ?= fp8
+deploy-llm:
+	cd backend && EMPORIO_GPU=$(GPU) EMPORIO_WEIGHTS=$(WEIGHTS) uv run modal deploy ../deploy/modal_llm.py

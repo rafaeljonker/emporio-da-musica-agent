@@ -39,6 +39,7 @@ dev = [
     "basedpyright>=1.40.2",
     "hypothesis>=6.170.14",
     "import-linter>=2.15",
+    "modal>=1.6.3",
     "playwright>=1.64.1",
     "pre-commit>=4.7.0",
     "pytest-playwright>=0.10.0",
@@ -60,6 +61,8 @@ known-first-party = ["emporio", "tests", "evals"]
 "**/tests/**" = ["S101", "ANN201"]
 # The e2e server is started from fixed arguments (sys.executable, uvicorn), no untrusted input.
 "**/e2e/conftest.py" = ["S603"]
+# Deploy scripts run vllm/modal from fixed argument lists; vLLM must bind all interfaces in the container.
+"**/deploy/*.py" = ["S603", "S607", "S104"]
 
 [tool.basedpyright]
 typeCheckingMode = "standard"
