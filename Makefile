@@ -1,10 +1,10 @@
 export PATH := $(CURDIR)/backend/.venv/bin:$(PATH)
 
-.PHONY: help setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp
+.PHONY: help setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp web-install web-build check-web
 .DEFAULT_GOAL := help
 
 help:
-	@echo "targets: setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp"
+	@echo "targets: setup fmt lint typecheck imports test check web-install web-build check-web db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp"
 
 setup:
 	cd backend && uv sync && uv run pre-commit install --config ../.pre-commit-config.yaml
@@ -25,6 +25,16 @@ test:
 	cd backend && env -u DATABASE_URL uv run pytest -q
 
 check: lint typecheck imports test
+
+web-install:
+	cd frontend && npm ci
+
+web-build:
+	cd frontend && npm run build
+
+# oxlint + Vitest + tsc -b and vite build (npm run build runs both).
+check-web:
+	cd frontend && npm run lint && npm test && npm run build
 
 # Dev-only local URL (matches docker-compose.yml); callers may override DATABASE_URL (e.g. Railway).
 LOCAL_DATABASE_URL := postgresql://emporio:emporio@localhost:5434/emporio
