@@ -53,9 +53,10 @@ GROUPS: dict[str, str] = {
     "asks_identity": r"numero do pedido|e-?mail|telefone|cpf",
     "instruments": r"instrument",
     "declines_accessory": (
-        r"nao (vendemos|trabalhamos com|temos|tem) (\w+ )?"
+        r"nao (vende(\(mos\)|mos)?|trabalhamos com|temos|tem) (\w+ )?"
         r"(encordoamento|acessori|corda|cabo|palheta|pedal|amplificador|case)"
-        r"|(?<!nao temos )(?<!nao tem )(so|apenas|somente) (com |vendemos )?instrumentos"
+        r"|(?<!nao )(?<!nao temos )(?<!nao tem )(so|apenas|somente) "
+        r"(trabalhamos |vendemos |temos )?(com )?instrumentos"
     ),
     "asks_model": (
         r"qual (modelo|deles|desses|dos)|que modelo|algum modelo|de qual"

@@ -33,6 +33,7 @@ any_of = ["{gd20_pix}", "{gd20_pix_whole}"]
 [[case]]
 name = "arrependimento_anonimo"
 message = "Me arrependi da minha compra, posso devolver meu pedido?"
+expect_tools = ["search_policies"]
 any_of = ["@regret_7", "@asks_identity"]
 ask = true
 
