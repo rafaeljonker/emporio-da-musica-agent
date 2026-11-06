@@ -32,7 +32,15 @@ export function useQueuedMessage(
     void send(undo(queued)).then((sessionOk) => sessionOk && save(null))
   }, [ready, queued, send])
 
-  const add = useCallback((line: string) => setQueued((q) => enqueue(q, line)), [])
+  /** Queues `line`; false (the line would pass the 1000-char cap) keeps it in the composer. */
+  const add = useCallback(
+    (line: string) => {
+      const next = enqueue(queued, line)
+      if (next) setQueued(next)
+      return next !== null
+    },
+    [queued],
+  )
   /** Removes the queue and returns its text for the composer. */
   const take = useCallback(() => {
     setQueued(null)

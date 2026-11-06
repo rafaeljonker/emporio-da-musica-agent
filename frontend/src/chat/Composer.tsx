@@ -3,12 +3,12 @@ import type { FormEvent, KeyboardEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { copy } from '@/copy'
-
-const MAX_CHARS = 1000 // the backend's ChatIn limit
+import { MAX_CHARS } from '@/warmup/queue'
 
 interface Props {
   busy: boolean
-  onSend: (text: string) => void
+  /** false keeps the text in the composer (a full warm-up queue). */
+  onSend: (text: string) => boolean
   /** Owned by the shell: undo and re-login put queued text back here. */
   text: string
   setText: (text: string) => void
@@ -22,8 +22,7 @@ export function Composer({ busy, onSend, text, setText, placeholder }: Props) {
   const submit = (e?: FormEvent) => {
     e?.preventDefault()
     if (blocked) return
-    onSend(text.trim())
-    setText('')
+    if (onSend(text.trim())) setText('')
   }
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {

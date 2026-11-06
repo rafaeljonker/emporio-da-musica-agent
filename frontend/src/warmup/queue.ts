@@ -5,9 +5,14 @@ export interface QueuedMessage {
 
 const KEY = 'emporio.queued'
 
-export const enqueue = (q: QueuedMessage | null, line: string): QueuedMessage => ({
-  lines: [...(q?.lines ?? []), line],
-})
+/** The backend's ChatIn limit, for one message and for the joined queue alike. */
+export const MAX_CHARS = 1000
+
+/** null when the joined text would pass MAX_CHARS: the line stays in the composer instead. */
+export function enqueue(q: QueuedMessage | null, line: string): QueuedMessage | null {
+  const lines = [...(q?.lines ?? []), line]
+  return lines.join('\n').length > MAX_CHARS ? null : { lines }
+}
 
 export const undo = (q: QueuedMessage) => q.lines.join('\n')
 

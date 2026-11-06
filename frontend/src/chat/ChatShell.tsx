@@ -157,7 +157,14 @@ export function ChatShell({ warm, fromLogin, customerId: initialCustomer, onSign
         </StatusRegion>
         <Composer
           busy={busy}
-          onSend={warming ? queue.add : send}
+          onSend={
+            warming
+              ? queue.add
+              : (t) => {
+                  void send(t)
+                  return true
+                }
+          }
           text={text}
           setText={setText}
           placeholder={warming ? copy.warmup.placeholder : copy.chat.composerPlaceholder}
