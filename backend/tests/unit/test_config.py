@@ -4,6 +4,7 @@ import pytest
 
 from emporio.config import (
     ConfigError,
+    LangfuseRequired,
     Provider,
     Settings,
     WebSettingsRequired,
@@ -18,7 +19,7 @@ _ENV_VARS = (
     "OPENAI_MODEL", "ANTHROPIC_MODEL", "USD_BRL", "DATABASE_URL", "LANGFUSE_PUBLIC_KEY",
     "LANGFUSE_SECRET_KEY", "LANGFUSE_BASE_URL", "LANGFUSE_SALT", "LANGFUSE_TRACING_ENABLED",
     "OTEL_SDK_DISABLED", "LANGFUSE_SAMPLE_RATE", "DEMO_EMAIL", "DEMO_PASSWORD", "SESSION_SECRET",
-    "SESSION_HTTPS_ONLY",
+    "SESSION_HTTPS_ONLY", "EMPORIO_FAKE_MODEL",
 )  # fmt: skip
 _FAKE_LANGFUSE = {
     "LANGFUSE_PUBLIC_KEY": "pk-fake",
@@ -151,3 +152,17 @@ def test_short_session_secret_rejected(monkeypatch: pytest.MonkeyPatch):
         load_web_settings()
     monkeypatch.setenv("SESSION_SECRET", "x" * 32)
     assert load_web_settings().session_https_only is True
+
+
+def test_fake_model_skips_provider_keys_but_not_langfuse(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("EMPORIO_FAKE_MODEL", "1")
+    monkeypatch.setenv("DEMO_EMAIL", "a@b.test")
+    monkeypatch.setenv("DEMO_PASSWORD", "pw")
+    monkeypatch.setenv("SESSION_SECRET", "x" * 32)
+    settings = load_web_settings()
+    assert settings.fake_model
+    assert settings.provider_name == "fake"
+    for name in _FAKE_LANGFUSE:
+        monkeypatch.delenv(name)
+    with pytest.raises(LangfuseRequired):
+        load_web_settings()
