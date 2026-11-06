@@ -120,7 +120,7 @@ def serve() -> None:
         "--enable-auto-tool-choice",
         "--tool-call-parser",
         "gemma4",
-        # Moves the <|channel>thought…<channel|> block out of `content` (vllm 0.33 registry: "gemma4").
+        # Moves the thinking channel out of `content` (vllm 0.33 registry name).
         "--reasoning-parser",
         "gemma4",
         "--host",
