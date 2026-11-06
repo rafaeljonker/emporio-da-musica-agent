@@ -100,7 +100,7 @@ class Settings(BaseSettings):
     langfuse_base_url: str | None = None
     langfuse_salt: SecretStr | None = None
 
-    warm_expected_seconds_gpu: int = 180  # measured 175 s; phase 6 re-measures
+    warm_expected_seconds_gpu: int = 210  # H100 FP8 warm-cache boot measured 204 s (phase 6)
     warm_expected_seconds_local: int = 120
     # A READY older than this is probed again on login/warm (phase 6: Modal's scaledown window).
     warm_ready_ttl_seconds: int = 300
