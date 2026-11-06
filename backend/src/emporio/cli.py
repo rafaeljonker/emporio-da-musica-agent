@@ -6,6 +6,7 @@ Each run gets a fresh session id, so the thread (and the customer's memory) last
 import argparse
 import logging
 import os
+import subprocess
 import sys
 import time
 from collections.abc import Callable, Sequence
@@ -21,6 +22,7 @@ from emporio.config import (
     require_web_settings,
 )
 from emporio.db import DatabaseNotConfigured
+from emporio.local_model import prepare_local_model
 from emporio.support.domain.channel_identity import ChannelIdentity
 
 logger = logging.getLogger("emporio.cli")
@@ -38,6 +40,9 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="emporio")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("mcp", help="serve the tools over MCP (stdio)")
+    commands.add_parser(
+        "local-model", help="pick, download and create the Gemma model Ollama serves locally"
+    )
     chat_options = argparse.ArgumentParser(add_help=False)
     chat_options.add_argument(
         "--as-customer", type=int, metavar="ID", help="log in as this customer id"
@@ -67,6 +72,17 @@ def _serve_mcp() -> None:
         raise SystemExit(2) from err
 
 
+def _local_model() -> None:
+    try:
+        prepare_local_model(load_mcp_settings().ollama_model)
+    except ConfigError as err:
+        print(err, file=sys.stderr)
+        raise SystemExit(2) from err
+    except subprocess.CalledProcessError as err:
+        print(f"local model setup failed: {' '.join(err.cmd)}", file=sys.stderr)
+        raise SystemExit(1) from err
+
+
 def main(
     argv: Sequence[str] | None = None,
     *,
@@ -76,6 +92,9 @@ def main(
     args = _parser().parse_args(argv)
     if args.command == "mcp":
         _serve_mcp()
+        return
+    if args.command == "local-model":
+        _local_model()
         return
     if args.command == "check-config":
         try:

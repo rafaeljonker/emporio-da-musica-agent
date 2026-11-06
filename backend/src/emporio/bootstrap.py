@@ -54,7 +54,12 @@ from emporio.support.infrastructure.tracing import (
     make_langfuse,
     shutdown_tracing,
 )
-from emporio.support.infrastructure.warmup import ProbeWarmup, ReadyWarmup, vllm_health_probe
+from emporio.support.infrastructure.warmup import (
+    ProbeWarmup,
+    ReadyWarmup,
+    ollama_load_probe,
+    vllm_health_probe,
+)
 
 # Order 7 (in the regret window), order 5 (out of it), shipped, pending, two cancelled,
 # confirmed, and one customer with no orders.
@@ -150,7 +155,7 @@ def build_agent(settings: Settings) -> Agent:
 
 
 def build_warmup(settings: Settings, reply_p50: Callable[[], float | None]) -> Warmup:
-    """The honest warm-up: a vLLM health probe for Gemma, ready at once for provider APIs."""
+    """The honest warm-up: vLLM health for Gemma, an Ollama load for local, ready for APIs."""
     if settings.fake_model:
         if settings.fake_warm_seconds <= 0:
             return ReadyWarmup(WarmMode.PROVIDER_API, reply_p50)
@@ -178,6 +183,15 @@ def build_warmup(settings: Settings, reply_p50: Callable[[], float | None]) -> W
             WarmMode.MODAL_GPU,
             settings.warm_expected_seconds_gpu,
             reply_p50,
+            ready_ttl_seconds=settings.warm_ready_ttl_seconds,
+        )
+    if settings.provider is Provider.LOCAL:
+        return ProbeWarmup(
+            ollama_load_probe(settings.ollama_base_url, settings.ollama_model),
+            WarmMode.LOCAL_CPU,
+            settings.warm_expected_seconds_local,
+            reply_p50,
+            stage=WarmStage.MODEL_LOADING,
             ready_ttl_seconds=settings.warm_ready_ttl_seconds,
         )
     return ReadyWarmup(WarmMode.PROVIDER_API, reply_p50)

@@ -37,6 +37,7 @@ GPU_UPPER_BOUND = "Teto pelo tempo de GPU desta resposta"
 GPU_UNMEASURED = "Custo de GPU ainda não medido"
 PRICE_UNCONFIRMED = "Preço do provedor ainda não confirmado"
 FAKE = "Modo de teste, sem custo"
+LOCAL = "Rodando na sua máquina, sem custo por uso"
 
 
 def action_label(tools: Sequence[str]) -> str:
@@ -48,6 +49,8 @@ def _cost_basis(m: TurnMetrics) -> str:
     """Why `cost_brl` is what it is: priced, self-hosted GPU, unpriced API, or the fake model."""
     if m.provider == "fake":
         return FAKE
+    if m.provider == "local":
+        return LOCAL
     if m.provider == "gemma":
         return GPU_UNMEASURED if m.cost_brl is None else GPU_UPPER_BOUND
     return PRICED if m.cost_brl is not None else PRICE_UNCONFIRMED

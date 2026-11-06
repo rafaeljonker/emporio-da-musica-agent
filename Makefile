@@ -1,10 +1,10 @@
 export PATH := $(CURDIR)/backend/.venv/bin:$(PATH)
 
-.PHONY: help setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp deploy-llm web-install web-build check-web up-preflight web-config up dev e2e
+.PHONY: help setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp deploy-llm web-install web-build check-web up-preflight web-config local-model up dev e2e
 .DEFAULT_GOAL := help
 
 help:
-	@echo "targets: up dev e2e setup fmt lint typecheck imports test check web-install web-build check-web db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp deploy-llm"
+	@echo "targets: up dev e2e local-model setup fmt lint typecheck imports test check web-install web-build check-web db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp deploy-llm"
 
 setup:
 	cd backend && uv sync && uv run pre-commit install --config ../.pre-commit-config.yaml
@@ -67,14 +67,20 @@ db: db-up
 test-pg: db-up db-test
 	cd backend && DATABASE_URL=$(TEST_DATABASE_URL) uv run pytest -q -m "postgres and not eval"
 
-# PROVIDER picks the model (gemma|gemini|openai|anthropic) and names backend/evals/reports/<provider>.md.
+# PROVIDER picks the model (gemma|gemini|openai|anthropic|local) and names backend/evals/reports/<provider>.md.
 # EVAL_FAKE_MODEL=1 swaps in a scripted model to check the harness only (the gate then fails).
 PROVIDER ?= gemma
+# PROVIDER=local first picks, pulls and creates the Ollama model (warns about size and speed).
+LOCAL_MODEL = $(if $(filter local,$(PROVIDER)),local-model,)
+
+local-model:
+	cd backend && uv run emporio local-model
+
 # Fails in seconds on a missing provider key, before Docker, the database or Langfuse start.
 evals-config:
 	cd backend && LLM_PROVIDER=$(PROVIDER) uv run emporio check-config
 
-evals: evals-config db-test langfuse-up
+evals: evals-config $(LOCAL_MODEL) db-test langfuse-up
 	cd backend && LLM_PROVIDER=$(PROVIDER) DATABASE_URL=$(TEST_DATABASE_URL) uv run pytest -q -m eval -s
 
 # Writes the Langfuse secrets into .env only when absent; values are never printed.
@@ -141,11 +147,11 @@ web-config:
 WEB_ENV = $(WEB_PROVIDER) SESSION_HTTPS_ONLY=false DATABASE_URL=$(LOCAL_DATABASE_URL)
 SERVE = uv run uvicorn --factory emporio.web:create_web_app --port 8000
 
-up: up-preflight web-config db langfuse-up web-build
+up: up-preflight web-config $(LOCAL_MODEL) db langfuse-up web-build
 	cd backend && $(WEB_ENV) $(SERVE)
 
 # API with --reload on :8000 plus Vite (proxying /api) in parallel; Ctrl-C stops both.
-dev: web-config db langfuse-up web-install
+dev: web-config $(LOCAL_MODEL) db langfuse-up web-install
 	(cd frontend && npm run dev) & cd backend && $(WEB_ENV) $(SERVE) --reload --reload-dir src
 
 # Scripted model unless PROVIDER is given on the command line: make e2e PROVIDER=gemini.

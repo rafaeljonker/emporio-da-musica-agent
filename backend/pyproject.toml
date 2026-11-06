@@ -63,6 +63,8 @@ known-first-party = ["emporio", "tests", "evals"]
 "**/e2e/conftest.py" = ["S603"]
 # Deploy scripts run vllm/modal from fixed argument lists; vLLM must bind all interfaces in the container.
 "**/deploy/*.py" = ["S603", "S607", "S104"]
+# Runs ollama/docker from fixed argument lists; the tag comes from a fixed table.
+"**/emporio/local_model.py" = ["S603"]
 
 [tool.basedpyright]
 typeCheckingMode = "standard"

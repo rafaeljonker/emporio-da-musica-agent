@@ -15,6 +15,7 @@ class Provider(StrEnum):
     GEMINI = "gemini"
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
+    LOCAL = "local"
 
 
 class ConfigError(DomainError):
@@ -73,6 +74,9 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-3.8-flash"
     openai_model: str = "gpt-6-luna"
     anthropic_model: str = "claude-haiku-5-5"
+    # Ollama on this machine; `emporio local-model` creates the model with a 16k context.
+    ollama_base_url: str = "http://localhost:11434/v1"
+    ollama_model: str = "emporio-gemma"
 
     vllm_base_url: str | None = None
     vllm_api_key: SecretStr | None = None
@@ -133,6 +137,7 @@ _REQUIRED_VARIABLES = {
     Provider.GEMINI: ("GEMINI_API_KEY",),
     Provider.OPENAI: ("OPENAI_API_KEY",),
     Provider.ANTHROPIC: ("ANTHROPIC_API_KEY",),
+    Provider.LOCAL: (),
 }
 
 
@@ -149,7 +154,7 @@ def require_provider_settings(settings: Settings) -> None:
     for variable in _REQUIRED_VARIABLES[provider]:
         if not _is_set(settings, variable):
             others = ", ".join(
-                f"{p.value} ({' + '.join(_REQUIRED_VARIABLES[p])})"
+                f"{p.value} ({' + '.join(_REQUIRED_VARIABLES[p]) or 'no key'})"
                 for p in Provider
                 if p is not provider
             )

@@ -33,6 +33,15 @@ def make_chat_model(settings: Settings) -> BaseChatModel:
                 api_key=settings.openai_api_key,
                 temperature=_TEMPERATURE,
             )
+        case Provider.LOCAL:
+            # Ollama ignores the key but the OpenAI client needs a non-empty one.
+            return init_chat_model(
+                settings.ollama_model,
+                model_provider="openai",
+                base_url=settings.ollama_base_url,
+                api_key="ollama",
+                temperature=_TEMPERATURE,
+            )
         case Provider.ANTHROPIC:
             return init_chat_model(
                 settings.anthropic_model,

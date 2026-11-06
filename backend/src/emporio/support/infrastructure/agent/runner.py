@@ -164,6 +164,7 @@ class GraphRunner:
             Provider.GEMINI: s.gemini_model,
             Provider.OPENAI: s.openai_model,
             Provider.ANTHROPIC: s.anthropic_model,
+            Provider.LOCAL: s.ollama_model,
         }[s.provider]
 
     def _cost_brl(self, model: str, probe: TurnProbe) -> Decimal | None:
