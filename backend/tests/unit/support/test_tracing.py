@@ -76,9 +76,16 @@ def test_turn_metadata_sets_session_and_pseudonymous_user() -> None:
     factory = LangfuseTracerFactory(client, "salt", "pk")
     meta = factory.turn_metadata(ChannelIdentity("web", 7, "s"))
     assert meta == {
-        "langfuse_session_id": "web:customer:7",
+        "langfuse_session_id": f"web:{pseudonym('salt', 7)}",
         "langfuse_user_id": pseudonym("salt", 7),
     }
+    assert ":customer:" not in meta["langfuse_session_id"]
+
+
+def test_anonymous_session_id_keeps_the_anon_thread_shape() -> None:
+    factory = LangfuseTracerFactory(_offline_client(), "salt", "pk")
+    meta = factory.turn_metadata(ChannelIdentity("web", None, "s"))
+    assert meta["langfuse_session_id"] == "web:anon:s"
 
 
 def test_for_turn_returns_fresh_handler_and_distinct_trace_ids() -> None:
