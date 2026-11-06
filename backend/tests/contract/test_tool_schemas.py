@@ -5,7 +5,7 @@ from typing import Any
 from langchain.tools import BaseTool
 
 from emporio.support.infrastructure.agent.tools import build_tools
-from tests.unit.support.test_tools import _box
+from tests.unit.support.test_tools import make_box
 
 SNAPSHOT = Path(__file__).parent / "snapshots" / "tool_schemas.json"
 
@@ -23,7 +23,7 @@ def _schemas() -> dict[str, object]:
 
 
 def _tools() -> list[BaseTool]:
-    return build_tools(_box())
+    return build_tools(make_box())
 
 
 def test_no_tool_schema_exposes_customer_id_or_runtime() -> None:

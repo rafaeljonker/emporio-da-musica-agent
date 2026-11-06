@@ -1,31 +1,35 @@
 from collections.abc import Sequence
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
-from langchain_core.runnables import Runnable, RunnableLambda
+from langchain_core.messages import (
+    AIMessage,
+    AnyMessage,
+    BaseMessage,
+    HumanMessage,
+    SystemMessage,
+    ToolMessage,
+)
+from langchain_core.runnables import Runnable, RunnableConfig, RunnableLambda
 from langgraph.checkpoint.memory import InMemorySaver
-from langgraph.graph.state import CompiledStateGraph
 from pydantic import Field
 
 from emporio.support.domain.scope import Scope
 from emporio.support.infrastructure.agent.context import TurnContext
-from emporio.support.infrastructure.agent.graph import ABUSE_REPLY, build_graph
+from emporio.support.infrastructure.agent.graph import ABUSE_REPLY, AgentGraph, build_graph
 from emporio.support.infrastructure.agent.guard import Label, make_classifier
 from emporio.support.infrastructure.agent.prompt import scope_note
 from emporio.support.infrastructure.agent.tools import ORDER_NOT_FOUND, build_tools
 from tests.fakes.fake_chat_model import FakeToolCallingModel
 from tests.unit.support.test_tools import make_box
 
-CONFIG = {"configurable": {"thread_id": "t"}}
+CONFIG = RunnableConfig(configurable={"thread_id": "t"})
 
 
 def _call(name: str, **args: object) -> AIMessage:
     return AIMessage(content="", tool_calls=[{"name": name, "args": args, "id": f"call-{name}"}])
 
 
-def _graph(
-    model: FakeToolCallingModel, scope: Scope, max_history_tokens: int = 3000
-) -> CompiledStateGraph:
+def _graph(model: FakeToolCallingModel, scope: Scope, max_history_tokens: int = 3000) -> AgentGraph:
     return build_graph(
         model,
         build_tools(make_box()),
@@ -35,7 +39,7 @@ def _graph(
     )
 
 
-def _ask(graph: CompiledStateGraph, text: str, customer_id: int | None = None) -> list[BaseMessage]:
+def _ask(graph: AgentGraph, text: str, customer_id: int | None = None) -> list[BaseMessage]:
     return graph.invoke(
         {"messages": [HumanMessage(text)]}, CONFIG, context=TurnContext(customer_id=customer_id)
     )["messages"]
@@ -86,7 +90,7 @@ def test_tool_error_does_not_abort_turn() -> None:
 
 
 def test_history_trimmed_without_orphan_tool_messages() -> None:
-    history: list[BaseMessage] = []
+    history: list[AnyMessage] = []
     for i in range(20):
         history += [
             HumanMessage(f"pergunta {i}"),
