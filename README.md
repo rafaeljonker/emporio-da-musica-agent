@@ -6,7 +6,7 @@ Em construção, ver `docs/superpowers/specs/`.
 
 ## Como rodar
 
-Pré-requisitos: Docker, [uv](https://docs.astral.sh/uv/), Node ≥ 20 e `make`.
+Pré-requisitos: Docker, [uv](https://docs.astral.sh/uv/), Node ≥ 22.12 e `make`.
 
 1. `cp .env.example .env` e `make setup`.
 2. `make web-keys` gera o `SESSION_SECRET` no `.env`.
@@ -15,7 +15,7 @@ Pré-requisitos: Docker, [uv](https://docs.astral.sh/uv/), Node ≥ 20 e `make`.
 
 Comandos:
 
-- `make up [PROVIDER=...]`: sobe banco, Langfuse e o frontend, e serve a demo em http://localhost:8000.
+- `make up [PROVIDER=...]`: sobe banco, Langfuse e o frontend, e serve a demo em http://localhost:8000. Sem `PROVIDER`, vale o `LLM_PROVIDER` do `.env`; `PROVIDER=...` na linha de comando passa por cima dele (o mesmo vale pro `make dev`).
 - `make dev`: API com reload em :8000 mais o Vite (que repassa `/api`), pra mexer no código.
-- `make e2e`: o fluxo no navegador (Playwright) contra um servidor de verdade, com o modelo de teste; `make e2e PROVIDER=gemini` usa o modelo real.
+- `make e2e`: o fluxo no navegador (Playwright) contra um servidor de verdade, com o modelo de teste; `make e2e PROVIDER=gemini` usa o modelo real, desde que o `.env` não tenha `EMPORIO_FAKE_MODEL`.
 - `make check` (backend) e `make check-web` (frontend): lint, tipos e testes.

@@ -30,7 +30,7 @@ check: lint typecheck imports test
 web-install:
 	cd frontend && npm ci
 
-web-build:
+web-build: web-install
 	cd frontend && npm run build
 
 # oxlint + Vitest + tsc -b and vite build (npm run build runs both).
@@ -122,24 +122,27 @@ up-preflight:
 	@command -v docker >/dev/null || { echo "docker is required"; exit 1; }
 	@docker info >/dev/null 2>&1 || { echo "the Docker daemon is not answering: start Docker Desktop and retry"; exit 1; }
 	@command -v uv >/dev/null || { echo "uv is required"; exit 1; }
-	@command -v node >/dev/null && [ "$$(node -p 'process.versions.node.split(".")[0]')" -ge 20 ] || { echo "node >= 20 is required"; exit 1; }
+	@command -v node >/dev/null && node -e 'const [a, b] = process.versions.node.split(".").map(Number); process.exit(a > 22 || (a === 22 && b >= 12) ? 0 : 1)' || { echo "node >= 22.12 is required"; exit 1; }
 	@echo "make up: 1) check config  2) database (Postgres :5434, migrate, ingest)"
 	@echo "         3) Langfuse (first pull about 7 min, about 2.3 GB RAM)  4) build the frontend"
 	@echo "         5) serve http://localhost:8000"
 
+# PROVIDER on the command line overrides LLM_PROVIDER; otherwise .env's LLM_PROVIDER wins.
+WEB_PROVIDER = $(if $(filter command line,$(origin PROVIDER)),LLM_PROVIDER=$(PROVIDER),)
+
 # Provider key (skipped under EMPORIO_FAKE_MODEL=1), demo login and SESSION_SECRET (make web-keys).
 web-config:
-	cd backend && LLM_PROVIDER=$(PROVIDER) uv run emporio check-config --web
+	cd backend && $(WEB_PROVIDER) uv run emporio check-config --web
 
 # Plain http on localhost, so the session cookie is not https-only. Always the local database.
-WEB_ENV = LLM_PROVIDER=$(PROVIDER) SESSION_HTTPS_ONLY=false DATABASE_URL=$(LOCAL_DATABASE_URL)
+WEB_ENV = $(WEB_PROVIDER) SESSION_HTTPS_ONLY=false DATABASE_URL=$(LOCAL_DATABASE_URL)
 SERVE = uv run uvicorn --factory emporio.web:create_web_app --port 8000
 
 up: up-preflight web-config db langfuse-up web-build
 	cd backend && $(WEB_ENV) $(SERVE)
 
 # API with --reload on :8000 plus Vite (proxying /api) in parallel; Ctrl-C stops both.
-dev: web-config db langfuse-up
+dev: web-config db langfuse-up web-install
 	(cd frontend && npm run dev) & cd backend && $(WEB_ENV) $(SERVE) --reload --reload-dir src
 
 # Scripted model unless PROVIDER is given on the command line: make e2e PROVIDER=gemini.
