@@ -4,7 +4,7 @@ import pytest
 
 from emporio import cli
 from emporio.bootstrap import Agent
-from emporio.config import MissingSetting, Provider
+from emporio.config import MissingSetting, Provider, Settings, WebSettingsRequired
 from emporio.support.application.ports import Reply
 from emporio.support.domain.channel_identity import ChannelIdentity
 from emporio.support.domain.scope import Scope
@@ -168,3 +168,20 @@ def test_check_config_passes_without_starting_anything(monkeypatch: pytest.Monke
     monkeypatch.setattr(cli, "build_agent", lambda s: pytest.fail("must not build the agent"))
     cli.main(["check-config", "--provider", "openai"])
     assert seen == [Provider.OPENAI]
+
+
+def test_check_config_web_also_checks_web_settings(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli, "load_provider_settings", lambda provider=None: Settings())
+    monkeypatch.setattr(cli, "require_web_settings", lambda s: pytest.fail("not asked for"))
+    cli.main(["check-config"])
+
+    def fail(settings: Settings) -> None:
+        raise WebSettingsRequired(["SESSION_SECRET is not set"])
+
+    monkeypatch.setattr(cli, "require_web_settings", fail)
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["check-config", "--web"])
+    assert exc.value.code == 2
+    assert "SESSION_SECRET" in capsys.readouterr().err
