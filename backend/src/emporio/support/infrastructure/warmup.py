@@ -80,6 +80,7 @@ class ProbeWarmup:
         stage: WarmStage = WarmStage.SERVER_STARTING,
         deadline_seconds: float = 600,
         interval_seconds: float = 2,
+        ready_ttl_seconds: float = 300,
         clock: Callable[[], datetime] = _utc_now,
     ) -> None:
         self.mode = mode
@@ -89,6 +90,7 @@ class ProbeWarmup:
         self._waiting_stage = stage
         self._deadline = deadline_seconds
         self._interval = interval_seconds
+        self._ready_ttl = ready_ttl_seconds
         self._clock = clock
         self._lock = threading.Lock()
         self._started_at: datetime | None = None
@@ -96,16 +98,18 @@ class ProbeWarmup:
         self._stage = stage
         self._thread: threading.Thread | None = None
 
-    @property
-    def is_started(self) -> bool:
-        return self._thread is not None
-
     def start(self) -> WarmStatus:
         with self._lock:
             now = self._clock()
-            if self._started_at is None:
+            # A READY older than the TTL may be a GPU that scaled down since: probe again.
+            stale = (
+                self._stage is WarmStage.READY
+                and self._ended_at is not None
+                and (now - self._ended_at).total_seconds() > self._ready_ttl
+            )
+            if self._started_at is None or stale:
                 self._started_at = now
-            if self._thread is None or self._stage is WarmStage.FAILED:
+            if self._thread is None or self._stage is WarmStage.FAILED or stale:
                 self._stage = self._waiting_stage
                 self._ended_at = None
                 self._thread = threading.Thread(target=self._run, args=(now,), daemon=True)

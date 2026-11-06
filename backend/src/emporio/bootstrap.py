@@ -169,10 +169,17 @@ def build_warmup(settings: Settings, reply_p50: Callable[[], float | None]) -> W
             reply_p50,
             stage=WarmStage.MODEL_LOADING if local else WarmStage.SERVER_STARTING,
             interval_seconds=0.5,
+            ready_ttl_seconds=settings.warm_ready_ttl_seconds,
         )
     if settings.provider is Provider.GEMMA:
         probe = vllm_health_probe(settings.vllm_base_url or "", _secret(settings.vllm_api_key))
-        return ProbeWarmup(probe, WarmMode.MODAL_GPU, settings.warm_expected_seconds_gpu, reply_p50)
+        return ProbeWarmup(
+            probe,
+            WarmMode.MODAL_GPU,
+            settings.warm_expected_seconds_gpu,
+            reply_p50,
+            ready_ttl_seconds=settings.warm_ready_ttl_seconds,
+        )
     return ReadyWarmup(WarmMode.PROVIDER_API, reply_p50)
 
 

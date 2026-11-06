@@ -94,6 +94,8 @@ class Settings(BaseSettings):
 
     warm_expected_seconds_gpu: int = 180  # measured 175 s; phase 6 re-measures
     warm_expected_seconds_local: int = 120
+    # A READY older than this is probed again on login/warm (phase 6: Modal's scaledown window).
+    warm_ready_ttl_seconds: int = 300
     # Fake warm-up for e2e: the model "becomes ready" after N seconds (0 = ready at once).
     fake_warm_seconds: int = Field(default=0, validation_alias="EMPORIO_FAKE_WARM_SECONDS")
     fake_warm_mode: WarmMode = Field(
