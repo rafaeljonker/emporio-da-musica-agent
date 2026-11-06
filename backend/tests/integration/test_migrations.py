@@ -15,7 +15,7 @@ def test_apply_migrations_creates_tables_and_is_idempotent(pg_conn: psycopg.Conn
     )
     pg_conn.commit()
 
-    assert apply_migrations(pg_conn) == ["001", "002", "003", "004"]
+    assert apply_migrations(pg_conn) == ["001", "002", "003", "004", "005"]
     assert apply_migrations(pg_conn) == []
 
     rows = pg_conn.execute(

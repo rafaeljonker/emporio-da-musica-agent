@@ -25,7 +25,7 @@ class TurnMetrics:
     ms_tools: int
     cost_brl: Decimal | None
     trace_id: str
-    failed: bool = False  # not persisted; the turn ended in the fixed error reply
+    failed: bool = False  # the turn ended in the fixed error reply
 
 
 @dataclass(frozen=True)
