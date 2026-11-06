@@ -8,6 +8,9 @@ AGENT_TIMEOUT_MS = 90_000  # a real model (or a cold GPU) can take a while
 def test_login_chat_happy_path(page: Page, real_model: bool) -> None:
     login(page)
     composer = page.get_by_label("Mensagem", exact=True)
+    if not real_model:
+        # The scripted model is ready at once: the chat opens with focus in the composer.
+        expect(composer).to_be_focused()
     composer.fill("Oi")
     composer.press("Enter")
 

@@ -41,6 +41,15 @@ export function ChatShell({ warm, fromLogin, customerId: initialCustomer, onSign
   const [readyOnArrival] = useState(warm?.stage === 'ready')
   const [panelGone, setPanelGone] = useState(readyOnArrival)
   const ready = status?.stage === 'ready'
+  // Opened ready (provider_api, or the model was already warm): no panel, no announcement to wait
+  // for. Focus would sit on the body after the login form unmounted; move it to the composer with
+  // a fine pointer only (no soft keyboard on touch), never into the log.
+  const [openedReady] = useState(readyOnArrival || warm?.mode === 'provider_api')
+  useEffect(() => {
+    if (!openedReady || (document.activeElement && document.activeElement !== document.body)) return
+    if (matchMedia('(pointer: fine)').matches) document.getElementById('composer-input')?.focus()
+  }, [openedReady])
+
   useEffect(() => {
     if (!ready || readyOnArrival) return
     const close = setTimeout(() => setPanelGone(true), READY_LINGER_MS)
