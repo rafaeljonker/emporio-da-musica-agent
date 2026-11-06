@@ -95,10 +95,12 @@ class LangfuseTracerFactory:
         ], trace_id
 
     def turn_metadata(self, identity: ChannelIdentity) -> dict[str, str]:
-        return {
-            "langfuse_session_id": identity.thread_id(),
-            "langfuse_user_id": pseudonym(self._salt, identity.customer_id),
-        }
+        who = pseudonym(self._salt, identity.customer_id)
+        # The raw customer id must not reach Langfuse; anonymous thread ids carry none.
+        session = (
+            identity.thread_id() if identity.customer_id is None else f"{identity.channel}:{who}"
+        )
+        return {"langfuse_session_id": session, "langfuse_user_id": who}
 
 
 _client: Langfuse | None = None
