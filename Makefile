@@ -156,7 +156,7 @@ e2e: db langfuse-up web-build
 	$(E2E_FAKE) $(WEB_ENV) uv run --project backend pytest e2e -q
 
 # Deploys the vLLM app emporio-llm-<gpu>-<weights> on Modal (costs GPU time once it is called).
-GPU ?= H100
-WEIGHTS ?= fp8
+LLM_GPU ?= H100
+LLM_WEIGHTS ?= fp8
 deploy-llm:
-	cd backend && EMPORIO_GPU=$(GPU) EMPORIO_WEIGHTS=$(WEIGHTS) uv run modal deploy ../deploy/modal_llm.py
+	cd backend && EMPORIO_GPU=$(LLM_GPU) EMPORIO_WEIGHTS=$(LLM_WEIGHTS) uv run modal deploy ../deploy/modal_llm.py

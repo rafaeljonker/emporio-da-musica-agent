@@ -14,6 +14,7 @@ import httpx
 import modal
 
 POLL_SECONDS = 2
+DEADLINE_SECONDS = 900
 SERVED_MODEL_NAME = "google/gemma-4-31B-it"
 
 
@@ -27,18 +28,25 @@ def _container_ids(app: str) -> list[str]:
 def _stop_containers(app: str) -> None:
     for container_id in _container_ids(app):
         subprocess.run(["modal", "container", "stop", container_id], check=True)
+    deadline = time.monotonic() + DEADLINE_SECONDS
     while _container_ids(app):
+        if time.monotonic() > deadline:
+            msg = f"{app}: containers still listed after {DEADLINE_SECONDS}s of stopping"
+            raise SystemExit(msg)
         time.sleep(POLL_SECONDS)
 
 
 def _wait_healthy(client: httpx.Client, url: str) -> None:
-    while True:
+    deadline = time.monotonic() + DEADLINE_SECONDS
+    while time.monotonic() < deadline:
         try:
             if client.get(f"{url}/health").status_code == httpx.codes.OK:
                 return
         except httpx.TransportError:
             pass  # timeout or connection reset while the container boots
         time.sleep(POLL_SECONDS)
+    msg = f"/health not OK after {DEADLINE_SECONDS}s; stop the containers and read the app logs"
+    raise SystemExit(msg)
 
 
 def main() -> None:

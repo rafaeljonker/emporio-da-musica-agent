@@ -74,14 +74,14 @@
   - The app name `f"emporio-llm-{gpu.lower()}-{weights}"`, read from `EMPORIO_GPU` (default `H100`) and `EMPORIO_WEIGHTS` (default `fp8`). Both are validated, and both are also written into the image `.env()`, so the container's re-import sees the deploy-time values.
   - `download` (CPU function) runs `snapshot_download(repo, revision=sha)` into the HF-cache Volume. Reuse the spike's HF-cache Volume if `modal volume list` shows one; otherwise create `huggingface-cache`. The `vllm-cache` Volume is mounted at `/root/.cache/vllm`.
   - `serve`: `gpu=GPU`, `scaledown_window=GPU_SCALEDOWN_SECONDS`, `max_containers=1` (a cost guard), secrets `emporio-vllm` (+ `emporio-hf` if gated), `@modal.concurrent(max_inputs=32)` and `@modal.web_server(port=8000, startup_timeout=600)`.
-  - It spawns `vllm serve <repo> --revision <sha> --served-model-name google/gemma-4-31B-it --max-model-len 16384 --enable-prefix-caching --kv-cache-dtype fp8 --gpu-memory-utilization 0.92 --enable-auto-tool-choice --tool-call-parser gemma4 --api-key $VLLM_API_KEY --host 0.0.0.0 --port 8000`. The served name keeps `Settings.gemma_model` unchanged. No `--reasoning-parser`: we run without thinking.
+  - It spawns `vllm serve <repo> --revision <sha> --served-model-name google/gemma-4-31B-it --max-model-len 16384 --enable-prefix-caching --kv-cache-dtype fp8 --gpu-memory-utilization 0.92 --enable-auto-tool-choice --tool-call-parser gemma4 --host 0.0.0.0 --port 8000`; vLLM reads `VLLM_API_KEY` from the secret's env, so the key never sits on argv. The served name keeps `Settings.gemma_model` unchanged. No `--reasoning-parser`: we run without thinking.
   - A daemon thread prefixes each vLLM stdout line with `[boot +<s>s]`, counted from container start. The cold-start breakdown is read off those lines (weight load, `torch.compile`, graph capture, server up).
 - Produces `deploy/cold_start.py --app <name>`:
   - stops the app's running containers (`modal container list --json`, `modal container stop`);
   - resolves the URL with `modal.Function.from_name(app, "serve").get_web_url()`;
   - polls `GET /health` every 2 s with the bearer from env `VLLM_API_KEY` (`follow_redirects=False`, 10 s timeout);
   - prints `cold_start_s=<n>`, then times one `/v1/chat/completions` "Oi" and prints `first_reply_s=<n>`. It never prints the key or the URL.
-- Makefile `deploy-llm`: `cd backend && EMPORIO_GPU=$(GPU) EMPORIO_WEIGHTS=$(WEIGHTS) uv run modal deploy ../deploy/modal_llm.py`, with defaults `GPU=H100` and `WEIGHTS=fp8`.
+- Makefile `deploy-llm`: `cd backend && EMPORIO_GPU=$(LLM_GPU) EMPORIO_WEIGHTS=$(LLM_WEIGHTS) uv run modal deploy ../deploy/modal_llm.py`, with defaults `LLM_GPU=H100` and `LLM_WEIGHTS=fp8`.
 
 - [ ] **Step 1:** write `deploy/modal_llm.py`, `deploy/cold_start.py`, the dep, the Makefile lines and the names in `.env.example`. Follow the image recipe of https://modal.com/docs/examples/vllm_inference, with vLLM pinned. `make check` green. Commit `build(deploy): add the vLLM Modal app with FP8 weights and boot timing`.
 - [ ] **Step 2:** check whether the two repos are gated (`curl -s https://huggingface.co/api/models/<repo> | jq .gated`). If either is, owner prerequisite 2's `emporio-hf` is needed before the download.
@@ -98,7 +98,7 @@
 - Modify: `backend/src/emporio/config.py` (`warm_expected_seconds_gpu` default = the measured H100 FP8 warm cold start, rounded up to 10 s), `backend/evals/reports/gemma-*.md` (force-added)
 
 **Interfaces:**
-- Consumes: Task 1 `make deploy-llm GPU=… WEIGHTS=…`, `deploy/cold_start.py`, `VLLM_BASE_URL` in `.env`.
+- Consumes: Task 1 `make deploy-llm LLM_GPU=… LLM_WEIGHTS=…`, `deploy/cold_start.py`, `VLLM_BASE_URL` in `.env`.
 - Produces: in `docs/scaling-and-cost.md`, the table `| GPU | weights | $/h | cold start (cache cold / warm) | p50 / p95 ms | evals pass | AI tells | tokens/s |` and the cold-start table `| technique | cold start s | delta |`. The baseline row is the spike's 175 s on H200 BF16.
 
 For each config, the run is the same:
@@ -108,8 +108,8 @@ For each config, the run is the same:
 - stop the containers.
 
 - [ ] **Step 1 [ASK $ ≈ $1.30]:** H100 FP8. Gate per spec §10: ≥ 90% pass and 0 AI tells.
-- [ ] **Step 2 [ASK $ ≈ $0.80]:** `make deploy-llm GPU=L40S`, then the same run. Expected (research estimate): a median above 3 s. Record it either way.
-- [ ] **Step 3 [ASK $ ≈ $1.50 incl. a 62 GB download]:** the BF16 baseline on H100 (`WEIGHTS=bf16`: `download`, `deploy-llm`, the run). It is needed because owner decision 1 compares FP8 against BF16.
+- [ ] **Step 2 [ASK $ ≈ $0.80]:** `make deploy-llm LLM_GPU=L40S`, then the same run. Expected (research estimate): a median above 3 s. Record it either way.
+- [ ] **Step 3 [ASK $ ≈ $1.50 incl. a 62 GB download]:** the BF16 baseline on H100 (`LLM_WEIGHTS=bf16`: `download`, `deploy-llm`, the run). It is needed because owner decision 1 compares FP8 against BF16.
   - If FP8 passes fewer cases than BF16 on H100, the default becomes `bf16` (Task 4 deploys that app), and the regression is documented.
   - If the controller is short of time, ask the owner whether to skip this step and keep FP8 when it meets the gate.
 - [ ] **Step 4 (optional, ≤ 20 min) [ASK $ ≈ $0.30]:** one H100 FP8 boot with `--compilation-config '{"cudagraph_capture_sizes": [1, 2, 4, 8, 16]}'`. Keep it only if the cold start drops with no p50 loss.

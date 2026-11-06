@@ -1,6 +1,6 @@
 """Gemma 4 31B on vLLM, served from Modal behind an OpenAI-compatible API.
 
-Deploy with `make deploy-llm [GPU=H100|L40S] [WEIGHTS=fp8|bf16]`. Image recipe from
+Deploy with `make deploy-llm [LLM_GPU=H100|L40S] [LLM_WEIGHTS=fp8|bf16]`. Image recipe from
 https://modal.com/docs/examples/vllm_inference; the CUDA base matches torch 2.14 (CUDA 13.0).
 """
 
@@ -12,7 +12,8 @@ from typing import IO
 
 import modal
 
-# Taken at import, which in the container is container start: the [boot +Ns] lines count from it.
+# Taken when this module is imported in the container, a few seconds after the container starts:
+# the [boot +Ns] lines count from it.
 BOOT_T0 = time.monotonic()
 
 GPUS = ("H100", "L40S")
@@ -45,6 +46,7 @@ image = (
     .env(
         {
             "HF_XET_HIGH_PERFORMANCE": "1",
+            "PYTHONUNBUFFERED": "1",
             "VLLM_LOG_STATS_INTERVAL": "10",
             # The container re-imports this file: it must see the deploy-time choices.
             "EMPORIO_GPU": GPU,
@@ -74,6 +76,13 @@ def _stream_with_boot_time(stream: IO[str]) -> None:
         print(f"[boot +{time.monotonic() - BOOT_T0:.1f}s] {line}", end="", flush=True)
 
 
+def _exit_when_done(process: subprocess.Popen[str]) -> None:
+    # A failed boot kills the container now, not after the 10-min startup_timeout.
+    code = process.wait()
+    print(f"[boot +{time.monotonic() - BOOT_T0:.1f}s] vllm exited with code {code}", flush=True)
+    os._exit(1)
+
+
 @app.function(
     image=image,
     gpu=GPU,
@@ -86,6 +95,10 @@ def _stream_with_boot_time(stream: IO[str]) -> None:
 @modal.concurrent(max_inputs=32)
 @modal.web_server(port=VLLM_PORT, startup_timeout=10 * MINUTES)
 def serve() -> None:
+    # vLLM reads VLLM_API_KEY (from the emporio-vllm secret) itself; never on argv.
+    if not os.environ.get("VLLM_API_KEY"):
+        msg = "VLLM_API_KEY is empty: check the emporio-vllm secret"
+        raise SystemExit(msg)
     cmd = [
         "vllm",
         "serve",
@@ -104,8 +117,6 @@ def serve() -> None:
         "--enable-auto-tool-choice",
         "--tool-call-parser",
         "gemma4",
-        "--api-key",
-        os.environ["VLLM_API_KEY"],
         "--host",
         "0.0.0.0",
         "--port",
@@ -113,3 +124,4 @@ def serve() -> None:
     ]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     threading.Thread(target=_stream_with_boot_time, args=(process.stdout,), daemon=True).start()
+    threading.Thread(target=_exit_when_done, args=(process,), daemon=True).start()
