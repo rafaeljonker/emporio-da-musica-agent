@@ -60,11 +60,12 @@ class Settings(BaseSettings):
     langfuse_salt: SecretStr | None = None
 
     usd_brl: Decimal = Decimal("5.50")
-    # USD per million tokens (input, output). Empty for self-hosted Gemma.
-    prices: dict[str, tuple[Decimal, Decimal]] = Field(
+    # USD per million tokens (input, output, cached input). Empty for self-hosted Gemma.
+    # Cached input is an estimate: 10% of the input price.
+    prices: dict[str, tuple[Decimal, Decimal, Decimal]] = Field(
         default_factory=lambda: {
-            "gpt-6-luna": (Decimal("0.10"), Decimal("0.50")),
-            "claude-haiku-5-5": (Decimal("0.10"), Decimal("0.50")),
+            "gpt-6-luna": (Decimal("0.10"), Decimal("0.50"), Decimal("0.01")),
+            "claude-haiku-5-5": (Decimal("0.10"), Decimal("0.50"), Decimal("0.01")),
         }
     )
 

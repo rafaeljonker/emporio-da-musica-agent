@@ -3,6 +3,7 @@
 import logging
 from collections.abc import Callable
 from decimal import Decimal
+from threading import Lock
 from time import perf_counter
 from uuid import UUID
 
@@ -31,7 +32,10 @@ class TurnProbe(BaseCallbackHandler):
     """Per-turn timings, model calls, token usage and tool names, read from callbacks.
 
     Callbacks also see the guard's classifier call, which never reaches graph state.
-    Tools of one message run in parallel, so `ms_tools` sums their durations.
+    Tools of one message run in parallel, so `ms_tools` sums their durations. LLM time spent
+    inside the guard counts only in `ms_guard`, so ms_guard + ms_llm + ms_tools is roughly
+    at most ms_total (parallel tools can exceed it). Callbacks may fire from tool threads,
+    so every update takes one lock.
     """
 
     def __init__(self) -> None:
@@ -45,6 +49,15 @@ class TurnProbe(BaseCallbackHandler):
         self.cached_tokens = 0
         self.tools: list[str] = []
         self._guard_runs: set[UUID] = set()
+        self._parents: dict[UUID, UUID | None] = {}
+        self._lock = Lock()
+
+    def _in_guard(self, run_id: UUID | None) -> bool:
+        while run_id is not None:
+            if run_id in self._guard_runs:
+                return True
+            run_id = self._parents.get(run_id)
+        return False
 
     def _start(self, run_id: UUID) -> None:
         self._started[run_id] = perf_counter()
@@ -58,15 +71,21 @@ class TurnProbe(BaseCallbackHandler):
         inputs: object,
         *,
         run_id: UUID,
+        parent_run_id: UUID | None = None,
         **kwargs: object,
     ) -> None:
-        if kwargs.get("name") == "guard":
-            self._guard_runs.add(run_id)
-            self._start(run_id)
+        with self._lock:
+            self._parents[run_id] = parent_run_id
+            if kwargs.get("name") == "guard":
+                self._guard_runs.add(run_id)
+                self._start(run_id)
 
-    def on_chain_end(self, outputs: object, *, run_id: UUID, **kwargs: object) -> None:
-        if run_id in self._guard_runs:
-            self.ms_guard += self._elapsed(run_id)
+    def on_chain_end(
+        self, outputs: object, *, run_id: UUID, parent_run_id: UUID | None = None, **kwargs: object
+    ) -> None:
+        with self._lock:
+            if run_id in self._guard_runs:
+                self.ms_guard += self._elapsed(run_id)
 
     def on_chat_model_start(
         self,
@@ -74,21 +93,34 @@ class TurnProbe(BaseCallbackHandler):
         messages: object,
         *,
         run_id: UUID,
+        parent_run_id: UUID | None = None,
         **kwargs: object,
     ) -> None:
-        self.llm_calls += 1
-        self._start(run_id)
+        with self._lock:
+            self._parents[run_id] = parent_run_id
+            self.llm_calls += 1
+            self._start(run_id)
 
-    def on_llm_end(self, response: LLMResult, *, run_id: UUID, **kwargs: object) -> None:
-        self.ms_llm += self._elapsed(run_id)
-        for generation in response.generations[0][:1]:
-            message = getattr(generation, "message", None)
-            usage = message.usage_metadata if isinstance(message, AIMessage) else None
-            if usage:
-                self.input_tokens += usage["input_tokens"]
-                self.output_tokens += usage["output_tokens"]
-                details = usage.get("input_token_details") or {}
-                self.cached_tokens += details.get("cache_read", 0)
+    def on_llm_end(
+        self,
+        response: LLMResult,
+        *,
+        run_id: UUID,
+        parent_run_id: UUID | None = None,
+        **kwargs: object,
+    ) -> None:
+        with self._lock:
+            elapsed = self._elapsed(run_id)
+            if not self._in_guard(self._parents.get(run_id)):
+                self.ms_llm += elapsed
+            for generation in response.generations[0][:1]:
+                message = getattr(generation, "message", None)
+                usage = message.usage_metadata if isinstance(message, AIMessage) else None
+                if usage:
+                    self.input_tokens += usage["input_tokens"]
+                    self.output_tokens += usage["output_tokens"]
+                    details = usage.get("input_token_details") or {}
+                    self.cached_tokens += details.get("cache_read", 0)
 
     def on_tool_start(
         self,
@@ -96,13 +128,18 @@ class TurnProbe(BaseCallbackHandler):
         input_str: str,
         *,
         run_id: UUID,
+        parent_run_id: UUID | None = None,
         **kwargs: object,
     ) -> None:
-        self.tools.append(str(kwargs.get("name") or (serialized or {}).get("name")))
-        self._start(run_id)
+        with self._lock:
+            self.tools.append(str(kwargs.get("name") or (serialized or {}).get("name")))
+            self._start(run_id)
 
-    def on_tool_end(self, output: object, *, run_id: UUID, **kwargs: object) -> None:
-        self.ms_tools += self._elapsed(run_id)
+    def on_tool_end(
+        self, output: object, *, run_id: UUID, parent_run_id: UUID | None = None, **kwargs: object
+    ) -> None:
+        with self._lock:
+            self.ms_tools += self._elapsed(run_id)
 
 
 class GraphRunner:
@@ -111,7 +148,7 @@ class GraphRunner:
         graph: AgentGraph,
         settings: Settings,
         tracer_factory: TracerFactory,
-        customer_name: Callable[[int], str | None] = lambda _id: None,
+        customer_name: Callable[[int], str | None],
     ) -> None:
         self._graph = graph
         self._settings = settings
@@ -131,27 +168,38 @@ class GraphRunner:
         price = self._settings.prices.get(model)
         if price is None:
             return None
-        usd = (probe.input_tokens * price[0] + probe.output_tokens * price[1]) / Decimal(1_000_000)
+        usd_in, usd_out, usd_cached = price
+        fresh = probe.input_tokens - probe.cached_tokens
+        usd = (
+            fresh * usd_in + probe.cached_tokens * usd_cached + probe.output_tokens * usd_out
+        ) / Decimal(1_000_000)
         return usd * self._settings.usd_brl
 
     def run(self, identity: ChannelIdentity, text: str) -> tuple[str, Scope, TurnMetrics]:
-        callbacks, trace_id = self._tracer_factory.for_turn(identity)
-        probe = TurnProbe()
-        name = None if identity.customer_id is None else self._customer_name(identity.customer_id)
-        context = TurnContext(identity.customer_id, name, self._settings.store_today)
-        config = {
-            "configurable": {"thread_id": identity.thread_id()},
-            "callbacks": [*callbacks, probe],
-        }
         started = perf_counter()
+        probe = TurnProbe()
+        trace_id = ""
         answer, scope = CHAT_ERROR, Scope.LOJA
         try:
+            callbacks, trace_id = self._tracer_factory.for_turn(identity)
+            name = (
+                None if identity.customer_id is None else self._customer_name(identity.customer_id)
+            )
+            context = TurnContext(identity.customer_id, name, self._settings.store_today)
+            config = {
+                "configurable": {"thread_id": identity.thread_id()},
+                "callbacks": [*callbacks, probe],
+            }
             result = self._graph.invoke(
                 {"messages": [HumanMessage(text)]},
                 config,  # pyright: ignore[reportArgumentType]  # plain dict is a valid RunnableConfig
                 context=context,
             )
-            answer, scope = result["messages"][-1].text, result["scope"]
+            scope = result["scope"]
+            answer = result["messages"][-1].text.strip()
+            if not answer:
+                logger.warning("model produced an empty final answer")
+                answer = CHAT_ERROR
         except GraphRecursionError:
             logger.exception("turn hit the graph recursion limit")
         except Exception:
@@ -166,7 +214,7 @@ class GraphRunner:
             output_tokens=probe.output_tokens,
             cached_tokens=probe.cached_tokens,
             llm_calls=probe.llm_calls,
-            tools=tuple(probe.tools),
+            tools=tuple(sorted(probe.tools)),
             ms_total=_ms(perf_counter() - started),
             ms_guard=_ms(probe.ms_guard),
             ms_llm=_ms(probe.ms_llm),

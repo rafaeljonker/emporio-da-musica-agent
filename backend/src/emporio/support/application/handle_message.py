@@ -1,9 +1,12 @@
+import logging
+
 from emporio.support.application.ports import AgentRunner, MetricsStore, Reply
 from emporio.support.domain.ai_tells import ai_tells
 from emporio.support.domain.bubbles import split_bubbles
 from emporio.support.domain.channel_identity import ChannelIdentity
 from emporio.support.domain.scope import Scope
 
+logger = logging.getLogger("emporio.support.handle_message")
 CHAT_ERROR = "Perdi o fio da conversa aqui. Manda de novo?"
 
 
@@ -16,5 +19,8 @@ class HandleMessage:
         if not text.strip():
             return Reply(split_bubbles(CHAT_ERROR), Scope.LOJA, "", ())
         answer, scope, metrics = self._runner.run(identity, text)
-        self._metrics.save(metrics)
+        try:
+            self._metrics.save(metrics)
+        except Exception:  # a metrics outage must not lose a produced reply
+            logger.exception("metrics save failed")
         return Reply(split_bubbles(answer), scope, metrics.trace_id, ai_tells(answer))
