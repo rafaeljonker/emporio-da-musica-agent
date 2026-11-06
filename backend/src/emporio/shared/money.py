@@ -37,6 +37,11 @@ class Money:
             raise InvalidMoney(parts)
         return type(self)(self.amount / parts)
 
+    def format_brl(self) -> str:
+        """Voice format: "R$ 2.199" for whole values, "R$ 2.089,05" with cents."""
+        text = format_brl(self)
+        return text.removesuffix(",00")
+
     def __add__(self, other: Self) -> Self:
         return type(self)(self.amount + other.amount)
 
