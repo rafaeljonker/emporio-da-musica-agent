@@ -44,7 +44,7 @@ def test_reply_p50_from_turn_metrics(pg_pool: ConnectionPool) -> None:
         for ms in (1000, 3000, 9000):
             store.save(
                 TurnMetrics(
-                    "web:anon:s", "gemma", "m", Scope.LOJA, 1, 1, 0, 1, (), ms, 0, 0, 0, None, None
+                    "web:anon:s", "gemma", "m", Scope.LOJA, 1, 1, 0, 1, (), ms, 0, 0, 0, None, "t"
                 )
             )
         assert store.reply_p50_seconds() == 3.0

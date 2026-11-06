@@ -4,6 +4,7 @@
 so a long-lived API process can keep it for its whole life and call `close` from its lifespan.
 """
 
+import time
 from collections.abc import Callable
 from contextlib import ExitStack
 from dataclasses import dataclass
@@ -18,7 +19,7 @@ from emporio.catalog.application.recommend_products import RecommendProducts
 from emporio.catalog.application.search_products import SearchProducts
 from emporio.catalog.infrastructure.csv_catalog_repository import CsvCatalogRepository
 from emporio.catalog.infrastructure.pg_product_index import PgProductIndex
-from emporio.config import Settings, UnknownCustomer
+from emporio.config import Provider, Settings, UnknownCustomer
 from emporio.db import connect, database_url, make_pool
 from emporio.embeddings import E5Embedder
 from emporio.migrate import apply_migrations, setup_checkpointer
@@ -36,6 +37,7 @@ from emporio.policies.infrastructure.pg_policy_index import PgPolicyIndex
 from emporio.shared.clock import FixedClock, SystemClock
 from emporio.support.application.handle_message import HandleMessage
 from emporio.support.application.ports import DemoCustomer, Reply
+from emporio.support.application.warmup import WarmMode, WarmStage, Warmup
 from emporio.support.domain.channel_identity import ChannelIdentity
 from emporio.support.domain.scope import Scope
 from emporio.support.infrastructure.agent.graph import build_graph
@@ -52,6 +54,7 @@ from emporio.support.infrastructure.tracing import (
     make_langfuse,
     shutdown_tracing,
 )
+from emporio.support.infrastructure.warmup import ProbeWarmup, ReadyWarmup, vllm_health_probe
 
 # Order 7 (in the regret window), order 5 (out of it), shipped, pending, two cancelled,
 # confirmed, and one customer with no orders.
@@ -73,6 +76,7 @@ class Agent:
     close: Callable[[], None]
     customer_exists: Callable[[int], bool]
     demo_customers: tuple[DemoCustomer, ...] = ()
+    reply_p50_seconds: Callable[[], float | None] = lambda: None
 
 
 def build_toolbox(
@@ -129,9 +133,8 @@ def build_agent(settings: Settings) -> Agent:
             customer = customers.by_id(customer_id)
             return customer.name.split()[0] if customer and customer.name.strip() else None
 
-        handle = HandleMessage(
-            GraphRunner(graph, settings, tracer, first_name), PgMetricsStore(pool)
-        )
+        store = PgMetricsStore(pool)
+        handle = HandleMessage(GraphRunner(graph, settings, tracer, first_name), store)
         demo = tuple(
             DemoCustomer(c.id, c.name, c.city)
             for c in (customers.by_id(i) for i in DEMO_CUSTOMER_IDS)
@@ -142,7 +145,35 @@ def build_agent(settings: Settings) -> Agent:
             stack.pop_all().close,
             lambda cid: customers.by_id(cid) is not None,
             demo,
+            store.reply_p50_seconds,
         )
+
+
+def build_warmup(settings: Settings, reply_p50: Callable[[], float | None]) -> Warmup:
+    """The honest warm-up: a vLLM health probe for Gemma, ready at once for provider APIs."""
+    if settings.fake_model:
+        if settings.fake_warm_seconds <= 0:
+            return ReadyWarmup(WarmMode.PROVIDER_API, reply_p50)
+        began: list[float] = []
+
+        def fake_probe() -> bool:
+            if not began:
+                began.append(time.monotonic())
+            return time.monotonic() - began[0] >= settings.fake_warm_seconds
+
+        local = settings.fake_warm_mode is WarmMode.LOCAL_CPU
+        return ProbeWarmup(
+            fake_probe,
+            settings.fake_warm_mode,
+            settings.warm_expected_seconds_local if local else settings.warm_expected_seconds_gpu,
+            reply_p50,
+            stage=WarmStage.MODEL_LOADING if local else WarmStage.SERVER_STARTING,
+            interval_seconds=0.5,
+        )
+    if settings.provider is Provider.GEMMA:
+        probe = vllm_health_probe(settings.vllm_base_url or "", _secret(settings.vllm_api_key))
+        return ProbeWarmup(probe, WarmMode.MODAL_GPU, settings.warm_expected_seconds_gpu, reply_p50)
+    return ReadyWarmup(WarmMode.PROVIDER_API, reply_p50)
 
 
 def run_mcp(settings: Settings, customer_id: int | None) -> None:

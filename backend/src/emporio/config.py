@@ -7,6 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from emporio.paths import REPO_ROOT
 from emporio.shared.errors import DomainError
+from emporio.support.application.warmup import WarmMode
 
 
 class Provider(StrEnum):
@@ -90,6 +91,14 @@ class Settings(BaseSettings):
     langfuse_secret_key: SecretStr | None = None
     langfuse_base_url: str | None = None
     langfuse_salt: SecretStr | None = None
+
+    warm_expected_seconds_gpu: int = 180  # measured 175 s; phase 6 re-measures
+    warm_expected_seconds_local: int = 120
+    # Fake warm-up for e2e: the model "becomes ready" after N seconds (0 = ready at once).
+    fake_warm_seconds: int = Field(default=0, validation_alias="EMPORIO_FAKE_WARM_SECONDS")
+    fake_warm_mode: WarmMode = Field(
+        default=WarmMode.MODAL_GPU, validation_alias="EMPORIO_FAKE_WARM_MODE"
+    )
 
     demo_email: str | None = None
     demo_password: SecretStr | None = None
