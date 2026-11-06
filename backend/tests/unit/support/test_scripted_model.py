@@ -9,7 +9,7 @@ def test_scripted_model_echoes_in_two_bubbles() -> None:
     model = ScriptedChatModel().bind_tools([])
     answer = model.invoke([SystemMessage("prompt"), HumanMessage("antes"), HumanMessage("Oi")])
     assert split_bubbles(answer.text) == (
-        "Oi! Aqui é o modo de teste da Empório.",
+        "Oi! Aqui é o modo de teste da Empório",
         "Você escreveu: Oi",
     )
     assert not answer.tool_calls

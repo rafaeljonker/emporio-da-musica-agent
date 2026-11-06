@@ -21,7 +21,7 @@ def test_login_chat_happy_path(page: Page, real_model: bool) -> None:
         expect(agent.first).to_be_visible(timeout=AGENT_TIMEOUT_MS)
     else:
         expect(agent).to_have_text(
-            ["Assistente: Oi! Aqui é o modo de teste da Empório.", "Assistente: Você escreveu: Oi"],
+            ["Assistente: Oi! Aqui é o modo de teste da Empório", "Assistente: Você escreveu: Oi"],
             timeout=AGENT_TIMEOUT_MS,
         )
     typing = page.get_by_role("status").filter(has_text="O assistente está digitando")
@@ -44,7 +44,7 @@ def test_queued_message_sent_once_when_ready(page: Page, start_server: StartServ
 
     agent = log.locator("p", has_text="Assistente: ")
     expect(agent).to_have_text(
-        ["Assistente: Oi! Aqui é o modo de teste da Empório.", "Assistente: Você escreveu: Oi"],
+        ["Assistente: Oi! Aqui é o modo de teste da Empório", "Assistente: Você escreveu: Oi"],
         timeout=AGENT_TIMEOUT_MS,
     )
     expect(log.locator("p", has_text="Você: ")).to_have_count(1)
@@ -160,7 +160,7 @@ def test_failed_turn_offers_resend(signed_in_page: Page, real_model: bool) -> No
     expect(error_line).to_have_count(2, timeout=AGENT_TIMEOUT_MS)
     resend.last.click()
     expect(log.locator("p", has_text="Assistente: ")).to_have_text(
-        ["Assistente: Oi! Aqui é o modo de teste da Empório.", "Assistente: Você escreveu: Oi"],
+        ["Assistente: Oi! Aqui é o modo de teste da Empório", "Assistente: Você escreveu: Oi"],
         timeout=AGENT_TIMEOUT_MS,
     )
     expect(error_line).to_have_count(1)

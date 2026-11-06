@@ -17,7 +17,7 @@ def test_capped_reply_keeps_every_word_and_no_longer_reads_as_too_many_bubbles()
     bubbles = split_bubbles(text)
     assert len(bubbles) == 3
     assert bubbles[-1].endswith("Algum desses faz seu estilo?")
-    assert " ".join(bubbles).split() == text.split()
+    assert " ".join(bubbles).replace(".", "").split() == text.replace(".", "").split()
     assert Tell.TOO_MANY_BUBBLES not in ai_tells("\n\n".join(bubbles))
 
 
@@ -45,7 +45,7 @@ def test_empty_thought_prefix_is_removed() -> None:
 
 def test_non_empty_thought_block_is_removed_entirely() -> None:
     text = "<|channel>thought\no cliente quer um violão\n\nvou buscar<channel|>Temos sim."
-    assert split_bubbles(text) == ("Temos sim.",)
+    assert split_bubbles(text) == ("Temos sim",)
 
 
 def test_stray_channel_tokens_are_removed() -> None:

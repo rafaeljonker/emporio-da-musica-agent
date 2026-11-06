@@ -53,7 +53,7 @@ class FakeStore:
 def test_handle_message_returns_bubbles_and_saves_metrics() -> None:
     runner, store = FakeRunner("Temos sim.\n\nQuer ver?"), FakeStore()
     reply = HandleMessage(runner, store)(ANON, "tem violão?")
-    assert reply.bubbles == ("Temos sim.", "Quer ver?")
+    assert reply.bubbles == ("Temos sim", "Quer ver?")
     assert reply.scope is Scope.LOJA
     assert reply.trace_id == "t-1"
     assert reply.tells == ()
@@ -226,7 +226,7 @@ def test_metrics_save_failure_keeps_the_reply() -> None:
             raise DbDown
 
     reply = HandleMessage(FakeRunner("Temos sim."), Raising())(ANON, "oi")
-    assert reply.bubbles == ("Temos sim.",)
+    assert reply.bubbles == ("Temos sim",)
 
 
 def test_guard_llm_time_is_not_counted_as_ms_llm() -> None:

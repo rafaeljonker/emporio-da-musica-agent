@@ -7,6 +7,8 @@ MAX_TOTAL_DELAY_MS = 3000
 
 CHANNEL_BLOCK = re.compile(r"<\|channel>.*?<channel\|>", re.DOTALL)
 CHANNEL_TOKEN = re.compile(r"<\|channel>|<channel\|>")
+# A single closing "." per line, never "..." (WhatsApp messages rarely end in a period).
+FINAL_PERIOD = re.compile(r"(?<!\.)\.[ \t]*$", re.MULTILINE)
 
 
 def strip_channel_markup(text: str) -> str:
@@ -16,7 +18,7 @@ def strip_channel_markup(text: str) -> str:
 
 def raw_bubbles(text: str) -> tuple[str, ...]:
     text = strip_channel_markup(text)
-    parts = (p.strip() for p in re.split(r"\n\s*\n", text))
+    parts = (FINAL_PERIOD.sub("", p.strip()) for p in re.split(r"\n\s*\n", text))
     return tuple(p for p in parts if p)
 
 
