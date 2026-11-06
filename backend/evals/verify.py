@@ -61,7 +61,7 @@ GROUPS: dict[str, str] = {
         r"nao (vende(\(mos\)|mos)?|trabalhamos com|temos|tem) (\w+ )?"
         r"(encordoamento|acessori|corda|cabo|palheta|pedal|amplificador|case)"
         r"|(?<!nao )(?<!nao temos )(?<!nao tem )(so|apenas|somente) "
-        r"(trabalhamos |vendemos |temos )?(com )?(os )?instrumentos"
+        r"(trabalhamos |vendemos |temos |foca |focamos )?(com |em |nos |nas )?(os )?instrumentos"
     ),
     "asks_model": (
         r"qual (modelo|deles|desses|dos)|que modelo|algum modelo|de qual"
