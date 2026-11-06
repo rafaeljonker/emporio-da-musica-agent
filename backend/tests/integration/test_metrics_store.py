@@ -51,3 +51,21 @@ def test_reply_p50_from_turn_metrics(pg_pool: ConnectionPool) -> None:
     finally:
         with pg_pool.connection() as conn:
             conn.execute("TRUNCATE turn_metrics")
+
+
+def test_reply_p50_ignores_failed_turns(pg_pool: ConnectionPool) -> None:
+    store = PgMetricsStore(pg_pool)
+    with pg_pool.connection() as conn:
+        conn.execute("TRUNCATE turn_metrics")
+    try:
+        for ms, failed in ((1000, False), (2000, False), (60000, True), (90000, True)):
+            store.save(
+                TurnMetrics(
+                    "web:anon:s", "gemma", "m", Scope.LOJA, 1, 1, 0, 1, (), ms, 0, 0, 0, None,
+                    "t", failed,
+                )
+            )  # fmt: skip
+        assert store.reply_p50_seconds("gemma") == 1.5
+    finally:
+        with pg_pool.connection() as conn:
+            conn.execute("TRUNCATE turn_metrics")
