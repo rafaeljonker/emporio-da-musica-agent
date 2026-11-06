@@ -313,6 +313,12 @@ def test_empty_answer_sets_failed() -> None:
     assert runner.run(ANON, "oi")[2].failed is True
 
 
+def test_unterminated_thought_only_answer_is_a_failed_turn() -> None:
+    model = FakeToolCallingModel(messages=iter([AIMessage("<|channel>thought\nabc")]))
+    text, _, m = _runner(model)[0].run(ANON, "oi")
+    assert (text, m.failed) == (CHAT_ERROR, True)
+
+
 def test_successful_turn_is_not_failed() -> None:
     runner, _ = _runner(FakeToolCallingModel(messages=iter([AIMessage("Oi.")])))
     assert runner.run(ANON, "oi")[2].failed is False

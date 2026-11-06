@@ -52,6 +52,14 @@ def test_stray_channel_tokens_are_removed() -> None:
     assert strip_channel_markup("Oi<channel|> tudo<|channel>") == "Oi tudo"
 
 
+def test_unterminated_thought_is_removed_to_the_end() -> None:
+    assert strip_channel_markup("<|channel>thought\nabc") == ""
+
+
+def test_unterminated_thought_after_text_keeps_only_the_text() -> None:
+    assert strip_channel_markup("Oi <|channel>thought\nplan\n\nTem sim") == "Oi"
+
+
 def test_text_without_markup_is_untouched() -> None:
     assert strip_channel_markup("Fica R$ 2.199 <no pix>") == "Fica R$ 2.199 <no pix>"
 
