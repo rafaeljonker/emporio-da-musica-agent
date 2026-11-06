@@ -54,7 +54,7 @@ target-version = "py312"
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF", "ANN", "BLE", "TRY", "DTZ", "S", "PT", "RET", "C4", "PIE", "PERF"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["emporio"]
+known-first-party = ["emporio", "tests", "evals"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["S101", "ANN201"]

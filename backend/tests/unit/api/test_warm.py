@@ -2,12 +2,12 @@ from collections.abc import Iterator
 
 import pytest
 from fastapi.testclient import TestClient
-from tests.fakes.fake_agent import FakeAgent
-from tests.unit.api.conftest import CREDENTIALS, make_settings
 
 from emporio.api.app import create_app
 from emporio.support.application.warmup import WarmMode
 from emporio.support.infrastructure.warmup import ProbeWarmup
+from tests.fakes.fake_agent import FakeAgent
+from tests.unit.api.conftest import CREDENTIALS, make_settings
 
 
 @pytest.fixture
