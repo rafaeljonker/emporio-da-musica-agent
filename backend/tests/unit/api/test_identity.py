@@ -77,3 +77,23 @@ def test_identity_rejects_non_int_and_out_of_range(
     for bad in (True, 1.5, 1.0, 0, 2**40):
         assert client.put("/api/identity", json={"customer_id": bad}).status_code == 422
     assert asked == []
+
+
+def test_identity_limited_to_ten_switches_per_minute(client: TestClient) -> None:
+    login(client)
+    codes = [client.put("/api/identity", json={"customer_id": 14}).status_code for _ in range(11)]
+    assert codes == [200] * 10 + [429]
+    assert client.put("/api/identity", json={"customer_id": 14}).json() == {
+        "detail": "too_many_switches"
+    }
+
+
+def test_identity_rejects_csv_customer_outside_the_demo_list(
+    client: TestClient, agent: FakeAgent
+) -> None:
+    agent.demo_customers = FakeAgent((14,)).demo_customers
+    assert agent.customer_exists(5)
+    login(client)
+    response = client.put("/api/identity", json={"customer_id": 5})
+    assert (response.status_code, response.json()) == (404, {"detail": "unknown_customer"})
+    assert client.get("/api/auth/me").json()["customer_id"] is None
