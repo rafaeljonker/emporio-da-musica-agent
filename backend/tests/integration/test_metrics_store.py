@@ -40,14 +40,14 @@ def test_reply_p50_from_turn_metrics(pg_pool: ConnectionPool) -> None:
     with pg_pool.connection() as conn:
         conn.execute("TRUNCATE turn_metrics")
     try:
-        assert store.reply_p50_seconds() is None
-        for ms in (1000, 3000, 9000):
+        assert store.reply_p50_seconds("gemma") is None
+        for provider, ms in (("gemma", 1000), ("gemma", 3000), ("gemma", 9000), ("fake", 50)):
             store.save(
                 TurnMetrics(
-                    "web:anon:s", "gemma", "m", Scope.LOJA, 1, 1, 0, 1, (), ms, 0, 0, 0, None, "t"
+                    "web:anon:s", provider, "m", Scope.LOJA, 1, 1, 0, 1, (), ms, 0, 0, 0, None, "t"
                 )
             )
-        assert store.reply_p50_seconds() == 3.0
+        assert store.reply_p50_seconds("gemma") == 3.0
     finally:
         with pg_pool.connection() as conn:
             conn.execute("TRUNCATE turn_metrics")

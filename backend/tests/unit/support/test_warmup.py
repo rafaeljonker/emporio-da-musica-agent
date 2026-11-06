@@ -166,3 +166,46 @@ def test_local_cpu_stage_is_model_loading():
         interval_seconds=60,
     )
     assert warm.start().stage is WarmStage.MODEL_LOADING
+
+
+def test_retry_gets_a_fresh_deadline_window():
+    clock = StepClock()
+    calls = 0
+    third = threading.Event()
+    release = threading.Event()
+
+    def probe() -> bool:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            clock.advance(700)
+        elif calls == 2:
+            clock.advance(100)
+        else:
+            third.set()
+            release.wait(5)
+            return True
+        return False
+
+    warm = _warm(probe, clock, deadline_seconds=600)
+    first = warm.start().started_at
+    warm.join(5)
+    assert warm.status().stage is WarmStage.FAILED
+    warm.start()
+    assert third.wait(5)
+    during = warm.status()
+    assert (during.stage, during.started_at) == (WarmStage.SERVER_STARTING, first)
+    release.set()
+    warm.join(5)
+    assert warm.status().stage is WarmStage.READY
+
+
+def test_status_survives_a_failing_reply_p50():
+    def broken() -> float | None:
+        raise ConnectionError
+
+    warm = ProbeWarmup(lambda: True, WarmMode.MODAL_GPU, 180, broken, clock=StepClock())
+    warm.start()
+    warm.join(5)
+    assert warm.status().reply_p50_seconds is None
+    assert ReadyWarmup(WarmMode.PROVIDER_API, broken).start().reply_p50_seconds is None
