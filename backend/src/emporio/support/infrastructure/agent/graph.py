@@ -91,7 +91,7 @@ def build_graph(
             token_counter=count_tokens_approximately,
             max_tokens=budget,
             start_on="human",
-            end_on=("human", "tool"),
+            end_on=("human", "ai", "tool"),
         )
         head = system_prompt(ctx.customer_name, ctx.today)
         prompt = [SystemMessage("\n\n".join([head, *notes])), *history, *turn]
