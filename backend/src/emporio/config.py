@@ -113,6 +113,8 @@ class Settings(BaseSettings):
     session_secret: SecretStr | None = None
     session_https_only: bool = True
     session_max_age_seconds: int = 28800
+    # Scales the login and chat rate limits for load tests; only with the fake model (no GPU cost).
+    rate_limit_multiplier: int = Field(default=1, ge=1)
 
     @property
     def provider_name(self) -> str:
@@ -228,6 +230,8 @@ def require_web_settings(settings: Settings) -> None:
         problems.append("SESSION_SECRET is not set (`make web-keys` writes one)")
     elif len(_secret_text(settings.session_secret)) < _MIN_SESSION_SECRET:
         problems.append(f"SESSION_SECRET must have at least {_MIN_SESSION_SECRET} characters")
+    if settings.rate_limit_multiplier > 1 and not settings.fake_model:
+        problems.append("RATE_LIMIT_MULTIPLIER > 1 needs EMPORIO_FAKE_MODEL=1")
     if problems:
         raise WebSettingsRequired(problems)
 

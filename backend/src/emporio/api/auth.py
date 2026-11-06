@@ -23,8 +23,8 @@ def _same(given: str, expected: str) -> bool:
 def build_auth_router(settings: Settings, warmup: Warmup) -> APIRouter:
     router = APIRouter(prefix="/api/auth")
     # The Modal proxy IP is unconfirmed, so the per-IP limit has an overall backstop.
-    per_ip = SlidingWindow(5, 60)
-    overall = SlidingWindow(30, 60)
+    per_ip = SlidingWindow(5 * settings.rate_limit_multiplier, 60)
+    overall = SlidingWindow(30 * settings.rate_limit_multiplier, 60)
     demo_password = settings.demo_password.get_secret_value() if settings.demo_password else None
 
     @router.post("/login", dependencies=[Depends(require_json)])

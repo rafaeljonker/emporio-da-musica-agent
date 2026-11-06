@@ -158,7 +158,7 @@ dev: web-config $(WEB_LOCAL_MODEL) db langfuse-up web-install
 	(cd frontend && npm run dev) & cd backend && $(WEB_ENV) $(SERVE) --reload --reload-dir src
 
 # Scripted model unless PROVIDER is given on the command line: make e2e PROVIDER=gemini.
-E2E_FAKE = $(if $(filter command line,$(origin PROVIDER)),,EMPORIO_FAKE_MODEL=1)
+E2E_FAKE = $(if $(filter command line,$(origin PROVIDER)),,EMPORIO_FAKE_MODEL=1 RATE_LIMIT_MULTIPLIER=10)
 
 e2e: db langfuse-up web-build
 	cd backend && uv run playwright install chromium

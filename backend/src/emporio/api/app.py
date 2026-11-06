@@ -41,7 +41,7 @@ def create_app(
         max_age=settings.session_max_age_seconds,
     )
     app.include_router(build_auth_router(settings, warmup))
-    app.include_router(build_chat_router(agent))
+    app.include_router(build_chat_router(agent, settings))
     app.include_router(build_identity_router(agent))
     app.include_router(build_warm_router(warmup))
     # Mounted last so it never shadows /api.

@@ -23,6 +23,7 @@ def make_settings(rate_limit_multiplier: int = 1) -> Settings:
         demo_password=SecretStr(LOGIN_PHRASE),
         session_secret=SecretStr("s" * 40),
         session_https_only=False,
+        fake_model=True,
         rate_limit_multiplier=rate_limit_multiplier,
     )
 

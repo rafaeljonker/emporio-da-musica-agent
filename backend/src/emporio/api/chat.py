@@ -14,6 +14,7 @@ from emporio.api.guards import (
     require_json,
     require_session,
 )
+from emporio.config import Settings
 from emporio.support.application.ports import ChatAgent, TurnMetrics
 from emporio.support.domain.bubbles import pace_bubbles
 from emporio.support.domain.channel_identity import ChannelIdentity
@@ -82,11 +83,11 @@ class ChatIn(BaseModel):
     text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=1000)]
 
 
-def build_chat_router(agent: ChatAgent) -> APIRouter:
+def build_chat_router(agent: ChatAgent, settings: Settings) -> APIRouter:
     router = APIRouter(prefix="/api/chat")
-    per_session = SlidingWindow(20, 600)
+    per_session = SlidingWindow(20 * settings.rate_limit_multiplier, 600)
     # ponytail: per process; one shared GPU budget, move to a shared store with several containers
-    overall = SlidingWindow(200, 600)
+    overall = SlidingWindow(200 * settings.rate_limit_multiplier, 600)
     locks = ThreadLocks()
 
     def turn_slot(
