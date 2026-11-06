@@ -11,8 +11,8 @@ The hosted demo runs Gemini 3.8 Flash, with the scope guard on Flash-Lite. `make
 ## Consequences
 
 - No GPU wait for an evaluator, and the credit is not spent on idle GPU time.
-- Gemini passed 21 of the 22 eval cases with no AI tells.
-- Replies are slower than the target: p50 is 7.30 s against a goal of 3 s or less, because the guard and the agent run one after the other. This target is missed.
+- Gemini passed 20 of the 22 eval cases with no AI tells.
+- Replies are slower than the target: p50 is 5.93 s against a goal of 3 s or less, because the guard and the agent run one after the other. This target is missed.
 - The demo does not show Gemma's voice; that comparison lives in the eval reports.
 
 ## Alternatives

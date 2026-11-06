@@ -168,7 +168,7 @@ O detalhe está em [docs/scaling-and-cost.md](docs/scaling-and-cost.md). Os núm
 - **GPU:** H100 FP8 é o padrão do Gemma; a L40S custa metade por hora, mas é mais lenta e sai mais cara por resposta.
 - **Cold start:** a meta era 30 s e **não foi atingida**; o melhor boot da H100 levou cerca de 204 s. Por isso a demo roda Gemini, e o login já acorda o modelo.
 - **Carga** (modelo de teste, um contêiner, mede a nossa infraestrutura): 120 usuários por 2 minutos, 1.334 conversas, 0 falhas, 11,2 conversas/s, p50 de 4,2 s. O gargalo encontrado foi um lock do checkpointer que serializava todo o I/O; sem ele, o p50 com 50 usuários caiu de 48 s para 1,7 s.
-- **Custo:** R$ 0,031 por caso de eval no Gemini (preço de tabela), cerca de R$ 0,12 por conversa de 4 turnos (estimativa). Projeção mensal no Gemini: ~$22 com 1k conversas, ~$223 com 10k, ~$2.233 com 100k. Uma H100 ligada no horário da loja custa ~$837/mês; o ponto de equilíbrio fica em torno de 37k conversas/mês.
+- **Custo:** R$ 0,031 por caso de eval no Gemini (preço de tabela), cerca de R$ 0,12 por conversa de 4 turnos (estimativa). Projeção mensal no Gemini: ~$23 com 1k conversas, ~$225 com 10k, ~$2.255 com 100k. Uma H100 ligada no horário da loja custa ~$837/mês; o ponto de equilíbrio fica em torno de 37k conversas/mês.
 
 ## Limitações e o que eu faria com mais tempo
 
