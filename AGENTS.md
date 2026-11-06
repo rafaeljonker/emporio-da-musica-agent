@@ -26,6 +26,7 @@ Run from the repo root; all targets execute in `backend/`.
 - `make deploy-api [API_PROVIDER=gemini|gemma] [LLM_APP=...] [LOADTEST=1]`: the web API on Modal; defaults to Gemini (the hosted demo), `gemma` calls the GPU app, `LOADTEST=1` deploys the fake-model `emporio-api-loadtest`.
 - `make deploy-proxy`: the Cloudflare Worker in front of `emporio-api` (emporio.fastmind.site).
 - `make loadtest ARGS="--host <url> -u 50 -r 10 -t 2m"`: Locust against a deployed app; only against `emporio-api-loadtest` (fake model). Results: `docs/scaling-and-cost.md`.
+- `make loadtest-down`: stops `emporio-api-loadtest`; run it after every load test (it shares the demo's secrets and database, with 100x rate limits).
 
 ## Architecture rules
 Enforced by `import-linter` (`make imports`).
