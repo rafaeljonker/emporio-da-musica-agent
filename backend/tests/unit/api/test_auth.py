@@ -75,3 +75,12 @@ def test_static_index_served_when_dist_exists(agent: FakeAgent, tmp_path: Path):
 def test_missing_dist_does_not_crash(agent: FakeAgent, tmp_path: Path):
     with client_with_static(agent, tmp_path / "absent") as client:
         assert client.get("/").status_code == 404
+
+
+def test_openapi_and_docs_are_not_served(agent: FakeAgent, tmp_path: Path):
+    (tmp_path / "index.html").write_text("<h1>oi</h1>")
+    with client_with_static(agent, tmp_path) as client:
+        for path in ("/openapi.json", "/docs", "/redoc"):
+            response = client.get(path)
+            assert "openapi" not in response.text.lower()
+            assert "swagger" not in response.text.lower()
