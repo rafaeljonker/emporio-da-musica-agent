@@ -249,13 +249,14 @@ def test_unexpected_tool_exception_becomes_a_tool_message(
     assert calls <= answered
 
 
-def test_resumed_thread_deserializes_state_without_warnings(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
+def test_checkpointed_scope_is_a_plain_string(caplog: pytest.LogCaptureFixture) -> None:
+    # A custom enum in state makes langgraph warn "Deserializing unregistered type" on resume
+    # (logged once per process, so assert on the stored type, not only on the log).
     model = FakeToolCallingModel(messages=iter([AIMessage("A"), AIMessage("B")]))
     graph = _graph(model, Scope.LOJA)
     with caplog.at_level(logging.WARNING):
         _ask(graph, "1")
         _ask(graph, "2")
-        graph.get_state(CONFIG)
+        stored = graph.get_state(CONFIG).values["scope"]
+    assert type(stored) is str
     assert "unregistered type" not in caplog.text
