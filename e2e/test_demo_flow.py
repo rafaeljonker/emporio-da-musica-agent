@@ -240,3 +240,39 @@ def test_metrics_panel_fits_320px(signed_in_page: Page) -> None:
     toggle.click()
     page.get_by_role("heading", level=1).click()
     expect(panel).to_be_hidden()
+
+
+PACED_TURN = "".join(
+    f"event: {name}\ndata: {data}\n\n"
+    for name, data in [
+        ("typing", "{}"),
+        ("bubble", '{"kind": "text", "text": "Primeira", "delay_ms": 0}'),
+        ("bubble", '{"kind": "text", "text": "Segunda", "delay_ms": 3000}'),
+        ("done", '{"trace_id": null}'),
+    ]
+)
+
+
+def test_typing_dots_sit_under_the_last_bubble(signed_in_page: Page) -> None:
+    page = signed_in_page
+    page.route(
+        "**/api/chat",
+        lambda route: route.fulfill(status=200, content_type="text/event-stream", body=PACED_TURN),
+    )
+    composer = page.get_by_label("Mensagem", exact=True)
+    composer.fill("Oi")
+    composer.press("Enter")
+    log = page.get_by_role("log")
+    first = log.locator("p", has_text="Assistente: Primeira")
+    dots = log.locator(".typing-dot").first
+    expect(first).to_be_visible(timeout=AGENT_TIMEOUT_MS)
+    # Visible in the conversation, hidden from the log; the status region speaks it instead.
+    expect(dots).to_be_visible()
+    typing = page.get_by_role("status").filter(has_text="O assistente está digitando")
+    expect(typing).to_have_count(1)
+    if not log.locator("[aria-hidden=true]:has(.typing-dot)").count():
+        pytest.fail("the typing dots are not aria-hidden inside the log")
+    if dots.bounding_box()["y"] <= first.bounding_box()["y"]:
+        pytest.fail("the typing dots are not under the last bubble")
+    expect(log.locator("p", has_text="Assistente: Segunda")).to_be_visible(timeout=AGENT_TIMEOUT_MS)
+    expect(dots).to_have_count(0)

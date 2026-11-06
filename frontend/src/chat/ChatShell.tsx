@@ -15,7 +15,6 @@ import { DemoStrip } from './DemoStrip'
 import { EmptyState } from './EmptyState'
 import type { TurnRecord } from './metrics'
 import { MetricsDetails } from './MetricsDetails'
-import { TypingIndicator } from './TypingIndicator'
 import { Transcript } from './Transcript'
 import { isExchange, useChatStream } from './useChatStream'
 
@@ -84,6 +83,7 @@ export function ChatShell({ warm, fromLogin, customerId: initialCustomer, onSign
   // The measured cold start; provider_api never warms.
   const warmupSeconds = status?.stage === 'ready' && status.mode !== 'provider_api' ? Math.round(status.elapsed_seconds) : null
   const [text, setText] = useState(queue.restored)
+  const typing = entries.some((e) => isExchange(e) && e.turn.typing)
 
   const undo = () => {
     const back = queue.take()
@@ -151,10 +151,9 @@ export function ChatShell({ warm, fromLogin, customerId: initialCustomer, onSign
           />
         )}
         {!warming && !entries.length && !queue.queued && <EmptyState />}
-        <Transcript entries={entries} queued={queue.queued?.lines} onUndo={undo} onResend={resend} />
-        <StatusRegion said={said}>
-          <TypingIndicator typing={entries.some((e) => isExchange(e) && e.turn.typing)} />
-        </StatusRegion>
+        <Transcript entries={entries} queued={queue.queued?.lines} typing={typing} onUndo={undo} onResend={resend} />
+        {/* The visible dots live in the log (aria-hidden); this live region speaks them. */}
+        <StatusRegion said={said}>{typing && <span className="sr-only">{copy.chat.typing}</span>}</StatusRegion>
         <Composer
           busy={busy}
           onSend={
