@@ -6,27 +6,29 @@ from emporio.support.domain.bubbles import MAX_BUBBLES, raw_bubbles
 
 MAX_BUBBLE_CHARS = 280
 
-_BANNED = (
-    "fico feliz em ajudar",
-    "ótima pergunta",
-    "espero ter ajudado",
-    "não hesite em",
-    "estou aqui para ajudar",
-    "sinta-se à vontade",
-    "qualquer dúvida estou à disposição",
-    "como posso te ajudar hoje?",
-    "prezado(a)",
+# Stems over text folded and stripped of punctuation, so accents, case, hyphens and spacing
+# do not matter ("Sinta-se à vontade" and "sinta se a vontade" are the same phrase).
+_BANNED = re.compile(
+    r"\bprezad[oa]s?\b|\ba disposicao\b|\bnao hesite\b"
+    r"|\bfico feliz em (?:te )?ajudar\b|\bespero ter ajudado\b|\botima pergunta\b"
+    r"|\bestou aqui (?:para|pra) (?:te )?ajudar\b|\bsinta se a vontade\b"
+    r"|\bcomo posso (?:te )?ajudar hoje\b"
 )
-_BANNED_FOLDED = tuple(fold(p) for p in _BANNED)
+_PUNCTUATION = re.compile(r"[^\w\s]")
 
-_MARKDOWN = re.compile(r"\*\*|__\w+__|^\s*(?:[-•*]|\d+[.)])\s|^\s*#{1,6}\s", re.MULTILINE)
+_MARKDOWN = re.compile(
+    r"\*\*|__\w+__|^\s*(?:[-•*]|\d+[.)])\s|^\s*#{1,6}\s|(?<!\*)\*[^\s*][^*\n]*\*(?!\*)",
+    re.MULTILINE,
+)
 _URL = re.compile(r"https?://\S+")
-_TEXTSPEAK = re.compile(r"\b(?:vc|pq|blz)\b")
+_TEXTSPEAK = re.compile(r"\b(?:vc|pq|blz|mano)\b")
 _EM_DASH = chr(0x2014)
 _EN_DASH = chr(0x2013)
 _EMOJI = re.compile(f"[{chr(0x1F000)}-{chr(0x1FAFF)}{chr(0x2600)}-{chr(0x27BF)}{chr(0xFE0F)}]")
 # en dash is fine inside a numeric range (9h-18h), a tell anywhere else
 _STRAY_EN_DASH = re.compile(rf"(?<![\dh]){_EN_DASH}|{_EN_DASH}(?!\d)")
+# A spaced hyphen between words is a dash in disguise; "9h-18h" and "9h - 18h" are ranges.
+_SPACED_HYPHEN = re.compile(r"(?<=\w)(?<![\dh]) - (?=\w)|(?<=[\dh]) - (?=[^\W\d])")
 
 
 class Tell(StrEnum):
@@ -44,13 +46,19 @@ class Tell(StrEnum):
 
 def ai_tells(text: str) -> tuple[Tell, ...]:
     folded = fold(text)
+    plain = " ".join(_PUNCTUATION.sub(" ", folded).split())
     bubbles = raw_bubbles(text)
     prose = _URL.sub("", text)
     prose_bubbles = raw_bubbles(prose)
     found = (
-        (Tell.EM_DASH, _EM_DASH in text or bool(_STRAY_EN_DASH.search(text))),
+        (
+            Tell.EM_DASH,
+            _EM_DASH in text
+            or bool(_STRAY_EN_DASH.search(text))
+            or bool(_SPACED_HYPHEN.search(text)),
+        ),
         (Tell.MARKDOWN, bool(_MARKDOWN.search(text))),
-        (Tell.BANNED_PHRASE, any(p in folded for p in _BANNED_FOLDED)),
+        (Tell.BANNED_PHRASE, bool(_BANNED.search(plain))),
         (Tell.TEXTSPEAK, bool(_TEXTSPEAK.search(folded))),
         (Tell.EMOJI, bool(_EMOJI.search(text))),
         (Tell.EXCLAMATIONS, text.count("!") > 1),
