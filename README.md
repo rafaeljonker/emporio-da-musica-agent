@@ -33,17 +33,7 @@ EMPORIO_FAKE_MODEL=1 make up      # abra http://localhost:8000
 make up PROVIDER=gemini           # ou openai, anthropic; gemma pede VLLM_BASE_URL e VLLM_API_KEY
 ```
 
-**Com o modelo na sua máquina:** `make up PROVIDER=local` roda o Gemma 4 pelo [Ollama](https://ollama.com/download). Antes de subir, ele detecta a máquina (Ollama nativo no Mac com Apple Silicon, Docker com GPU NVIDIA, Docker só CPU), escolhe o tamanho do modelo pela memória, avisa o tamanho do download e o tempo esperado, e cria o `emporio-gemma` com contexto de 16k tokens. No Mac, instale o app do Ollama antes.
-
-| Máquina | Modelo | Download | Tempo por resposta |
-|---|---|---|---|
-| Mac Apple Silicon, 32 GB ou mais | `gemma4:31b` | ~20 GB | 10–30 s (estimativa) |
-| Mac Apple Silicon, 16 GB | `gemma4:12b` | ~8 GB | 20–60 s (estimativa) |
-| GPU NVIDIA com 24 GB+ de VRAM | `gemma4:31b` | ~20 GB | poucos segundos (estimativa) |
-| Só CPU, 16 GB ou mais | `gemma4:12b` | ~8 GB | 20–60 s (estimativa) |
-| Só CPU, menos de 16 GB | `gemma4:e4b` | ~10 GB | 10–30 s (estimativa) |
-
-Nenhuma linha dessa tabela foi medida ainda. Para respostas em poucos segundos, use a demo hospedada.
+**Com o modelo na sua máquina:** `make up PROVIDER=local` roda o Gemma 4 pelo [Ollama](https://ollama.com/download) e escolhe o tamanho do modelo pela memória da máquina (no Mac, instale o app do Ollama antes). Tamanhos e tempos estimados em [docs/local-model.md](docs/local-model.md).
 
 Outros comandos úteis:
 
@@ -78,21 +68,9 @@ Cada mensagem passa primeiro por um classificador de escopo (o guard) e depois p
 
 ## Domínios e organização
 
-O backend (`backend/src/emporio/`) tem quatro domínios:
+O backend (`backend/src/emporio/`) tem quatro domínios: **catalog** (produtos, estoque, promoções, PIX e parcelamento), **orders** (pedidos, rastreio, identidade, troca e devolução), **policies** (o manual da loja, a busca sobre ele e o horário) e **support** (o agente: persona, guard, grafo, memória, ferramentas e voz).
 
-- **catalog:** produtos, estoque, promoções, preço final, PIX e parcelamento.
-- **orders:** status, rastreio, verificação de identidade e elegibilidade de troca e devolução.
-- **policies:** o manual da loja, dividido por seção, e a busca híbrida sobre ele; horário de funcionamento.
-- **support:** o agente em si: persona, guard, grafo, memória, ferramentas e voz.
-
-Cada domínio tem `domain/` (regras puras, sem IO nem framework), `application/` (um caso de uso por arquivo) e `infrastructure/` (CSV, Postgres, provedores de modelo, MCP). O `import-linter` impõe a regra de dependência em todo `make check`:
-
-| Camada | Pode importar |
-|---|---|
-| `*/domain` | só `shared` e a stdlib |
-| `*/application` | o próprio `domain`, outros `application` via portas, `shared` |
-| `*/infrastructure` | `application`, `domain` e libs externas |
-| `api/` | `support.application`, `support.domain`, `shared`, `config`; nunca infraestrutura |
+Cada domínio tem `domain/` (regras puras, sem IO nem framework), `application/` (um caso de uso por arquivo) e `infrastructure/` (CSV, Postgres, provedores de modelo, MCP). O `import-linter` garante essa separação em todo `make check` ([regras completas](AGENTS.md#architecture-rules)).
 
 ## Decisões técnicas
 
@@ -112,13 +90,21 @@ Cada domínio tem `domain/` (regras puras, sem IO nem framework), `application/`
 
 ## Como escolhi o modelo
 
-Comparei 9 modelos em 14 cenários do case, com as ferramentas reais: ferramenta certa, fato certo, marcas de IA no texto e naturalidade. Na primeira rodada, Gemini 3.8 Flash e Mistral Large 4 acertaram 14/14; o Gemma 4 31B acertou só 10/14, mas teve a voz mais humana (4,8 de 5). Com regras explícitas de ferramenta no prompt (v2) e busca tolerante a plural e acento, o Gemma chegou a 14/14 em ferramenta e 14/14 efetivo (as duas falhas restantes eram falsos negativos do verificador). Detalhes e tabelas em [docs/model-selection.md](docs/model-selection.md).
+Comparei 9 modelos em 14 cenários do case, com as ferramentas reais, medindo ferramenta certa, fato certo, marcas de IA no texto e naturalidade (nota de 1 a 5):
+
+| Etapa | Resultado |
+|---|---|
+| Primeira comparação | Gemini 3.8 Flash e Mistral Large 4: 14/14. Gemma 4 31B: 10/14, mas a voz mais humana (4,8) |
+| Prompt v2, com regras de ferramenta explícitas | Gemma 4 31B: 14/14 (2 deles só depois de corrigir o verificador) |
+| Gemma 4 31B no Modal (GPU H200) | 2,2 s de mediana por resposta |
+
+A lição: regras claras de ferramenta no prompt pesaram mais que o tamanho do modelo. Detalhes em [docs/model-selection.md](docs/model-selection.md).
 
 ## Voz humana
 
 A voz é escrita nos prompts ([voice.md](backend/src/emporio/support/infrastructure/agent/prompts/voice.md) e [persona.md](backend/src/emporio/support/infrastructure/agent/prompts/persona.md)): mensagens curtas, uma pergunta por vez e sempre no fim, sem markdown, sem travessão, sem frase pronta de SAC, o primeiro nome do cliente uma vez. A persona é "assistente da Empório", sem nome humano inventado.
 
-A resposta vira até 3 balões, separados por linha em branco. O turno inteiro roda primeiro e os balões chegam com um atraso calculado no servidor (o primeiro na hora, os seguintes entre 0,7 e 2,4 s conforme o tamanho, no máximo 3 s somados), com "digitando…" na tela. O ponto final de cada balão cai, como numa mensagem de chat.
+A resposta vira até 3 balões curtos, que chegam um depois do outro com "digitando…" na tela, como numa conversa de WhatsApp.
 
 E a voz é medida, não só prometida: [`ai_tells.py`](backend/src/emporio/support/domain/ai_tells.py) marca travessão, markdown, frases banidas, emoji, excesso de exclamação, mais de uma pergunta, pergunta fora do fim, mais de 3 balões e balão longo. Os evals exigem zero marcas.
 
@@ -136,8 +122,6 @@ A busca de produtos normaliza acento, caixa e plural e tolera erro de digitaçã
 | e-mail de outro cliente não revela o pedido | `test_order_5_with_other_customers_email_is_rejected` |
 | erro de digitação no nome do produto | `test_typo_violuao_finds_c40` |
 
-Os testes de dados ficam em `backend/tests/integration/test_catalog_data.py` e `test_orders_data.py`; as regras puras, em `backend/tests/unit/`.
-
 ## Premissas
 
 - **Data de referência (`STORE_TODAY`, padrão 20/02/2026):** os pedidos vão de 10/2025 a 03/2026; com a data real, nenhum estaria no prazo de devolução. Essa data deixa pedidos dentro e fora do prazo (o pedido 7 pode ser devolvido por arrependimento, o 5 não). O horário "aberto agora" usa o relógio real de Campo Grande.
@@ -149,44 +133,37 @@ Os testes de dados ficam em `backend/tests/integration/test_catalog_data.py` e `
 
 ## Qualidade
 
-- **Testes:** 698 testes determinísticos, sem modelo, escritos antes do código (cada comportamento é um par de commits `test(...) (red)` → `feat(...)` no histórico). `make check` roda ruff, basedpyright, import-linter e pytest.
-- **CI** (GitHub Actions): qualidade do backend, testes do backend (com Postgres), frontend e varredura de segredos com gitleaks.
+- **Testes:** 703 testes determinísticos, sem modelo, escritos antes do código (cada comportamento é um par de commits `test(...) (red)` → `feat(...)` no histórico). O `make check` (ruff, basedpyright, import-linter e pytest) e a varredura de segredos rodam também no CI.
 - **Evals:** 22 casos de ouro rodando o grafo real (ferramenta esperada, fato esperado e detector de voz); meta de 90% de acerto e zero marcas de IA. Cada relatório traz as transcrições completas para auditoria.
 
-| Provedor | Acerto | Marcas de IA | Latência p50 / p95 | Observação |
+| Provedor | Acerto | Marcas de IA | Tempo de resposta (mediana / p95) | Observação |
 |---|---|---|---|---|
-| Gemini 3.8 Flash ([relatório](backend/evals/reports/gemini.md)) | 20/22 | 0 | 5,9 s / 14,5 s | rodada final, no código entregue |
+| Gemini 3.8 Flash ([relatório](backend/evals/reports/gemini.md)) | 22/22 | 0 | 6,1 s / 8,0 s | rodada final, no código entregue |
 | Gemma 4 31B, H100 FP8 ([relatório](backend/evals/reports/gemma-h100-fp8.md)) | 21/22 | 4 | 2,1 s / 4,1 s | anterior às correções de voz |
 | Gemma 4 31B, L40S FP8 ([relatório](backend/evals/reports/gemma-l40s-fp8.md)) | 21/22 (22/22 efetivo) | 0 | 4,9 s / 10,0 s | anterior à versão final do verificador |
 
-As duas falhas do Gemini: uma recomendação de MPB com violões fora da lista esperada (falha real) e uma devolução fora do prazo que a resposta explica certo, mas com uma frase que o verificador por regex não reconheceu. As rodadas do Gemma não foram refeitas depois das correções de voz (balões, uma pergunta por vez, remoção da marcação de raciocínio).
+Cada linha é uma rodada só. A rodada anterior do Gemini deu 20/22: uma divergência do recomendador (indicou violões de nylon válidos do catálogo, mas não os escolhidos pela ferramenta de recomendação) e uma devolução fora do prazo explicada certo, numa frase que o verificador não reconhecia.
 
 ## Escala e custo
 
-O detalhe está em [docs/scaling-and-cost.md](docs/scaling-and-cost.md). Os números principais:
-
-- **GPU:** H100 FP8 é o padrão do Gemma; a L40S custa metade por hora, mas é mais lenta e sai mais cara por resposta.
-- **Cold start:** a meta era 30 s e **não foi atingida**; o melhor boot da H100 levou cerca de 204 s. Por isso a demo roda Gemini, e o login já acorda o modelo.
-- **Carga** (modelo de teste, um contêiner, mede a nossa infraestrutura): 120 usuários por 2 minutos, 1.334 conversas, 0 falhas, 11,2 conversas/s, p50 de 4,2 s. O gargalo encontrado foi um lock do checkpointer que serializava todo o I/O; sem ele, o p50 com 50 usuários caiu de 48 s para 1,7 s.
-- **Custo:** R$ 0,031 por caso de eval no Gemini (preço de tabela), cerca de R$ 0,12 por conversa de 4 turnos (estimativa). Projeção mensal no Gemini: ~$23 com 1k conversas, ~$225 com 10k, ~$2.255 com 100k. Uma H100 ligada no horário da loja custa ~$837/mês; o ponto de equilíbrio fica em torno de 37k conversas/mês.
+- **Cold start:** a meta era 30 s e **não foi atingida**; ligar a GPU do Gemma leva cerca de 3,5 min. Por isso a demo roda no Gemini.
+- **Carga:** 120 usuários ao mesmo tempo por 2 minutos, 1.334 conversas e nenhuma falha (com o modelo de teste, medindo a nossa infraestrutura).
+- **Custo:** cerca de R$ 0,11 por conversa de 4 turnos no Gemini (estimativa pelo preço de tabela).
+- **GPU própria:** uma H100 ligada no horário da loja custa ~US$ 837/mês e passa a compensar a partir de ~42 mil conversas/mês ([contas e projeções](docs/scaling-and-cost.md)).
 
 ## Limitações e o que eu faria com mais tempo
 
-- **Latência do Gemini:** p50 de 5,9 s, acima da meta de 3 s (o guard é uma segunda chamada de modelo em sequência). A H100 aquecida atende a meta.
-- **Cold start do Gemma:** ~3,5 min contra a meta de 30 s. Próximos passos: snapshot de memória da GPU, cache da compilação JIT do FlashInfer (~100 s por boot) ou um contêiner sempre ligado no horário da loja.
-- **Evals do Gemma** não foram refeitos depois das correções de voz e marcação; o teste de carga com modelo real e o baseline BF16 ficaram de fora pelo orçamento de GPU.
-- **Estado por processo:** rate limit, lock por conversa e status do aquecimento vivem em memória, então a API roda num contêiner só. Escalar pede mover isso para Postgres ou Redis e aproximar o banco da região do Modal.
-- **`PROVIDER=local`** está pronto, mas os tempos da tabela não foram medidos.
-- **Pendências pequenas:** a troca de cliente que falha não avisa na tela; recarregar a página apaga os balões, mas não a conversa no servidor.
-- **Com mais tempo:** WhatsApp oficial como novo adaptador do canal, passagem para atendente humano, reranking na busca de políticas, cartões de produto nos balões e guardrails de dados pessoais além do mascaramento de nomes.
+- **Latência do Gemini:** mediana de 6,1 s, acima da meta de 3 s. O Gemma numa H100 já ligada fica dentro, mas leva ~3,5 min para ligar ([como reduzir](docs/scaling-and-cost.md#2-cold-start)).
+- **Ficou sem medir, pelo orçamento de GPU:** os evals do Gemma depois dos últimos ajustes de voz, o teste de carga com modelo real e os tempos do modo local.
+- **Uma instância só:** limites de uso e conversas em andamento ficam na memória do processo; escalar pede movê-los para o Postgres ou um Redis.
+- **Detalhes de tela:** recarregar a página apaga os balões (a conversa continua no servidor), e uma troca de cliente que falha não avisa.
+- **Com mais tempo:** WhatsApp oficial, passagem para atendente humano, reranking na busca de políticas, cartões de produto nos balões e mais proteção de dados pessoais.
 
 ## Uso de assistentes de IA
 
-O projeto foi feito com o Claude Code, num fluxo com etapas fixas. Primeiro uma conversa de brainstorming virou a [spec](docs/superpowers/specs/2026-11-05-emporio-agent-design.md). Cada fase começou com pesquisa na documentação atual das libs (em `docs/research/`), seguida de um plano curto. A implementação foi em TDD com subagentes: um teste falhando, depois o código que o faz passar, e o par fica visível no histórico de commits. Cada fase passou por uma revisão independente feita por lentes de risco (contratos, dados do cliente, voz, segredos, custo e escala), com uma segunda rodada tentando derrubar cada achado ([`.claude/skills/reviewing-changes/`](.claude/skills/reviewing-changes/SKILL.md)). Nenhuma fase começou sem o ok do dono do projeto.
+O projeto foi feito com o Claude Code, sempre na mesma ordem: spec, plano, testes antes do código (TDD), revisão independente e o ok do dono antes da fase seguinte. O contexto do assistente está versionado: [AGENTS.md](AGENTS.md), as regras em [`.claude/rules/`](.claude/rules/) e as skills em [`.claude/skills/`](.claude/skills/). Commits feitos com o assistente levam o trailer `Co-Authored-By`.
 
-O contexto do assistente está versionado: [AGENTS.md](AGENTS.md) (comandos, regras de arquitetura, armadilhas; o `CLAUDE.md` só o importa), as regras em [`.claude/rules/`](.claude/rules/) (pureza do domínio, estilo Python, testes, segredos) e as skills em `.claude/skills/` (a revisão e as de design usadas na fase de interface). Commits feitos com o assistente levam o trailer `Co-Authored-By`.
-
-O que foi decisão do dono, e não do assistente: busca híbrida nas políticas; guard em todo turno; Langfuse obrigatório; balões enviados depois do turno, sem streaming de tokens; medir H100 e L40S em FP8 e ficar com a H100; os cortes de orçamento (sem baseline BF16, sem snapshot de GPU, sem teste de carga com modelo real); Gemini na demo hospedada; e nada de LLM-como-juiz nos evals, com os fatos checados por um verificador determinístico e as transcrições nos relatórios. O assistente escreveu o código, os testes, a pesquisa e os rascunhos dos documentos; o dono escolheu entre as opções, revisou e aprovou cada fase.
+O dono tomou as decisões de produto e de custo (busca híbrida nas políticas, guard em todo turno, Langfuse obrigatório, Gemini na demo, evals sem LLM como juiz e os cortes de orçamento de GPU); o assistente escreveu código, testes e rascunhos, e o dono revisou e aprovou cada fase.
 
 ## Onde encontrar cada item do enunciado
 
