@@ -193,3 +193,8 @@ Core (1–7) ≈ 10.5 h, with 8 and 9 on top. That is over one day, so either D5
 - **Deadline:** core tasks are about 10.5 h. Cut in the spec's order and never Langfuse, the deploy or the README numbers.
 
 ## Owner decisions
+Decided by the owner on 2026-11-06:
+1. **GPU and weights:** measure L40S and H100 with the FP8 checkpoint (`RedHatAI/gemma-4-31B-it-FP8-dynamic`), as the spec requires; default to H100 + FP8. If FP8 lowers the eval score against BF16, fall back to BF16 on H100 and document it.
+2. **GPU scaledown window:** 10 min; `WARM_READY_TTL_SECONDS` about 540 s, just under it.
+3. **`PROVIDER=local`:** the lean version (about 2 h): macOS native, Docker CPU and Docker NVIDIA detection, the three warnings, a Modelfile with a 16k context, one eval run on the owner's Mac.
+4. **Snapshot and load test:** GPU memory snapshot time-boxed to 90 min at the end (documented either way); Locust against a fake-model app at 100–300 users; a 10–20 user real-model run only if time is left.
