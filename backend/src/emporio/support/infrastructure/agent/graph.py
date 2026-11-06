@@ -74,7 +74,7 @@ def drop_unanswered_tool_calls(messages: Sequence[BaseMessage]) -> list[BaseMess
         if isinstance(message, ToolMessage):
             answered.add(message.tool_call_id)
         elif isinstance(message, AIMessage) and message.tool_calls:
-            ids = {c["id"] for c in message.tool_calls}
+            ids = {c["id"] or "" for c in message.tool_calls}
             if not ids <= answered:
                 dropped |= ids
                 continue
