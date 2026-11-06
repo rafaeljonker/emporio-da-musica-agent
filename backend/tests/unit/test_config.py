@@ -1,6 +1,7 @@
 from datetime import date
 
 import pytest
+from pydantic import SecretStr
 
 from emporio.config import (
     ConfigError,
@@ -11,6 +12,7 @@ from emporio.config import (
     load_mcp_settings,
     load_settings,
     load_web_settings,
+    require_web_settings,
 )
 
 _ENV_VARS = (
@@ -20,6 +22,7 @@ _ENV_VARS = (
     "LANGFUSE_SECRET_KEY", "LANGFUSE_BASE_URL", "LANGFUSE_SALT", "LANGFUSE_TRACING_ENABLED",
     "OTEL_SDK_DISABLED", "LANGFUSE_SAMPLE_RATE", "DEMO_EMAIL", "DEMO_PASSWORD", "SESSION_SECRET",
     "SESSION_HTTPS_ONLY", "EMPORIO_FAKE_MODEL", "DB_POOL_MAX",
+    "RATE_LIMIT_MULTIPLIER",
 )  # fmt: skip
 _FAKE_LANGFUSE = {
     "LANGFUSE_PUBLIC_KEY": "pk-fake",
@@ -186,3 +189,16 @@ def test_db_pool_max_below_one_is_rejected(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("DB_POOL_MAX", "0")
     with pytest.raises(ValueError, match="db_pool_max"):
         Settings()
+
+
+def test_rate_multiplier_requires_fake_model():
+    settings = Settings(
+        _env_file=None,  # pyright: ignore[reportCallIssue]  # pydantic-settings init kwarg
+        demo_email="a@b.c",
+        demo_password=SecretStr("x"),
+        session_secret=SecretStr("s" * 40),
+        rate_limit_multiplier=10,
+    )
+    with pytest.raises(WebSettingsRequired, match="RATE_LIMIT_MULTIPLIER > 1 needs EMPORIO_FAKE"):
+        require_web_settings(settings)
+    require_web_settings(settings.model_copy(update={"fake_model": True}))

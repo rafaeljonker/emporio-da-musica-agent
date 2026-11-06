@@ -16,13 +16,14 @@ LOGIN_PHRASE = "correct-horse"
 CREDENTIALS = {"email": EMAIL, "password": LOGIN_PHRASE}
 
 
-def make_settings() -> Settings:
+def make_settings(rate_limit_multiplier: int = 1) -> Settings:
     return Settings(
         _env_file=None,  # pyright: ignore[reportCallIssue]  # pydantic-settings init kwarg
         demo_email=EMAIL,
         demo_password=SecretStr(LOGIN_PHRASE),
         session_secret=SecretStr("s" * 40),
         session_https_only=False,
+        rate_limit_multiplier=rate_limit_multiplier,
     )
 
 
@@ -36,6 +37,11 @@ def client(agent: FakeAgent) -> Iterator[TestClient]:
     warmup = ReadyWarmup(WarmMode.PROVIDER_API, lambda: None)
     with TestClient(create_app(agent, warmup, make_settings())) as test_client:
         yield test_client
+
+
+def client_with_multiplier(agent: FakeAgent, multiplier: int) -> TestClient:
+    warmup = ReadyWarmup(WarmMode.PROVIDER_API, lambda: None)
+    return TestClient(create_app(agent, warmup, make_settings(multiplier)))
 
 
 def client_with_static(agent: FakeAgent, static_dir: Path) -> TestClient:

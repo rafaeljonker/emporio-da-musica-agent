@@ -3,7 +3,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from tests.fakes.fake_agent import FakeAgent
-from tests.unit.api.conftest import CREDENTIALS, client_with_static
+from tests.unit.api.conftest import CREDENTIALS, client_with_multiplier, client_with_static
 
 
 def test_login_ok_sets_cookie_and_returns_warm_status(client: TestClient):
@@ -32,6 +32,13 @@ def test_login_rate_limited_after_5_per_minute(client: TestClient):
     bad = {**CREDENTIALS, "password": "nope"}
     assert [client.post("/api/auth/login", json=bad).status_code for _ in range(5)] == [401] * 5
     assert client.post("/api/auth/login", json=CREDENTIALS).status_code == 429
+
+
+def test_login_limit_scales_with_multiplier(agent: FakeAgent):
+    bad = {**CREDENTIALS, "password": "nope"}
+    with client_with_multiplier(agent, 2) as client:
+        codes = [client.post("/api/auth/login", json=bad).status_code for _ in range(11)]
+    assert codes == [401] * 10 + [429]
 
 
 def test_me_requires_session(client: TestClient):

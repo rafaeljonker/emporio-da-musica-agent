@@ -6,11 +6,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from emporio.api.chat import action_label
-from emporio.api.guards import ThreadLocks
+from emporio.api.guards import SlidingWindow, ThreadLocks
 from emporio.support.application.ports import Reply
 from emporio.support.domain.scope import Scope
 from tests.fakes.fake_agent import FakeAgent, turn_metrics
-from tests.unit.api.conftest import CREDENTIALS
+from tests.unit.api.conftest import CREDENTIALS, client_with_multiplier
 
 METRIC_KEYS = {
     "input_tokens", "output_tokens", "ms_model", "ms_guard", "ms_llm", "ms_tools",
@@ -145,6 +145,22 @@ def test_chat_requires_session_and_json(client: TestClient, agent: FakeAgent) ->
 def test_chat_rate_limited_per_session(client: TestClient) -> None:
     login(client)
     assert [send(client).status_code for _ in range(21)][-2:] == [200, 429]
+
+
+def test_chat_overall_limit_scales_with_multiplier(
+    monkeypatch: pytest.MonkeyPatch, agent: FakeAgent
+) -> None:
+    limits: list[int] = []
+
+    class Spy(SlidingWindow):
+        def __init__(self, limit: int, seconds: float) -> None:
+            limits.append(limit)
+            super().__init__(limit, seconds)
+
+    monkeypatch.setattr("emporio.api.chat.SlidingWindow", Spy)
+    with client_with_multiplier(agent, 2):
+        pass
+    assert limits == [40, 400]
 
 
 def test_concurrent_turn_on_same_thread_gets_409(client: TestClient, agent: FakeAgent) -> None:
