@@ -11,10 +11,12 @@ def raw_bubbles(text: str) -> tuple[str, ...]:
 
 
 def split_bubbles(text: str) -> tuple[str, ...]:
-    parts = raw_bubbles(text)
-    if len(parts) <= MAX_BUBBLES:
-        return parts
-    return (*parts[: MAX_BUBBLES - 1], "\n\n".join(parts[MAX_BUBBLES - 1 :]))
+    """At most MAX_BUBBLES, merging the shortest neighbours line by line; no word is dropped."""
+    parts = list(raw_bubbles(text))
+    while len(parts) > MAX_BUBBLES:
+        i = min(range(len(parts) - 1), key=lambda j: len(parts[j]) + len(parts[j + 1]))
+        parts[i : i + 2] = [f"{parts[i]}\n{parts[i + 1]}"]
+    return tuple(parts)
 
 
 def pace_bubbles(bubbles: Sequence[str]) -> tuple[int, ...]:
