@@ -67,6 +67,7 @@ Never write keys or real values in any file. Use `.env` (git-ignored); `.env.exa
 - `PROVIDER=local` triggers `local-model` for `make up`/`make dev` only when given on the command line (like `LLM_PROVIDER`), and for `make evals` whenever `PROVIDER=local`; `.env`'s `LLM_PROVIDER` never triggers it. Without the Modelfile's `num_ctx`, Ollama silently truncates the prompt and tools. Docker on macOS has no Metal, so Apple Silicon needs the native Ollama app.
 - Web demo: on plain-http localhost set `SESSION_HTTPS_ONLY=false` or the browser drops the session cookie (`make up`, `make dev` and `make e2e` do it). `make e2e` needs Docker and Langfuse running.
 - Web state is per process: rate limits, thread locks and the warm-up status live in memory; run one API process (one container on Modal) until they move to a shared store.
+- Proxy: `make deploy-proxy` deploys the Cloudflare Worker; its secret is set once with `cd deploy/cloudflare && npx wrangler secret put PROXY_SECRET`, and the same value goes in the Modal secret `emporio-proxy` (key `PROXY_SECRET`) that `deploy/modal_api.py` needs for the non-loadtest app.
 - Pre-commit does not typecheck: run `make check` before committing, not only the hooks.
 - `data/` is read-only source material.
 

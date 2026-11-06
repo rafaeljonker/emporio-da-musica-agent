@@ -1,10 +1,10 @@
 export PATH := $(CURDIR)/backend/.venv/bin:$(PATH)
 
-.PHONY: help setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp deploy-llm deploy-api web-install web-build check-web up-preflight web-config local-model up dev e2e loadtest
+.PHONY: help setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp deploy-llm deploy-api web-install web-build check-web up-preflight web-config local-model up dev e2e loadtest deploy-proxy
 .DEFAULT_GOAL := help
 
 help:
-	@echo "targets: up dev e2e local-model setup fmt lint typecheck imports test check web-install web-build check-web db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp deploy-llm deploy-api"
+	@echo "targets: up dev e2e local-model setup fmt lint typecheck imports test check web-install web-build check-web db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp deploy-llm deploy-api deploy-proxy"
 
 setup:
 	cd backend && uv sync && uv run pre-commit install --config ../.pre-commit-config.yaml
@@ -178,6 +178,14 @@ LOADTEST ?=
 API_PROVIDER ?= gemma
 deploy-api: web-build
 	cd backend && EMPORIO_API_PROVIDER=$(API_PROVIDER) EMPORIO_LLM_APP=$(LLM_APP) EMPORIO_LOADTEST=$(LOADTEST) uv run modal deploy ../deploy/modal_api.py
+
+# Deploys the Cloudflare Worker emporio-proxy in front of emporio-api. The upstream URL is resolved
+# at run time and redacted from wrangler's output; the Worker's PROXY_SECRET is set once with wrangler secret put.
+deploy-proxy:
+	@url=$$(cd backend && uv run python -c 'import modal; print(modal.Function.from_name("emporio-api", "web").get_web_url() or "")') && \
+	[ -n "$$url" ] || { echo "emporio-api has no web URL: run make deploy-api first"; exit 1; }; \
+	cd deploy/cloudflare && out=$$(npx wrangler deploy --var "UPSTREAM:$$url" 2>&1); rc=$$?; \
+	printf '%s\n' "$$out" | sed "s#$$url#<upstream>#g"; exit $$rc
 
 # Locust against a running app: make loadtest ARGS="--host <url> -u 50 -r 10 -t 2m". Needs DEMO_EMAIL and DEMO_PASSWORD.
 loadtest:

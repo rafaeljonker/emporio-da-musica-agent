@@ -1,0 +1,7 @@
+// Deploy with `make deploy-proxy`: UPSTREAM is passed as --var, PROXY_SECRET is a wrangler secret.
+{
+  "name": "emporio-proxy",
+  "main": "worker.js",
+  "compatibility_date": "2026-11-01",
+  "routes": [{ "pattern": "emporio.fastmind.site", "custom_domain": true }]
+}

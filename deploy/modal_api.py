@@ -119,6 +119,9 @@ if GEMMA:
     web_secrets.append(modal.Secret.from_name("emporio-vllm"))
 elif API_PROVIDER == "gemini" and not LOADTEST:
     web_secrets.append(modal.Secret.from_name("emporio-gemini"))
+if not LOADTEST:
+    # PROXY_SECRET, shared with the Cloudflare Worker (make deploy-proxy): per-IP login limits.
+    web_secrets.append(modal.Secret.from_name("emporio-proxy"))
 
 
 @app.function(
