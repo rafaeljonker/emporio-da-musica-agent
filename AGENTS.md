@@ -22,6 +22,10 @@ Run from the repo root; all targets execute in `backend/`.
 - `make dev`: the API with `--reload` on :8000 plus Vite (proxying `/api`).
 - `make check-web`: frontend oxlint + Vitest + `tsc -b` + `vite build`.
 - `make e2e [PROVIDER=...]`: Playwright browser flow against a real server; scripted model unless `PROVIDER` is given. Needs Docker; not part of `make check`.
+- `make deploy-llm [LLM_GPU=H100|L40S] [LLM_WEIGHTS=fp8|bf16]`: vLLM Gemma app `emporio-llm-<gpu>-<weights>` on Modal (paid GPU).
+- `make deploy-api [API_PROVIDER=gemini|gemma] [LLM_APP=...] [LOADTEST=1]`: the web API on Modal; defaults to Gemini (the hosted demo), `gemma` calls the GPU app, `LOADTEST=1` deploys the fake-model `emporio-api-loadtest`.
+- `make deploy-proxy`: the Cloudflare Worker in front of `emporio-api` (emporio.fastmind.site).
+- `make loadtest ARGS="--host <url> -u 50 -r 10 -t 2m"`: Locust against a deployed app; only against `emporio-api-loadtest` (fake model). Results: `docs/scaling-and-cost.md`.
 
 ## Architecture rules
 Enforced by `import-linter` (`make imports`).
@@ -68,6 +72,9 @@ Never write keys or real values in any file. Use `.env` (git-ignored); `.env.exa
 - Web demo: on plain-http localhost set `SESSION_HTTPS_ONLY=false` or the browser drops the session cookie (`make up`, `make dev` and `make e2e` do it). `make e2e` needs Docker and Langfuse running.
 - Web state is per process: rate limits, thread locks and the warm-up status live in memory; run one API process (one container on Modal) until they move to a shared store.
 - Proxy: `make deploy-proxy` deploys the Cloudflare Worker; its secret is set once with `cd deploy/cloudflare && npx wrangler secret put PROXY_SECRET`, and the same value goes in the Modal secret `emporio-proxy` (key `PROXY_SECRET`) that `deploy/modal_api.py` needs for the non-loadtest app.
+- Paid steps: `make deploy-llm`, any request that wakes the GPU app, `make evals PROVIDER=gemma` and `deploy/cold_start.py` spend Modal credit; ask the owner first and stop GPU containers afterwards.
+- Never recreate the Modal secret `emporio-langfuse`: its `LANGFUSE_SALT` keys the trace pseudonyms.
+- The API image sets `HF_HUB_OFFLINE=1` with e5 baked in: a change to the embedder needs a redeploy, never a runtime download.
 - Pre-commit does not typecheck: run `make check` before committing, not only the hooks.
 - `data/` is read-only source material.
 
