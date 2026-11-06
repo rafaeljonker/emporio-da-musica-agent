@@ -247,3 +247,15 @@ def test_unexpected_tool_exception_becomes_a_tool_message(
     calls = {c["id"] for m in sent if isinstance(m, AIMessage) for c in m.tool_calls}
     answered = {m.tool_call_id for m in sent if isinstance(m, ToolMessage)}
     assert calls <= answered
+
+
+def test_resumed_thread_deserializes_state_without_warnings(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    model = FakeToolCallingModel(messages=iter([AIMessage("A"), AIMessage("B")]))
+    graph = _graph(model, Scope.LOJA)
+    with caplog.at_level(logging.WARNING):
+        _ask(graph, "1")
+        _ask(graph, "2")
+        graph.get_state(CONFIG)
+    assert "unregistered type" not in caplog.text
