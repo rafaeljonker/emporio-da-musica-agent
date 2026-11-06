@@ -58,3 +58,21 @@ def test_text_without_markup_is_untouched() -> None:
 
 def test_markup_only_reply_is_empty() -> None:
     assert split_bubbles("<|channel>thought\n<channel|>") == ()
+
+
+def test_bubbles_drop_the_final_period_of_every_line() -> None:
+    # A closing "." on each chat message reads as written by an AI, not typed on WhatsApp.
+    text = "Tem sim.\n\nO Yamaha C40 sai por R$ 599,90.\nE no PIX fica R$ 569,91."
+    assert split_bubbles(text) == (
+        "Tem sim",
+        "O Yamaha C40 sai por R$ 599,90\nE no PIX fica R$ 569,91",
+    )
+
+
+def test_bubbles_keep_question_marks_exclamations_and_ellipses() -> None:
+    text = "Quer ver?\n\nOpa!\n\nDeixa eu ver..."
+    assert split_bubbles(text) == ("Quer ver?", "Opa!", "Deixa eu ver...")
+
+
+def test_bubbles_keep_inner_periods() -> None:
+    assert split_bubbles("Custa R$ 2.399. Tem em estoque.") == ("Custa R$ 2.399. Tem em estoque",)
