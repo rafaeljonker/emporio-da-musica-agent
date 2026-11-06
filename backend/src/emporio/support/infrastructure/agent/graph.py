@@ -5,6 +5,7 @@ turn's scope: static prefix first, dynamic tail last, so prefix caching still hi
 works on a copy and never touches the current turn; the checkpointed state keeps the full history.
 """
 
+import logging
 from collections.abc import Callable, Sequence
 
 from langchain_anthropic import ChatAnthropic
@@ -29,7 +30,10 @@ from emporio.support.domain.scope import Scope
 from emporio.support.infrastructure.agent.context import TurnContext
 from emporio.support.infrastructure.agent.prompt import scope_note, system_prompt
 
+logger = logging.getLogger("emporio.support.tools")
+
 MAX_TOOL_ROUNDS = 5
+TOOL_FAILURE = "Não consegui consultar isso agora; ofereça passar o e-mail e o WhatsApp da loja."
 NO_MORE_TOOLS = "Responda com o que você já tem, sem chamar mais ferramentas."
 
 ABUSE_REPLY = (
@@ -53,6 +57,11 @@ def bind_without_tool_calls(model: BaseChatModel, tools: Sequence[BaseTool]) -> 
     choice = {"type": "none"} if isinstance(model, ChatAnthropic) else "none"
     # Base signature types tool_choice as str; providers accept a dict as well.
     return model.bind_tools(tools, tool_choice=choice)  # pyright: ignore[reportArgumentType]
+
+
+def _tool_failure(error: Exception) -> str:
+    logger.error("tool raised", exc_info=error)
+    return TOOL_FAILURE
 
 
 def build_graph(
@@ -105,7 +114,7 @@ def build_graph(
     graph.add_node("guard", guard)
     graph.add_node("abuse_reply", abuse_reply)
     graph.add_node("agent", agent)
-    graph.add_node("tools", ToolNode(tools))
+    graph.add_node("tools", ToolNode(tools, handle_tool_errors=_tool_failure))
     graph.add_edge(START, "guard")
     graph.add_conditional_edges("guard", route_scope, ["abuse_reply", "agent"])
     graph.add_edge("abuse_reply", END)
