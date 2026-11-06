@@ -61,12 +61,16 @@ export function ChatShell({ warm, fromLogin, customerId: initialCustomer, onSign
   const warming = !panelGone && status?.mode !== 'provider_api'
   const queue = useQueuedMessage(!warming, send, fromLogin, customerId)
 
+  // Local mode runs on the user's machine: cost is R$ 0, the same as the panel says.
+  const local = status?.mode === 'local_cpu'
   const turns = useMemo(
     () =>
       entries.flatMap((e): TurnRecord[] =>
-        isExchange(e) && e.turn.metrics ? [{ metrics: e.turn.metrics, screenMs: e.screenMs ?? 0 }] : [],
+        isExchange(e) && e.turn.metrics
+          ? [{ metrics: local ? { ...e.turn.metrics, cost_brl: '0' } : e.turn.metrics, screenMs: e.screenMs ?? 0 }]
+          : [],
       ),
-    [entries],
+    [entries, local],
   )
   // The measured cold start; provider_api never warms.
   const warmupSeconds = status?.stage === 'ready' && status.mode !== 'provider_api' ? Math.round(status.elapsed_seconds) : null
@@ -116,7 +120,7 @@ export function ChatShell({ warm, fromLogin, customerId: initialCustomer, onSign
         }}
         onSessionExpired={onExpired}
       >
-        <MetricsDetails turns={turns} warmupSeconds={warmupSeconds} local={status?.mode === 'local_cpu'} />
+        <MetricsDetails turns={turns} warmupSeconds={warmupSeconds} local={local} />
       </DemoStrip>
       {!warming && status?.mode === 'local_cpu' && (
         <p className="border-b border-border">

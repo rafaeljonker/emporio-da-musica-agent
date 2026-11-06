@@ -119,7 +119,7 @@ export function Transcript({ entries, queued, onUndo, onResend }: Props) {
                     )}
                   >
                     {turn.partial ? copy.chat.errorPartial : copy.chat.errorNoReply}
-                    <Button variant="link" onClick={() => resend(id)} className="min-h-6 text-base">
+                    <Button variant="link" onClick={() => resend(id)} className="h-auto min-h-6 px-0 text-base">
                       {copy.chat.resend}
                     </Button>
                   </p>
@@ -153,6 +153,8 @@ export function Transcript({ entries, queued, onUndo, onResend }: Props) {
             const el = ref.current
             if (el) el.scrollTop = el.scrollHeight
             setUnseen(false)
+            // The pill unmounts on click; focus goes to the composer, not the body.
+            document.getElementById('composer-input')?.focus()
           }}
           className="absolute bottom-2 left-1/2 -translate-x-1/2 shadow-md"
         >
