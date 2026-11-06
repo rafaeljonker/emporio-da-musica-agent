@@ -37,12 +37,14 @@ from emporio.shared.clock import FixedClock, SystemClock
 from emporio.support.application.handle_message import HandleMessage
 from emporio.support.application.ports import DemoCustomer, Reply
 from emporio.support.domain.channel_identity import ChannelIdentity
+from emporio.support.domain.scope import Scope
 from emporio.support.infrastructure.agent.graph import build_graph
 from emporio.support.infrastructure.agent.guard import make_classifier
 from emporio.support.infrastructure.agent.runner import GraphRunner
 from emporio.support.infrastructure.agent.tools import Toolbox, build_tools
 from emporio.support.infrastructure.checkpointer import make_checkpointer
 from emporio.support.infrastructure.llm.factory import make_chat_model
+from emporio.support.infrastructure.llm.scripted import ScriptedChatModel
 from emporio.support.infrastructure.mcp.server import build_mcp
 from emporio.support.infrastructure.metrics_store import PgMetricsStore
 from emporio.support.infrastructure.tracing import (
@@ -58,6 +60,11 @@ DEMO_CUSTOMER_IDS = (14, 5, 2, 8, 3, 7, 11, 19)
 
 def _secret(value: SecretStr | None) -> str:
     return value.get_secret_value() if value else ""  # load_settings guarantees it is set
+
+
+def _store_scope(_messages: object) -> Scope:
+    """Classifier of the scripted model: every turn takes the store path."""
+    return Scope.LOJA
 
 
 @dataclass(frozen=True)
@@ -101,10 +108,15 @@ def build_agent(settings: Settings) -> Agent:
     setup_checkpointer(url)
     with ExitStack() as stack:
         box, customers, pool = build_toolbox(stack, url, settings)
-        model = make_chat_model(settings)
+        if settings.fake_model:
+            model = ScriptedChatModel()
+            classify = _store_scope
+        else:
+            model = make_chat_model(settings)
+            classify = make_classifier(model)
         saver = make_checkpointer(url)
         stack.enter_context(saver.conn)  # pyright: ignore[reportArgumentType]  # pool is a context manager
-        graph = build_graph(model, build_tools(box), make_classifier(model), saver)
+        graph = build_graph(model, build_tools(box), classify, saver)
         langfuse = make_langfuse(settings)
         stack.callback(shutdown_tracing)
         tracer = LangfuseTracerFactory(

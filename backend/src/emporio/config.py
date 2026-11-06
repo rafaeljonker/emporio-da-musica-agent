@@ -66,6 +66,8 @@ class Settings(BaseSettings):
     )
 
     provider: Provider = Field(default=Provider.GEMMA, validation_alias="LLM_PROVIDER")
+    # Scripted model and classifier for e2e and dev: no provider key, Langfuse still mandatory.
+    fake_model: bool = Field(default=False, validation_alias="EMPORIO_FAKE_MODEL")
     gemma_model: str = "google/gemma-4-31B-it"
     gemini_model: str = "gemini-3.8-flash"
     openai_model: str = "gpt-6-luna"
@@ -94,6 +96,11 @@ class Settings(BaseSettings):
     session_secret: SecretStr | None = None
     session_https_only: bool = True
     session_max_age_seconds: int = 28800
+
+    @property
+    def provider_name(self) -> str:
+        """What metrics and reports call the provider: "fake" under the scripted model."""
+        return "fake" if self.fake_model else self.provider.value
 
     usd_brl: Decimal = Decimal("5.50")
     # USD per million tokens (input, output, cached input). Empty for self-hosted Gemma.
@@ -176,7 +183,8 @@ def load_provider_settings(provider: Provider | None = None) -> Settings:
     settings = _read_settings()
     if provider is not None:
         settings = settings.model_copy(update={"provider": provider})
-    require_provider_settings(settings)
+    if not settings.fake_model:
+        require_provider_settings(settings)
     return settings
 
 

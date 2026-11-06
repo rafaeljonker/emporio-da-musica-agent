@@ -157,6 +157,8 @@ class GraphRunner:
 
     def _model(self) -> str:
         s = self._settings
+        if s.fake_model:
+            return "scripted"
         return {
             Provider.GEMMA: s.gemma_model,
             Provider.GEMINI: s.gemini_model,
@@ -211,7 +213,7 @@ class GraphRunner:
         model = self._model()
         metrics = TurnMetrics(
             thread_id=identity.thread_id(),
-            provider=self._settings.provider.value,
+            provider=self._settings.provider_name,
             model=model,
             scope=scope,
             input_tokens=probe.input_tokens,
