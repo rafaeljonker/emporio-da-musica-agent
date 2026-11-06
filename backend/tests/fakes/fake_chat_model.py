@@ -14,12 +14,14 @@ class FakeToolCallingModel(GenericFakeChatModel):
     """Scripted model that records what it was sent. Build one per test."""
 
     seen: list[list[BaseMessage]] = Field(default_factory=list)
-    bound: bool = False
-    seen_bound: list[bool] = Field(default_factory=list)
+    tool_choice: str | None = None
+    seen_choice: list[str | None] = Field(default_factory=list)
 
-    def bind_tools(self, tools: Sequence[BaseTool], **kwargs: object) -> Runnable:  # type: ignore[override]  # base has a wider signature
-        # Shallow copy: shares the script iterator and the `seen` lists, flips `bound`.
-        return self.model_copy(update={"bound": True})
+    def bind_tools(
+        self, tools: Sequence[BaseTool], *, tool_choice: str | None = None, **kwargs: object
+    ) -> Runnable:  # type: ignore[override]  # base has a wider signature
+        # Shallow copy: shares the script iterator and the `seen` lists, keeps the choice.
+        return self.model_copy(update={"tool_choice": tool_choice})
 
     @override
     def _generate(
@@ -30,5 +32,5 @@ class FakeToolCallingModel(GenericFakeChatModel):
         **kwargs: object,
     ) -> ChatResult:
         self.seen.append(list(messages))
-        self.seen_bound.append(self.bound)
+        self.seen_choice.append(self.tool_choice)
         return super()._generate(messages, stop, run_manager, **kwargs)

@@ -57,7 +57,7 @@ def test_store_question_calls_tool_then_answers() -> None:
 def test_accessory_skips_tools() -> None:
     model = FakeToolCallingModel(messages=iter([AIMessage("Corda é com parceiro.")]))
     messages = _ask(_graph(model, Scope.ACESSORIO), "vende corda?")
-    assert model.seen_bound == [False]
+    assert model.seen_choice == ["none"]
     system = model.seen[0][0]
     assert isinstance(system, SystemMessage)
     assert scope_note(Scope.ACESSORIO) in str(system.content)
@@ -157,7 +157,7 @@ def test_tool_loop_is_capped_and_turn_ends_with_text() -> None:
     model = FakeToolCallingModel(messages=iter([*script, AIMessage("Com o que tenho: aberta.")]))
     messages = _ask(_graph(model, Scope.LOJA), "aberta?")
     assert messages[-1].content == "Com o que tenho: aberta."
-    assert model.seen_bound == [True] * 5 + [False]
+    assert model.seen_choice == [None] * 5 + ["none"]
     system = model.seen[-1][0]
     assert "sem chamar mais ferramentas" in str(system.content)
 
@@ -181,3 +181,25 @@ def test_classifier_caps_previous_assistant_text() -> None:
     text = " ".join(str(m.content) for m in model.prompts[0])
     assert "a" * 500 in text
     assert "a" * 501 not in text
+
+
+def test_no_tool_turn_keeps_tool_history_with_tools_defined() -> None:
+    history: list[AnyMessage] = [
+        HumanMessage("antiga"),
+        _call("store_now"),
+        ToolMessage("aberta", tool_call_id="call-store_now"),
+        AIMessage("ok"),
+    ]
+    model = FakeToolCallingModel(messages=iter([AIMessage("Corda é com parceiro.")]))
+    _graph(model, Scope.ACESSORIO).invoke(
+        {"messages": [*history, HumanMessage("vende corda?")]}, CONFIG, context=TurnContext(None)
+    )
+    assert model.seen_choice == ["none"]
+    assert any(isinstance(m, ToolMessage) for m in model.seen[0])
+
+
+def test_graph_without_human_message_does_not_crash() -> None:
+    model = FakeToolCallingModel(messages=iter([AIMessage("oi")]))
+    graph = _graph(model, Scope.LOJA)
+    graph.invoke({"messages": [AIMessage("sozinha")]}, CONFIG, context=TurnContext(None))
+    assert len(model.seen) == 1
