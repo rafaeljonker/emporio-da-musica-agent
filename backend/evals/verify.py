@@ -165,6 +165,8 @@ def verify(expect: Expect, bubbles: Sequence[str], tools_used: Sequence[str]) ->
     # earlier question is already an AI tell caught by the detector.
     text = normalize("\n".join(bubbles))
     failures: list[str] = []
+    if any("<|channel>" in b or "<channel|>" in b for b in bubbles):
+        failures.append("model channel markup in the reply")
     missing = [t for t in expect.expect_tools if not set(t.split("|")) & set(tools_used)]
     if missing:
         failures.append(f"tools not called: {', '.join(missing)}")

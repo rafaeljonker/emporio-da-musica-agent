@@ -5,7 +5,17 @@ MAX_BUBBLES = 3
 MAX_TOTAL_DELAY_MS = 3000
 
 
+CHANNEL_BLOCK = re.compile(r"<\|channel>.*?<channel\|>", re.DOTALL)
+CHANNEL_TOKEN = re.compile(r"<\|channel>|<channel\|>")
+
+
+def strip_channel_markup(text: str) -> str:
+    """Gemma 4 thinking-channel blocks (empty or not) and stray channel tokens, removed."""
+    return CHANNEL_TOKEN.sub("", CHANNEL_BLOCK.sub("", text)).strip()
+
+
 def raw_bubbles(text: str) -> tuple[str, ...]:
+    text = strip_channel_markup(text)
     parts = (p.strip() for p in re.split(r"\n\s*\n", text))
     return tuple(p for p in parts if p)
 
