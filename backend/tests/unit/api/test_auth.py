@@ -55,6 +55,7 @@ def test_tampered_cookie_is_unauthenticated(client: TestClient):
     client.post("/api/auth/login", json=CREDENTIALS)
     value = client.cookies["emporio_session"]
     flipped = ("A" if value[0] != "A" else "B") + value[1:]
+    client.cookies.clear()
     client.cookies.set("emporio_session", flipped)
     assert client.get("/api/auth/me").status_code == 401
 

@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Protocol
@@ -40,3 +41,26 @@ class AgentRunner(Protocol):
 
 class MetricsStore(Protocol):
     def save(self, m: TurnMetrics) -> None: ...
+
+
+@dataclass(frozen=True)
+class DemoCustomer:
+    id: int
+    name: str
+    city: str
+
+
+class ChatAgent(Protocol):
+    """What the web layer needs from the agent; `bootstrap.Agent` satisfies it."""
+
+    @property
+    def handle(self) -> Callable[[ChannelIdentity, str], Reply]: ...
+
+    @property
+    def customer_exists(self) -> Callable[[int], bool]: ...
+
+    @property
+    def demo_customers(self) -> tuple[DemoCustomer, ...]: ...
+
+    @property
+    def close(self) -> Callable[[], None]: ...

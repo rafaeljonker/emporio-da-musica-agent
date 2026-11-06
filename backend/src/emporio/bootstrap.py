@@ -35,7 +35,7 @@ from emporio.policies.infrastructure.holidays import STORE_HOLIDAYS
 from emporio.policies.infrastructure.pg_policy_index import PgPolicyIndex
 from emporio.shared.clock import FixedClock, SystemClock
 from emporio.support.application.handle_message import HandleMessage
-from emporio.support.application.ports import Reply
+from emporio.support.application.ports import DemoCustomer, Reply
 from emporio.support.domain.channel_identity import ChannelIdentity
 from emporio.support.infrastructure.agent.graph import build_graph
 from emporio.support.infrastructure.agent.guard import make_classifier
@@ -51,6 +51,10 @@ from emporio.support.infrastructure.tracing import (
     shutdown_tracing,
 )
 
+# Order 7 (in the regret window), order 5 (out of it), shipped, pending, two cancelled,
+# confirmed, and one customer with no orders.
+DEMO_CUSTOMER_IDS = (14, 5, 2, 8, 3, 7, 11, 19)
+
 
 def _secret(value: SecretStr | None) -> str:
     return value.get_secret_value() if value else ""  # load_settings guarantees it is set
@@ -61,6 +65,7 @@ class Agent:
     handle: Callable[[ChannelIdentity, str], Reply]  # a HandleMessage; callable keeps tests easy
     close: Callable[[], None]
     customer_exists: Callable[[int], bool]
+    demo_customers: tuple[DemoCustomer, ...] = ()
 
 
 def build_toolbox(
@@ -115,7 +120,17 @@ def build_agent(settings: Settings) -> Agent:
         handle = HandleMessage(
             GraphRunner(graph, settings, tracer, first_name), PgMetricsStore(pool)
         )
-        return Agent(handle, stack.pop_all().close, lambda cid: customers.by_id(cid) is not None)
+        demo = tuple(
+            DemoCustomer(c.id, c.name, c.city)
+            for c in (customers.by_id(i) for i in DEMO_CUSTOMER_IDS)
+            if c is not None
+        )
+        return Agent(
+            handle,
+            stack.pop_all().close,
+            lambda cid: customers.by_id(cid) is not None,
+            demo,
+        )
 
 
 def run_mcp(settings: Settings, customer_id: int | None) -> None:

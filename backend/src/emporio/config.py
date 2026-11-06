@@ -55,6 +55,11 @@ class LangfuseUnreachable(ConfigError):
         )
 
 
+class WebSettingsRequired(ConfigError):
+    def __init__(self, problems: list[str]) -> None:
+        super().__init__(f"Web settings are required: {'; '.join(problems)}.")
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=REPO_ROOT / ".env", extra="ignore", populate_by_name=True
@@ -83,6 +88,12 @@ class Settings(BaseSettings):
     langfuse_secret_key: SecretStr | None = None
     langfuse_base_url: str | None = None
     langfuse_salt: SecretStr | None = None
+
+    demo_email: str | None = None
+    demo_password: SecretStr | None = None
+    session_secret: SecretStr | None = None
+    session_https_only: bool = True
+    session_max_age_seconds: int = 28800
 
     usd_brl: Decimal = Decimal("5.50")
     # USD per million tokens (input, output, cached input). Empty for self-hosted Gemma.
@@ -172,4 +183,30 @@ def load_provider_settings(provider: Provider | None = None) -> Settings:
 def load_settings(provider: Provider | None = None) -> Settings:
     settings = load_provider_settings(provider)
     require_langfuse_settings(settings)
+    return settings
+
+
+_MIN_SESSION_SECRET = 32
+
+
+def require_web_settings(settings: Settings) -> None:
+    """Raise naming every missing demo-login variable and a too-short SESSION_SECRET."""
+    problems = [
+        f"{v} is not set" for v in ("DEMO_EMAIL", "DEMO_PASSWORD") if not _is_set(settings, v)
+    ]
+    if not _is_set(settings, "SESSION_SECRET"):
+        problems.append("SESSION_SECRET is not set (`make web-keys` writes one)")
+    elif len(_secret_text(settings.session_secret)) < _MIN_SESSION_SECRET:
+        problems.append(f"SESSION_SECRET must have at least {_MIN_SESSION_SECRET} characters")
+    if problems:
+        raise WebSettingsRequired(problems)
+
+
+def _secret_text(value: SecretStr | None) -> str:
+    return value.get_secret_value() if value else ""
+
+
+def load_web_settings(provider: Provider | None = None) -> Settings:
+    settings = load_settings(provider)
+    require_web_settings(settings)
     return settings
