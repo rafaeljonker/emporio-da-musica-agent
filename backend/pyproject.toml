@@ -269,5 +269,5 @@ ignore_imports = [
     "emporio.support.infrastructure.agent.serializers -> emporio.catalog.domain.*",
     "emporio.support.infrastructure.agent.serializers -> emporio.orders.domain.*",
     "emporio.support.infrastructure.agent.serializers -> emporio.policies.domain.*",
-    "emporio.support.infrastructure.agent.serializers -> emporio.policies.application.*",
+    "emporio.support.infrastructure.agent.serializers -> emporio.policies.application.store_now",
 ]

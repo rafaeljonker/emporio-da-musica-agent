@@ -1,6 +1,7 @@
 """Voice-ready lean JSON for tool outputs: plain dicts, money pre-formatted, no scores or notes."""
 
 from collections.abc import Iterable, Mapping
+from decimal import Decimal
 
 from emporio.catalog.domain.installments import InstallmentPlan
 from emporio.catalog.domain.pricing import PriceQuote
@@ -10,6 +11,7 @@ from emporio.orders.domain.order import Order
 from emporio.orders.domain.return_policy import ReturnEligibility, ReturnReason
 from emporio.policies.application.store_now import StoreStatus
 from emporio.policies.domain.policy_chunk import PolicyHit
+from emporio.shared.clock import STORE_TZ
 
 LEGAL_WARRANTY_NOTE = (
     "A garantia legal de 90 dias para produto durável (CDC art. 26, II) pode valer: "
@@ -26,6 +28,10 @@ _WEEKDAYS = (
 )
 
 
+def _percent(value: Decimal) -> int | str:
+    return int(value) if value == value.to_integral_value() else str(value.normalize())
+
+
 def product_json(product: Product, quote: PriceQuote, category: str) -> dict[str, object]:
     promotion = quote.promotion
     return {
@@ -38,7 +44,7 @@ def product_json(product: Product, quote: PriceQuote, category: str) -> dict[str
         "price": {
             "table": quote.table.format_brl(),
             "final": quote.final.format_brl(),
-            "promo_percent": None if promotion is None else int(promotion.percent),
+            "promo_percent": None if promotion is None else _percent(promotion.percent),
             "pix": None if quote.pix is None else quote.pix.format_brl(),
         },
     }
@@ -76,7 +82,12 @@ def order_json(order: Order, product_names: Mapping[int, str]) -> dict[str, obje
         "tracking_code": order.tracking_code,
         "estimated_delivery": None if delivery is None else delivery.isoformat(),
         "items": [
-            {"name": product_names[i.product_id], "quantity": i.quantity} for i in order.items
+            {
+                "product_id": i.product_id,
+                "name": product_names.get(i.product_id, f"produto #{i.product_id}"),
+                "quantity": i.quantity,
+            }
+            for i in order.items
         ],
     }
 
@@ -106,7 +117,7 @@ def store_json(s: StoreStatus) -> dict[str, object]:
         "open": s.open,
         "now": s.now.isoformat(),
         "next_opening": s.next_opening.isoformat(),
-        "next_opening_weekday": _WEEKDAYS[s.next_opening.weekday()],
+        "next_opening_weekday": _WEEKDAYS[s.next_opening.astimezone(STORE_TZ).weekday()],
     }
 
 

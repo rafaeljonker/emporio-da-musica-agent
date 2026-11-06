@@ -53,5 +53,6 @@ class Money:
 
 
 def format_brl(money: Money) -> str:
+    """Always shows cents; `Money.format_brl()` is the voice variant."""
     us = f"{money.amount:,.2f}"  # 1,967.18
     return "R$ " + us.replace(",", "_").replace(".", ",").replace("_", ".")
