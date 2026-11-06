@@ -224,6 +224,30 @@ def test_unanswered_tool_calls_are_dropped_from_history() -> None:
     assert messages[-1].content == "Tudo bem."
 
 
+def test_partially_answered_tool_calls_are_dropped_with_their_answers() -> None:
+    two_calls = AIMessage(
+        content="",
+        tool_calls=[
+            {"name": "store_now", "args": {}, "id": "a"},
+            {"name": "store_now", "args": {}, "id": "b"},
+        ],
+    )
+    history: list[AnyMessage] = [
+        HumanMessage("antiga"),
+        two_calls,
+        ToolMessage("aberta", tool_call_id="a"),  # "b" never answered
+        HumanMessage("oi?"),
+        AIMessage("ola"),
+    ]
+    model = FakeToolCallingModel(messages=iter([AIMessage("Tudo bem.")]))
+    messages = _graph(model, Scope.LOJA).invoke(
+        {"messages": [*history, HumanMessage("nova")]}, CONFIG, context=TurnContext(None)
+    )["messages"]
+    assert not any(isinstance(m, ToolMessage) for m in model.seen[0])
+    assert not any(isinstance(m, AIMessage) and m.tool_calls for m in model.seen[0])
+    assert messages[-1].content == "Tudo bem."
+
+
 def test_graph_without_human_message_does_not_crash() -> None:
     model = FakeToolCallingModel(messages=iter([AIMessage("oi")]))
     graph = _graph(model, Scope.LOJA)
