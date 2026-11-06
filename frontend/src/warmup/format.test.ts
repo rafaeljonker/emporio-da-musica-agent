@@ -23,5 +23,6 @@ describe('warm-up formatting', () => {
     expect(firstReplyNote(2)).toBe('uns 2 s')
     expect(firstReplyNote(2.43)).toBe('uns 2,4 s')
     expect(firstReplyNote(null)).toBe('poucos segundos')
+    expect(firstReplyNote(0)).toBe('poucos segundos')
   })
 })

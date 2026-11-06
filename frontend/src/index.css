@@ -77,7 +77,7 @@
     /* Motion */
     --ease-brand: cubic-bezier(0.33, 1, 0.68, 1);
     --animate-arrive: arrive 150ms var(--ease-brand);
-    --animate-breathe: breathe 4s ease-in-out infinite;
+    --animate-breathe: breathe 4s ease-in-out 1; /* one breath: under SC 2.2.2's 5 s */
 }
 
 :root {

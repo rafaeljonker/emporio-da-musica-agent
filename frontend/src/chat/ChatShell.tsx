@@ -1,21 +1,73 @@
-import { LogOut } from 'lucide-react'
+import { Laptop, LogOut } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
 import { logout } from '@/api/client'
+import type { WarmStatus } from '@/api/types'
 import avatar from '@/assets/avatar.jpg'
 import { Button } from '@/components/ui/button'
 import { copy } from '@/copy'
+import { save } from '@/warmup/queue'
+import { StatusRegion, type Announcement } from '@/warmup/StatusRegion'
+import { useQueuedMessage } from '@/warmup/useQueuedMessage'
+import { useWarmStatus } from '@/warmup/useWarmStatus'
+import { WarmupStatus } from '@/warmup/WarmupStatus'
 import { Composer } from './Composer'
 import { TypingIndicator } from './TypingIndicator'
 import { Transcript } from './Transcript'
 import { useChatStream } from './useChatStream'
 
-export function ChatShell({ onSignedOut }: { onSignedOut: () => void }) {
-  const { exchanges, busy, send } = useChatStream(onSignedOut)
+const READY_LINGER_MS = 800 // the all-done list stays this long
+const READY_FOCUS_MS = 2000 // "Pronto pra conversar." is spoken before any focus move
 
-  // Back to login even if the logout request fails (offline, 5xx).
-  const signOut = () =>
+interface Props {
+  warm: WarmStatus | null
+  fromLogin: boolean
+  onSignedOut: () => void
+}
+
+export function ChatShell({ warm, fromLogin, onSignedOut }: Props) {
+  const { exchanges, busy, send } = useChatStream(onSignedOut)
+  const { status, elapsed, networkError, retry } = useWarmStatus(warm, onSignedOut)
+  const [said, setSaid] = useState<Announcement | null>(null)
+  const announce = useCallback((text: string) => setSaid((s) => ({ n: (s?.n ?? 0) + 1, text })), [])
+
+  // provider_api (and a reload after ready) is ready on the first frame: no panel at all.
+  const [readyOnArrival] = useState(warm?.stage === 'ready')
+  const [panelGone, setPanelGone] = useState(readyOnArrival)
+  const ready = status?.stage === 'ready'
+  useEffect(() => {
+    if (!ready || readyOnArrival) return
+    const close = setTimeout(() => setPanelGone(true), READY_LINGER_MS)
+    // Focus moves only if it was on the body or in the removed panel (now the body);
+    // to the composer with a fine pointer, to the log on touch (no soft keyboard).
+    const focus = setTimeout(() => {
+      if (document.activeElement && document.activeElement !== document.body) return
+      const fine = matchMedia('(pointer: fine)').matches
+      document.getElementById(fine ? 'composer-input' : 'chat-log')?.focus()
+    }, READY_FOCUS_MS)
+    return () => {
+      clearTimeout(close)
+      clearTimeout(focus)
+    }
+  }, [ready, readyOnArrival])
+
+  const queue = useQueuedMessage(panelGone, send, fromLogin)
+  const [text, setText] = useState(queue.restored)
+
+  const undo = () => {
+    const back = queue.take()
+    setText(text ? `${back}\n${text}` : back)
+    announce(copy.warmup.undone)
+    document.getElementById('composer-input')?.focus()
+  }
+
+  // Back to login even if the logout request fails (offline, 5xx). Sair drops a queued message;
+  // an expired session keeps it for the next login.
+  const signOut = () => {
+    save(null)
     logout()
       .catch(() => {})
       .finally(onSignedOut)
+  }
 
   return (
     <div className="flex h-dvh flex-col">
@@ -36,10 +88,36 @@ export function ChatShell({ onSignedOut }: { onSignedOut: () => void }) {
           </Button>
         </div>
       </header>
+      {panelGone && status?.mode === 'local_cpu' && (
+        <p className="border-b border-border">
+          <span className="mx-auto flex w-full max-w-2xl gap-2 px-4 py-2 text-sm text-muted-foreground">
+            <Laptop size={16} strokeWidth={1.75} absoluteStrokeWidth aria-hidden className="mt-0.5 shrink-0" />
+            {copy.chat.localNotice}
+          </span>
+        </p>
+      )}
       <main className="flex min-h-0 flex-1 flex-col">
-        <Transcript exchanges={exchanges} />
-        <TypingIndicator typing={exchanges.at(-1)?.turn.typing ?? false} />
-        <Composer busy={busy} onSend={send} />
+        {!panelGone && (
+          <WarmupStatus
+            status={status}
+            elapsed={elapsed}
+            networkError={networkError}
+            compact={!!queue.queued}
+            onRetry={retry}
+            announce={announce}
+          />
+        )}
+        <Transcript exchanges={exchanges} queued={queue.queued?.lines} onUndo={undo} />
+        <StatusRegion said={said}>
+          <TypingIndicator typing={exchanges.at(-1)?.turn.typing ?? false} />
+        </StatusRegion>
+        <Composer
+          busy={busy}
+          onSend={panelGone ? send : queue.add}
+          text={text}
+          setText={setText}
+          placeholder={panelGone ? copy.chat.composerPlaceholder : copy.warmup.placeholder}
+        />
       </main>
     </div>
   )

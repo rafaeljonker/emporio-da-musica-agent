@@ -1,12 +1,13 @@
 import { CircleAlert } from 'lucide-react'
-import { useRef, useState, type FormEvent } from 'react'
-import { InvalidCredentials, login } from '@/api/client'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { InvalidCredentials, login, warmExpected } from '@/api/client'
 import type { WarmStatus } from '@/api/types'
 import wordmark from '@/assets/wordmark.jpg'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { copy } from '@/copy'
+import { ceil10 } from '@/warmup/format'
 
 type LoginError = 'empty' | 'invalid' | 'network' | null
 
@@ -20,6 +21,14 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: (warm: WarmStatus) => 
   const [submitting, setSubmitting] = useState(false)
   const emailRef = useRef<HTMLInputElement>(null)
   const passwordRef = useRef<HTMLInputElement>(null)
+  // The same measured expectation the warm-up shows; none when the model is always ready.
+  const [expected, setExpected] = useState(0)
+  useEffect(() => {
+    warmExpected().then(
+      ({ mode, expected_seconds }) => setExpected(mode === 'provider_api' ? 0 : ceil10(expected_seconds)),
+      () => {},
+    )
+  }, [])
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -113,7 +122,15 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: (warm: WarmStatus) => 
           </p>
         </form>
 
-        <p className="mt-4 text-center text-sm text-muted-foreground">{copy.login.demoNote}</p>
+        <p className="mt-4 text-center text-sm text-muted-foreground">
+          {copy.login.demoNote}
+          {expected > 0 && (
+            <>
+              <br />
+              {copy.login.warmNote(expected)}
+            </>
+          )}
+        </p>
       </main>
     </div>
   )
