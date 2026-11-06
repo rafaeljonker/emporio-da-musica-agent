@@ -33,8 +33,12 @@ _NOT_DISCONTINUED = (
     r"(?!.*(descontinu|saiu de linha|fora de linha|nao (esta|temos|tem|tenho|ha|trabalhamos)"
     r"|indisponivel|esgotad|nao vende(mos)? mais))"
 )
+# A negation word right before the verb ("nada passou") or anywhere in the gap after "prazo".
+_NEG_BEFORE = r"(?<!nao )(?<!nada )(?<!nunca )(?<!nem )"
+_NO_NEG_GAP = r"(?:(?!\b(nao|nada|nunca|nem)\b).)"
 _NOT_RETURN_NO = (
-    r"(?!.*(fora do prazo|(?<!nao )(passou|venceu|expirou)"
+    rf"(?!.*(fora do prazo|{_NEG_BEFORE}"
+    r"(passou|passaram|venceu|expirou|encerrou|terminou|acabou(?! de))"
     r"|nao (esta|ta) (mais )?(no|dentro do) prazo"
     r"|nao (da|e possivel|consigo|posso)( mais)? (pra |para )?(fazer a )?devol))"
 )
@@ -71,8 +75,8 @@ GROUPS: dict[str, str] = {
     ),
     "return_no": (
         r"fora do prazo|nao (esta|ta) (mais )?(no|dentro do) prazo"
-        r"|prazo\b.{0,80}\b(?<!nao )(passou|acabou|venceu|expirou|encerrou|terminou)"
-        r"|(?<!nao )(passou|acabou|venceu|expirou)\b.{0,15}\bprazo"
+        rf"|prazo\b{_NO_NEG_GAP}{{0,80}}\b(passou|acabou|venceu|expirou|encerrou|terminou)"
+        rf"|{_NEG_BEFORE}(passou|acabou|venceu|expirou)\b.{{0,15}}\bprazo"
         r"|prazo.{0,120}\bja (passaram|acabaram|venceram|expiraram)\b"
         r"|nao (da|e possivel|consigo|posso)( mais)? (pra |para )?(fazer a )?devol"
         r"|nao da mais|devolucao\b.{0,40}\bnao (esta|ta) mais disponivel"
