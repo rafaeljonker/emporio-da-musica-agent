@@ -8,8 +8,10 @@ it; `turn_metadata` supplies those keys and the runner puts them in the graph co
 
 import hashlib
 import hmac
+import json
 import logging
 import re
+import unicodedata
 from collections.abc import Callable, Iterable, Sequence
 from typing import Protocol
 from uuid import uuid4
@@ -64,18 +66,36 @@ def _phone_or_same(run: re.Match[str]) -> str:
     return REDACTED if _BR_PHONE.fullmatch(digits) else run.group()
 
 
+_PARTICLES = frozenset({"da", "de", "do", "das", "dos", "e"})
+
+
+def _forms(token: str) -> list[str]:
+    """The token as written, accent-stripped, and as json.dumps escapes it (`\\u00ed`)."""
+    plain = "".join(c for c in unicodedata.normalize("NFKD", token) if not unicodedata.combining(c))
+    return [token, plain, json.dumps(token)[1:-1]]
+
+
 def name_pattern(names: Iterable[str]) -> re.Pattern[str] | None:
-    """Each full name and its first token (tokens under 3 characters dropped), longest first."""
+    """Full names (any whitespace between tokens), the first token (3+ chars) and every other
+    token of 4+ chars that is not a particle, each also accent-stripped and JSON-escaped.
+    Langfuse serialises with ensure_ascii, so "Letícia" can arrive as `Let\\u00edcia`.
+    """
+    # ponytail: masks every CSV name token, so a name or surname that is also a common word is
+    # over-redacted; switch to per-turn names if traces lose meaning.
     found: set[str] = set()
     for name in names:
         tokens = name.split()
-        found.update([" ".join(tokens), *tokens[:1]])
-    # ponytail: masks every CSV customer name, so a name that is also a common word is
-    # over-redacted; switch to per-turn names if traces lose meaning.
-    alternatives = sorted((re.escape(n) for n in found if len(n) >= 3), key=len, reverse=True)
-    if not alternatives:
+        if len(tokens) > 1:
+            for variant in range(3):
+                found.add(r"\s+".join(re.escape(_forms(t)[variant]) for t in tokens))
+        keep = [t for i, t in enumerate(tokens) if len(t) >= (3 if i == 0 else 4)]
+        for token in keep:
+            if token.casefold() not in _PARTICLES:
+                found.update(re.escape(f) for f in _forms(token))
+    if not found:
         return None
-    return re.compile(rf"(?<!\w)(?:{'|'.join(alternatives)})(?!\w)", re.IGNORECASE)
+    alternatives = "|".join(sorted(found, key=len, reverse=True))
+    return re.compile(rf"(?<!\w)(?:{alternatives})(?!\w)", re.IGNORECASE)
 
 
 def redact(text: str, names: re.Pattern[str] | None = None) -> str:
