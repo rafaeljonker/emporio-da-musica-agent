@@ -1,5 +1,5 @@
 import { Gauge } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { copy } from '@/copy'
 import { formatBRL, formatSeconds, historyLine, summary, totalCost, type TurnRecord } from './metrics'
 
@@ -27,18 +27,59 @@ function Block({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
-/** Design option A: a collapsed native disclosure; not a live region, the summary updates in place. */
+/**
+ * A toggle in the demo strip that opens a floating panel: it never pushes the strip or the
+ * transcript (owner request, replacing the design's inline <details>). From md a popover under the
+ * strip, at the column start (where the toggle sits once totals wrap it); a bottom sheet below md. Closes on Escape, outside click and the toggle; Escape returns
+ * focus to the toggle. Not a live region: the toggle text updates in place.
+ */
 export function MetricsDetails({ turns, warmupSeconds, local }: Props) {
+  const [open, setOpen] = useState(false)
+  const root = useRef<HTMLSpanElement>(null)
+  const toggle = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      setOpen(false)
+      // Back to the toggle, unless focus is somewhere else on purpose (e.g. typing in the composer).
+      const at = document.activeElement
+      if (!at || at === document.body || root.current?.contains(at)) toggle.current?.focus()
+    }
+    // Outside click closes without moving focus: it goes wherever the click put it.
+    const onDown = (e: PointerEvent) => root.current?.contains(e.target as Node) || setOpen(false)
+    document.addEventListener('keydown', onKey)
+    document.addEventListener('pointerdown', onDown)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('pointerdown', onDown)
+    }
+  }, [open])
+
   const last = turns.at(-1)?.metrics
   const lastScreen = turns.at(-1)?.screenMs ?? 0
   const m = copy.metrics
   return (
-    <details className="open:basis-full">
-      <summary className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 text-base font-semibold text-muted-foreground tnum">
+    <span ref={root}>
+      <button
+        ref={toggle}
+        type="button"
+        aria-expanded={open}
+        aria-controls="metrics-panel"
+        onClick={() => setOpen(!open)}
+        className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-md text-base font-semibold text-muted-foreground tnum"
+      >
         <Gauge size={16} strokeWidth={1.75} absoluteStrokeWidth aria-hidden />
         {summary(turns)}
-      </summary>
-      <div className="max-h-[40dvh] overflow-y-auto rounded-md border border-border bg-popover px-3 py-2 text-sm shadow-sm md:max-h-none">
+      </button>
+      <div
+        id="metrics-panel"
+        role="region"
+        aria-label={m.title}
+        tabIndex={0}
+        hidden={!open}
+        className="fixed inset-x-0 bottom-0 z-20 max-h-[70dvh] animate-arrive overflow-y-auto rounded-t-lg border border-border bg-popover px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-sm shadow-xl md:absolute md:inset-x-auto md:top-full md:left-4 md:bottom-auto md:mt-1 md:max-h-[min(32rem,70dvh)] md:w-96 md:max-w-[calc(100vw-2rem)] md:rounded-lg md:px-3 md:py-2 md:shadow-lg"
+      >
         {last && (
           <Block title={m.last}>
             <dt>{m.tokens}</dt>
@@ -92,6 +133,6 @@ export function MetricsDetails({ turns, warmupSeconds, local }: Props) {
           </>
         )}
       </div>
-    </details>
+    </span>
   )
 }

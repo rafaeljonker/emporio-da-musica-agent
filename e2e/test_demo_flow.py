@@ -208,12 +208,35 @@ def test_metrics_panel_fits_320px(signed_in_page: Page) -> None:
     typing = page.get_by_role("status").filter(has_text="O assistente está digitando")
     expect(typing).to_have_count(0, timeout=AGENT_TIMEOUT_MS)
 
-    page.get_by_text("Métricas ·").click()
-    panel = page.locator("details[open] > div")
+    log = page.get_by_role("log")
+    toggle = page.get_by_role("button", name="Métricas ·")
+    expect(toggle).to_have_attribute("aria-expanded", "false")  # the turn's totals are in
+    before = log.bounding_box()
+    toggle.click()
+    expect(toggle).to_have_attribute("aria-expanded", "true")
+    panel = page.get_by_role("region", name="Métricas")
     expect(panel).to_contain_text(LONG_VALUE[:20])
-    # The panel may grow with its content instead of scrolling, so it must also stay in view.
+    # A floating panel: opening it never moves the transcript.
+    if log.bounding_box() != before:
+        pytest.fail("opening the metrics panel moved the transcript")
+    panel.evaluate("el => Promise.all(el.getAnimations().map(a => a.finished))")
     fits = panel.evaluate(
-        "el => el.scrollWidth <= el.clientWidth && el.getBoundingClientRect().right <= innerWidth"
+        "el => { const r = el.getBoundingClientRect();"
+        " return el.scrollWidth <= el.clientWidth && r.left >= 0 && r.right <= innerWidth"
+        " && r.top >= 0 && r.bottom <= innerHeight }"
     )
     if not fits:
-        pytest.fail("the metrics panel scrolls sideways at 320 px")
+        pytest.fail("the metrics panel does not fit the 320 px viewport")
+
+    # Escape closes it and returns focus to the toggle; so does the toggle; outside click closes.
+    panel.focus()
+    page.keyboard.press("Escape")
+    expect(panel).to_be_hidden()
+    expect(toggle).to_be_focused()
+    toggle.click()
+    expect(panel).to_be_visible()
+    toggle.click()
+    expect(panel).to_be_hidden()
+    toggle.click()
+    page.get_by_role("heading", level=1).click()
+    expect(panel).to_be_hidden()

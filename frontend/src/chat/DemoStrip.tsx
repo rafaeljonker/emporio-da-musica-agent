@@ -35,7 +35,7 @@ function Item({ value, name, note }: { value: string; name: string; note: string
   )
 }
 
-/** `<aside aria-label="Demonstração">`: demo tools kept apart from store content. Children: the Métricas details. */
+/** `<aside aria-label="Demonstração">`: demo tools kept apart from store content. Children: the Métricas toggle. */
 export function DemoStrip({ customerId, onSwitched, onSessionExpired, children }: Props) {
   const [list, setList] = useState<DemoCustomer[]>([])
   useEffect(() => {
@@ -57,7 +57,7 @@ export function DemoStrip({ customerId, onSwitched, onSessionExpired, children }
 
   return (
     <aside aria-label={copy.demo.tag} className="border-b border-border bg-background">
-      <div className="mx-auto flex w-full max-w-2xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 text-sm">
+      <div className="relative mx-auto flex w-full max-w-2xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 text-sm">
         <span className="inline-flex items-center gap-1.5 font-semibold text-muted-foreground">
           <FlaskConical size={16} strokeWidth={1.75} absoluteStrokeWidth aria-hidden />
           {copy.demo.tag}

@@ -46,6 +46,7 @@ export const copy = {
     nowAnonymous: 'Agora conversando sem identificação',
   },
   metrics: {
+    title: 'Métricas',
     last: 'Última resposta',
     session: 'Sessão',
     history: 'Histórico',
