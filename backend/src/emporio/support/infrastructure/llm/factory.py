@@ -23,7 +23,7 @@ def make_chat_model(settings: Settings) -> BaseChatModel:
                 settings.gemini_model,
                 model_provider="google_genai",
                 api_key=settings.gemini_api_key,
-                thinking_level="minimal",
+                thinking_level="low",  # 3.8 Flash rejects "minimal" (400)
                 temperature=_TEMPERATURE,
             )
         case Provider.OPENAI:
