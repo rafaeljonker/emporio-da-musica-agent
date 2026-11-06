@@ -9,18 +9,19 @@ from emporio.support.infrastructure.warmup import ProbeWarmup
 from tests.fakes.fake_agent import FakeAgent
 from tests.unit.api.conftest import CREDENTIALS, make_settings
 
-PROBES: list[int] = []
 
-
-def _probe() -> bool:
-    PROBES.append(1)
-    return False
+@pytest.fixture
+def probes() -> list[int]:
+    return []
 
 
 @pytest.fixture
-def pending() -> ProbeWarmup:
-    PROBES.clear()
-    return ProbeWarmup(_probe, WarmMode.MODAL_GPU, 180, lambda: None, interval_seconds=0.01)
+def pending(probes: list[int]) -> ProbeWarmup:
+    def probe() -> bool:
+        probes.append(1)
+        return False
+
+    return ProbeWarmup(probe, WarmMode.MODAL_GPU, 180, lambda: None, interval_seconds=0.01)
 
 
 @pytest.fixture
@@ -43,8 +44,10 @@ def test_warm_routes_return_status_with_session(warm_client: TestClient):
     assert (status["mode"], status["expected_seconds"]) == ("modal_gpu", 180)
 
 
-def test_expected_is_public_and_starts_nothing(warm_client: TestClient, pending: ProbeWarmup):
+def test_expected_is_public_and_starts_nothing(
+    warm_client: TestClient, pending: ProbeWarmup, probes: list[int]
+):
     response = warm_client.get("/api/warm/expected")
     assert response.json() == {"mode": "modal_gpu", "expected_seconds": 180}
     pending.join(0.05)  # a started probe would have run by now
-    assert PROBES == []
+    assert probes == []
