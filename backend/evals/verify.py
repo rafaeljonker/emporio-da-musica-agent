@@ -57,7 +57,7 @@ GROUPS: dict[str, str] = {
         r"nao (vende(\(mos\)|mos)?|trabalhamos com|temos|tem) (\w+ )?"
         r"(encordoamento|acessori|corda|cabo|palheta|pedal|amplificador|case)"
         r"|(?<!nao )(?<!nao temos )(?<!nao tem )(so|apenas|somente) "
-        r"(trabalhamos |vendemos |temos )?(com )?instrumentos"
+        r"(trabalhamos |vendemos |temos )?(com )?(os )?instrumentos"
     ),
     "asks_model": (
         r"qual (modelo|deles|desses|dos)|que modelo|algum modelo|de qual"
@@ -71,11 +71,11 @@ GROUPS: dict[str, str] = {
     ),
     "return_no": (
         r"fora do prazo|nao (esta|ta) (mais )?(no|dentro do) prazo"
-        r"|prazo\b.{0,40}\b(?<!nao )(passou|acabou|venceu|expirou|encerrou|terminou)"
+        r"|prazo\b.{0,80}\b(?<!nao )(passou|acabou|venceu|expirou|encerrou|terminou)"
         r"|(?<!nao )(passou|acabou|venceu|expirou)\b.{0,15}\bprazo"
         r"|prazo.{0,120}\bja (passaram|acabaram|venceram|expiraram)\b"
         r"|nao (da|e possivel|consigo|posso)( mais)? (pra |para )?(fazer a )?devol"
-        r"|nao da mais"
+        r"|nao da mais|devolucao\b.{0,40}\bnao (esta|ta) mais disponivel"
     ),
     # An open store never also says it is closed or "not open": "fechado, amanha estamos abertos".
     "store_open": (
