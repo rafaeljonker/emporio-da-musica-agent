@@ -43,7 +43,13 @@ class FakeAgent:
             raise self.error
         if self.reply is not None:
             return self.reply
-        return Reply(bubbles=(f"eco: {text}",), scope=Scope.LOJA, trace_id="trace-fake", tells=())
+        return Reply(
+            bubbles=(f"eco: {text}",),
+            scope=Scope.LOJA,
+            trace_id="trace-fake",
+            tells=(),
+            metrics=turn_metrics(),
+        )
 
     def customer_exists(self, customer_id: int) -> bool:
         return customer_id in self.known_customers

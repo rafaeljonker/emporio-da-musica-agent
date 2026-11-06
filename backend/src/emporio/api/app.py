@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from emporio.api.auth import build_auth_router
+from emporio.api.chat import build_chat_router
 from emporio.config import Settings, require_web_settings
 from emporio.support.application.ports import ChatAgent
 from emporio.support.application.warmup import Warmup
@@ -37,6 +38,7 @@ def create_app(
         max_age=settings.session_max_age_seconds,
     )
     app.include_router(build_auth_router(settings, warmup))
+    app.include_router(build_chat_router(agent))
     # Mounted last so it never shadows /api.
     if static_dir is not None and static_dir.is_dir():
         app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")

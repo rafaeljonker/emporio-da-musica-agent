@@ -180,6 +180,7 @@ class GraphRunner:
         probe = TurnProbe()
         trace_id = ""
         answer, scope = CHAT_ERROR, Scope.LOJA
+        failed = True
         try:
             callbacks, trace_id = self._tracer_factory.for_turn(identity)
             name = (
@@ -201,6 +202,8 @@ class GraphRunner:
             if not answer:
                 logger.warning("model produced an empty final answer")
                 answer = CHAT_ERROR
+            else:
+                failed = False
         except GraphRecursionError:
             logger.exception("turn hit the graph recursion limit")
         except Exception:
@@ -222,5 +225,6 @@ class GraphRunner:
             ms_tools=_ms(probe.ms_tools),
             cost_brl=self._cost_brl(model, probe),
             trace_id=trace_id,
+            failed=failed,
         )
         return answer, scope, metrics

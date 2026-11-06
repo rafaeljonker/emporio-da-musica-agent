@@ -1,6 +1,7 @@
 import threading
 import time
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from fastapi import HTTPException, Request
@@ -41,6 +42,34 @@ class SlidingWindow:
                 return False
             hits.append(now)
             return True
+
+
+class ThreadLocks:
+    """One turn at a time per thread; a lock older than `stale_after` seconds is reclaimed.
+
+    ponytail: in-process lock, pg_try_advisory_lock if the API runs >1 container
+    """
+
+    def __init__(
+        self, stale_after: float = 300.0, clock: Callable[[], float] = time.monotonic
+    ) -> None:
+        self._stale_after = stale_after
+        self._clock = clock
+        self._held: dict[str, float] = {}
+        self._lock = threading.Lock()
+
+    def try_acquire(self, thread_id: str) -> bool:
+        now = self._clock()
+        with self._lock:
+            since = self._held.get(thread_id)
+            if since is not None and now - since < self._stale_after:
+                return False
+            self._held[thread_id] = now
+            return True
+
+    def release(self, thread_id: str) -> None:
+        with self._lock:
+            self._held.pop(thread_id, None)
 
 
 @dataclass(frozen=True)

@@ -17,10 +17,17 @@ class HandleMessage:
 
     def __call__(self, identity: ChannelIdentity, text: str) -> Reply:
         if not text.strip():
-            return Reply(split_bubbles(CHAT_ERROR), Scope.LOJA, "", ())
+            return Reply(split_bubbles(CHAT_ERROR), Scope.LOJA, "", (), None, failed=True)
         answer, scope, metrics = self._runner.run(identity, text)
         try:
             self._metrics.save(metrics)
         except Exception:  # a metrics outage must not lose a produced reply
             logger.exception("metrics save failed")
-        return Reply(split_bubbles(answer), scope, metrics.trace_id, ai_tells(answer))
+        return Reply(
+            split_bubbles(answer),
+            scope,
+            metrics.trace_id,
+            ai_tells(answer),
+            metrics,
+            failed=metrics.failed,
+        )

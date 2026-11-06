@@ -9,14 +9,6 @@ from emporio.support.domain.scope import Scope
 
 
 @dataclass(frozen=True)
-class Reply:
-    bubbles: tuple[str, ...]
-    scope: Scope
-    trace_id: str
-    tells: tuple[Tell, ...]
-
-
-@dataclass(frozen=True)
 class TurnMetrics:
     thread_id: str
     provider: str
@@ -33,6 +25,17 @@ class TurnMetrics:
     ms_tools: int
     cost_brl: Decimal | None
     trace_id: str
+    failed: bool = False  # not persisted; the turn ended in the fixed error reply
+
+
+@dataclass(frozen=True)
+class Reply:
+    bubbles: tuple[str, ...]
+    scope: Scope
+    trace_id: str
+    tells: tuple[Tell, ...]
+    metrics: TurnMetrics | None = None
+    failed: bool = False
 
 
 class AgentRunner(Protocol):
