@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 
 from emporio.catalog.domain.installments import installment_plan
 from emporio.catalog.domain.pricing import quote_price
@@ -86,7 +86,7 @@ def test_order_json_never_contains_notes():
         "payment_method": "pix",
         "tracking_code": "BR1",
         "estimated_delivery": "2026-02-10",
-        "items": [{"name": "Violao", "quantity": 2}],
+        "items": [{"product_id": 1, "name": "Violao", "quantity": 2}],
     }
 
 
@@ -126,3 +126,22 @@ def test_policy_hits_drop_score():
 def test_installments_json():
     out = installments_json(installment_plan(m("1200"), 12))
     assert out == {"count": 12, "parcel": "R$ 100"}
+
+
+def test_order_json_missing_name_falls_back():
+    out = order_json(order(items=(OrderItem(7, 1),)), {})
+    assert out["items"] == [{"product_id": 7, "name": "produto #7", "quantity": 1}]
+
+
+def test_fractional_promo_percent_is_a_string():
+    p = product(price="1000")
+    price = product_json(p, quote_price(p, promo(percent="7.5")), "Violões")["price"]
+    assert isinstance(price, dict)
+    assert price["promo_percent"] == "7.5"
+
+
+def test_store_json_weekday_uses_store_timezone():
+    # Monday 02:00 UTC is still Sunday 22:00 in Campo Grande.
+    late = datetime(2026, 11, 9, 2, 0, tzinfo=UTC)
+    out = store_json(StoreStatus(open=False, now=late, next_opening=late))
+    assert out["next_opening_weekday"] == "domingo"
