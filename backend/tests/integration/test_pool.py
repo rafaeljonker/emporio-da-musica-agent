@@ -5,7 +5,7 @@ from psycopg_pool import ConnectionPool
 
 from emporio.catalog.infrastructure.csv_catalog_repository import CsvCatalogRepository
 from emporio.catalog.infrastructure.pg_product_index import PgProductIndex
-from emporio.db import IndexUnavailable
+from emporio.db import IndexUnavailable, make_pool
 from emporio.policies.infrastructure.pdf_sections import read_policy_chunks
 from emporio.policies.infrastructure.pg_policy_index import PgPolicyIndex
 from tests.fakes.hash_embedder import HashEmbedder
@@ -33,7 +33,8 @@ def test_concurrent_searches_share_pool(pg_pool: ConnectionPool) -> None:
 
 
 def test_unreachable_db_raises_index_unavailable() -> None:
-    pool = ConnectionPool(UNREACHABLE, min_size=1, timeout=1, open=True)
+    pool = make_pool(UNREACHABLE)
+    pool.timeout = 1
     try:
         with pytest.raises(IndexUnavailable):
             PgPolicyIndex(pool, HashEmbedder()).search("troca", 3)
