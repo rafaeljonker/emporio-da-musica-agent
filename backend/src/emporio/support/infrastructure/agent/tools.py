@@ -3,6 +3,7 @@
 Identity (`customer_id`) comes only from `TurnContext`, never from a model argument.
 """
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from decimal import Decimal
@@ -40,6 +41,8 @@ from emporio.support.infrastructure.agent.serializers import (
     search_json,
     store_json,
 )
+
+logger = logging.getLogger("emporio.support.tools")
 
 type ToolOutput = dict[str, object] | list[dict[str, object]] | str
 
@@ -82,8 +85,9 @@ def _safe[**P](fn: Callable[P, ToolOutput]) -> Callable[P, ToolOutput]:
             return PRODUCT_NOT_FOUND
         except IndexUnavailable:
             return INDEX_UNAVAILABLE
-        except DomainError as err:  # e.g. InvalidMoney: still one short line
-            return f"Dado inválido: {err}"
+        except DomainError as err:  # e.g. InvalidMoney
+            logger.warning("tool input rejected: %s", err)
+            return "Dado inválido."
 
     return run
 
@@ -142,6 +146,8 @@ def list_active_promotions(box: Toolbox, ctx: TurnContext) -> ToolOutput:
 def calc_installments(
     box: Toolbox, ctx: TurnContext, total: Decimal, count: int | None = None
 ) -> ToolOutput:
+    if total <= 0:
+        return "O valor precisa ser maior que zero."
     money = Money(total)
     try:
         return installments_json(box.quote_installments(money, count))

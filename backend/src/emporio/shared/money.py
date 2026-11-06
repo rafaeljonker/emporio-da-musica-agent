@@ -17,7 +17,11 @@ class Money:
     amount: Decimal
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "amount", self.amount.quantize(_CENT, rounding=ROUND_HALF_UP))
+        try:
+            amount = self.amount.quantize(_CENT, rounding=ROUND_HALF_UP)
+        except InvalidOperation as exc:  # too many digits for the context precision
+            raise InvalidMoney(str(self.amount)) from exc
+        object.__setattr__(self, "amount", amount)
 
     @classmethod
     def from_str(cls, value: str) -> Self:

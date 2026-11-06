@@ -139,7 +139,7 @@ def test_calc_installments_error_names_the_maximum() -> None:
     [
         (IdentityMismatch(), FOREIGN),
         (OrderNotFound(1), FOREIGN),
-        (InvalidInstallments(13), "Dado inválido"),
+        (InvalidInstallments(13), "Dado inválido."),
         (IndexUnavailable(), "Busca indisponível agora; ofereça encaminhar para a equipe."),
         (ProductNotFound(1), "Produto não encontrado."),
     ],
@@ -150,3 +150,31 @@ def test_domain_errors_become_tool_text(error: DomainError, text: str) -> None:
         raise error
 
     assert str(boom()).startswith(text)
+
+
+def test_calc_installments_huge_total_returns_text() -> None:
+    result = tools.calc_installments(_box(), ANON, total=Decimal("1e30"))
+
+    assert isinstance(result, str)
+
+
+def test_calc_installments_needs_positive_total() -> None:
+    result = tools.calc_installments(_box(), ANON, total=Decimal(0))
+
+    assert result == "O valor precisa ser maior que zero."
+
+
+def test_generic_domain_error_is_logged_not_echoed(caplog: pytest.LogCaptureFixture) -> None:
+    class Secret(DomainError):
+        def __init__(self) -> None:
+            super().__init__("segredo interno")
+
+    @tools._safe
+    def boom() -> str:
+        raise Secret
+
+    with caplog.at_level("WARNING", logger="emporio.support.tools"):
+        result = boom()
+
+    assert result == "Dado inválido."
+    assert "segredo interno" in caplog.text

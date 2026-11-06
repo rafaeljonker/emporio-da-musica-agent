@@ -5,7 +5,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from emporio.shared.errors import DomainError
-from emporio.shared.money import Money, format_brl
+from emporio.shared.money import InvalidMoney, Money, format_brl
 
 
 def test_from_str_quantizes_half_up():
@@ -47,3 +47,8 @@ def test_money_method_format_brl_drops_zero_cents():
 
 def test_money_method_format_brl_keeps_cents():
     assert Money.from_str("2089.05").format_brl() == "R$ 2.089,05"
+
+
+def test_huge_amount_raises_invalid_money() -> None:
+    with pytest.raises(InvalidMoney):
+        Money(Decimal("1e30"))
