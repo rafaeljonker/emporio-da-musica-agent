@@ -264,3 +264,10 @@ forbidden_modules = [
     "emporio.orders.domain", "emporio.orders.application",
     "emporio.policies.domain", "emporio.policies.application",
 ]
+# Ruling R1: only the tool serializers (and later tools) read other contexts' types.
+ignore_imports = [
+    "emporio.support.infrastructure.agent.serializers -> emporio.catalog.domain.*",
+    "emporio.support.infrastructure.agent.serializers -> emporio.orders.domain.*",
+    "emporio.support.infrastructure.agent.serializers -> emporio.policies.domain.*",
+    "emporio.support.infrastructure.agent.serializers -> emporio.policies.application.*",
+]
