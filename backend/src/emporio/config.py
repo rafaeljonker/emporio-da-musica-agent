@@ -37,7 +37,8 @@ class LangfuseRequired(ConfigError):
     def __init__(self, problems: list[str]) -> None:
         super().__init__(
             f"Langfuse tracing is mandatory: {'; '.join(problems)}. "
-            "Run `make langfuse-up` to start a local Langfuse and write its keys to .env."
+            "Run `make langfuse-up` to start a local Langfuse and write its keys to .env. "
+            "On deploy, the keys live in the Modal secret `emporio-langfuse`."
         )
 
 
@@ -132,7 +133,7 @@ def require_langfuse_settings(settings: Settings) -> None:
         problems.append("LANGFUSE_TRACING_ENABLED must not be false")
     if settings.otel_sdk_disabled:
         problems.append("OTEL_SDK_DISABLED must not be true")
-    if settings.langfuse_sample_rate < 1:
+    if settings.langfuse_sample_rate != 1:
         problems.append("LANGFUSE_SAMPLE_RATE must be 1 (no sampling)")
     if problems:
         raise LangfuseRequired(problems)

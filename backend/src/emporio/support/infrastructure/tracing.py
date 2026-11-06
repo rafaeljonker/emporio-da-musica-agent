@@ -14,7 +14,7 @@ from typing import Protocol
 from uuid import uuid4
 
 from langchain_core.callbacks import BaseCallbackHandler
-from langfuse import Langfuse, get_client
+from langfuse import Langfuse
 from langfuse.langchain import CallbackHandler
 from langfuse.types import (
     MaskOtelSpansParams,
@@ -31,12 +31,17 @@ logger = logging.getLogger("emporio.support.tracing")
 
 REDACTED = "[REDACTED]"
 # Order matters: formatted CPF, then bare 11 digits (CPF or mobile), then phones, then e-mail.
+# The `(?<![\w-])` and `(?![\w-])` bounds keep ids like `cust-<10 digits>` and hex ids intact.
+# ponytail: any bare 10-11 digit number is redacted, so numeric codes (tracking, long order ids)
+# are over-redacted on purpose; narrow the digit patterns if traces lose needed identifiers.
 _PII = re.compile(
-    r"\d{3}\.\d{3}\.\d{3}-\d{2}"
-    r"|(?<!\d)\d{11}(?!\d)"
-    r"|(?<!\d)(?:\+?55[\s-]?)?(?:\(\d{2}\)|\d{2})[\s-]?9?\d{4}[-\s]?\d{4}(?!\d)"
+    r"(?<![\w-])\d{3}\.\d{3}\.\d{3}-\d{2}(?![\w-])"
+    r"|(?<![\w-])\d{11}(?![\w-])"
+    r"|(?<![\w-])(?:\+?55[\s-]?)?(?:\(\d{2}\)|\d{2})[\s-]?9?\d{4}[-\s]?\d{4}(?![\w-])"
     r"|[\w.+-]+@[\w-]+(?:\.[\w-]+)+"
 )
+# Span attributes that carry our pseudonymous ids; never rewritten.
+_IDENTIFIER_KEYS = frozenset({"user.id", "session.id", "langfuse.user.id", "langfuse.session.id"})
 
 
 class TracerFactory(Protocol):
@@ -59,7 +64,7 @@ def mask_otel_spans(*, params: MaskOtelSpansParams) -> MaskOtelSpansResult:
         changed = {
             key: redact(value)
             for key, value in span.attributes.items()
-            if isinstance(value, str) and redact(value) != value
+            if key not in _IDENTIFIER_KEYS and isinstance(value, str) and redact(value) != value
         }
         if changed:
             patches[identifier] = OtelSpanPatch(set_attributes=changed)
@@ -78,13 +83,16 @@ def _secret(value: SecretStr | None) -> str:
 
 
 class LangfuseTracerFactory:
-    def __init__(self, client: Langfuse, salt: str) -> None:
+    def __init__(self, client: Langfuse, salt: str, public_key: str) -> None:
         self._client = client
         self._salt = salt
+        self._public_key = public_key
 
     def for_turn(self, identity: ChannelIdentity) -> tuple[list[BaseCallbackHandler], str]:
         trace_id = Langfuse.create_trace_id(seed=uuid4().hex)
-        return [CallbackHandler(trace_context={"trace_id": trace_id})], trace_id
+        return [
+            CallbackHandler(public_key=self._public_key, trace_context={"trace_id": trace_id})
+        ], trace_id
 
     def turn_metadata(self, identity: ChannelIdentity) -> dict[str, str]:
         return {
@@ -93,8 +101,12 @@ class LangfuseTracerFactory:
         }
 
 
+_client: Langfuse | None = None
+
+
 def make_langfuse(settings: Settings) -> Langfuse:
     """Build the masked client and verify the server and keys now, not silently per turn."""
+    global _client
     require_langfuse_settings(settings)
     client = Langfuse(
         public_key=_secret(settings.langfuse_public_key),
@@ -111,9 +123,11 @@ def make_langfuse(settings: Settings) -> Langfuse:
         ok = False
     if not ok:
         raise LangfuseUnreachable(settings.langfuse_base_url)
+    _client = client
     return client
 
 
 def shutdown_tracing() -> None:
     """Flush the last batch; call from the API lifespan exit and at the end of CLI/evals."""
-    get_client().shutdown()
+    if _client is not None:
+        _client.shutdown()
