@@ -57,7 +57,7 @@ def test_store_question_calls_tool_then_answers() -> None:
 def test_accessory_skips_tools() -> None:
     model = FakeToolCallingModel(messages=iter([AIMessage("Corda é com parceiro.")]))
     messages = _ask(_graph(model, Scope.ACESSORIO), "vende corda?")
-    assert model.bind_calls == 0
+    assert model.seen_bound == [False]
     system = model.seen[0][0]
     assert isinstance(system, SystemMessage)
     assert scope_note(Scope.ACESSORIO) in str(system.content)
@@ -134,3 +134,50 @@ def test_classifier_maps_label_to_scope_using_last_turns() -> None:
     text = " ".join(str(m.content) for m in model.prompts[0])
     assert "e corda?" in text
     assert "Olá!" in text
+
+
+def test_trim_keeps_current_turn_with_oversized_tool_output() -> None:
+    turn: list[AnyMessage] = [
+        HumanMessage("pergunta atual"),
+        _call("store_now"),
+        ToolMessage("x" * 14_000, tool_call_id="call-store_now"),
+    ]
+    model = FakeToolCallingModel(messages=iter([AIMessage("certo")]))
+    graph = _graph(model, Scope.LOJA, max_history_tokens=200)
+    graph.invoke({"messages": turn}, CONFIG, context=TurnContext(None))
+    sent = model.seen[0]
+    assert any(isinstance(m, HumanMessage) and m.content == "pergunta atual" for m in sent)
+
+
+def test_tool_loop_is_capped_and_turn_ends_with_text() -> None:
+    script = [
+        AIMessage(content="", tool_calls=[{"name": "store_now", "args": {}, "id": f"c{i}"}])
+        for i in range(5)
+    ]
+    model = FakeToolCallingModel(messages=iter([*script, AIMessage("Com o que tenho: aberta.")]))
+    messages = _ask(_graph(model, Scope.LOJA), "aberta?")
+    assert messages[-1].content == "Com o que tenho: aberta."
+    assert model.seen_bound == [True] * 5 + [False]
+    system = model.seen[-1][0]
+    assert "sem chamar mais ferramentas" in str(system.content)
+
+
+class _FailingStructuredModel(FakeToolCallingModel):
+    def with_structured_output(self, schema: object, **kwargs: object) -> Runnable:  # type: ignore[override]  # narrower than base
+        def boom(messages: Sequence[BaseMessage]) -> Label:
+            raise RuntimeError
+
+        return RunnableLambda(boom)
+
+
+def test_classifier_failure_falls_back_to_loja() -> None:
+    classify = make_classifier(_FailingStructuredModel(messages=iter([])))
+    assert classify([HumanMessage("oi")]) is Scope.LOJA
+
+
+def test_classifier_caps_previous_assistant_text() -> None:
+    model = _StructuredModel(messages=iter([]))
+    make_classifier(model)([HumanMessage("oi"), AIMessage("a" * 900), HumanMessage("e aí?")])
+    text = " ".join(str(m.content) for m in model.prompts[0])
+    assert "a" * 500 in text
+    assert "a" * 501 not in text
