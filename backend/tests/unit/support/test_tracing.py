@@ -79,6 +79,7 @@ def test_turn_metadata_sets_session_and_pseudonymous_user() -> None:
     assert meta == {
         "langfuse_session_id": f"web:{pseudonym('salt', 7)}",
         "langfuse_user_id": pseudonym("salt", 7),
+        "thread_id": f"web:{pseudonym('salt', 7)}",
     }
     assert ":customer:" not in meta["langfuse_session_id"]
 

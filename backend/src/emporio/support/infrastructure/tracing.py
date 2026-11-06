@@ -100,7 +100,9 @@ class LangfuseTracerFactory:
         session = (
             identity.thread_id() if identity.customer_id is None else f"{identity.channel}:{who}"
         )
-        return {"langfuse_session_id": session, "langfuse_user_id": who}
+        # LangGraph copies configurable.thread_id into the run metadata unless the caller sets
+        # `thread_id` there itself; set it to the safe session so the raw id never exports.
+        return {"langfuse_session_id": session, "langfuse_user_id": who, "thread_id": session}
 
 
 _client: Langfuse | None = None
