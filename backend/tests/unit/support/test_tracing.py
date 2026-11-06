@@ -1,3 +1,6 @@
+import logging
+from uuid import uuid4
+
 import pytest
 from langchain_core.messages import AIMessage
 from langfuse import Langfuse
@@ -153,8 +156,9 @@ def _exported_runner(
     replies: list[AIMessage], customer_name: str | None = None
 ) -> tuple[GraphRunner, InMemorySpanExporter, Langfuse, LangfuseTracerFactory]:
     exporter = InMemorySpanExporter()
+    key = f"pk-export-{uuid4().hex}"  # the SDK keeps one client per public key
     client = Langfuse(
-        public_key="pk-export",  # the SDK keeps one client per public key; do not reuse "pk"
+        public_key=key,
         secret_key=FAKE_SK,
         base_url="http://x.test",
         tracing_enabled=True,
@@ -162,7 +166,7 @@ def _exported_runner(
         mask_otel_spans=mask_otel_spans,
         span_exporter=exporter,
     )
-    tracer = LangfuseTracerFactory(client, "salt", "pk-export")
+    tracer = LangfuseTracerFactory(client, "salt", key)
     model = FakeToolCallingModel(messages=iter(replies))
     graph = build_graph(model, build_tools(make_box()), lambda _m: Scope.LOJA, InMemorySaver())
     settings = Settings(_env_file=None)  # pyright: ignore[reportCallIssue]
@@ -186,3 +190,27 @@ def test_exported_spans_never_carry_the_raw_thread_id() -> None:
     assert exported
     assert "customer:3" not in exported
     assert f"session.id=web:{pseudonym('salt', 3)}" in exported
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        {"order_id": "cinco", "email_or_phone": "outra@jmail.com"},
+        {"order_id": 5, "email_or_phone": ["outra@jmail.com"]},
+        {"order_id": 5, "email_or_phone": 67984321098},
+    ],
+)
+def test_malformed_tool_args_leak_nothing_to_logs_or_spans(
+    args: dict[str, object], caplog: pytest.LogCaptureFixture
+) -> None:
+    call = AIMessage("", tool_calls=[{"name": "get_order_status", "args": args, "id": "c1"}])
+    runner, exporter, client, _ = _exported_runner([call, AIMessage("ok")])
+    with caplog.at_level(logging.DEBUG):
+        answer = runner.run(ChannelIdentity("web", None, "s"), "pedido 5")[0]
+    client.flush()
+    assert answer == "ok"
+    exported = _exported_text(exporter)
+    assert "get_order_status" in exported
+    for secret in ("outra@jmail", "67984321098", "jmail"):
+        assert secret not in exported
+        assert secret not in caplog.text
