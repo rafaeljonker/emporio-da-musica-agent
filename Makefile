@@ -1,10 +1,10 @@
 export PATH := $(CURDIR)/backend/.venv/bin:$(PATH)
 
-.PHONY: help setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp web-install web-build check-web
+.PHONY: help setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp web-install web-build check-web up-preflight web-config up dev e2e
 .DEFAULT_GOAL := help
 
 help:
-	@echo "targets: setup fmt lint typecheck imports test check web-install web-build check-web db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp"
+	@echo "targets: up dev e2e setup fmt lint typecheck imports test check web-install web-build check-web db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp"
 
 setup:
 	cd backend && uv sync && uv run pre-commit install --config ../.pre-commit-config.yaml
@@ -116,3 +116,33 @@ chat: chat-config db langfuse-up
 # MCP over stdio; EMPORIO_MCP_CUSTOMER_ID=14 fixes the identity (unset = anonymous).
 mcp: db
 	cd backend && DATABASE_URL=$(LOCAL_DATABASE_URL) uv run emporio mcp
+
+up-preflight:
+	@command -v docker >/dev/null || { echo "docker is required"; exit 1; }
+	@command -v uv >/dev/null || { echo "uv is required"; exit 1; }
+	@command -v node >/dev/null && [ "$$(node -p 'process.versions.node.split(".")[0]')" -ge 20 ] || { echo "node >= 20 is required"; exit 1; }
+	@echo "make up: 1) check config  2) database (Postgres :5434, migrate, ingest)"
+	@echo "         3) Langfuse (first pull about 7 min, about 2.3 GB RAM)  4) build the frontend"
+	@echo "         5) serve http://localhost:8000"
+
+# Provider key (skipped under EMPORIO_FAKE_MODEL=1), demo login and SESSION_SECRET (make web-keys).
+web-config:
+	cd backend && LLM_PROVIDER=$(PROVIDER) uv run emporio check-config --web
+
+# Plain http on localhost, so the session cookie is not https-only. Always the local database.
+WEB_ENV = LLM_PROVIDER=$(PROVIDER) SESSION_HTTPS_ONLY=false DATABASE_URL=$(LOCAL_DATABASE_URL)
+SERVE = uv run uvicorn --factory emporio.web:create_web_app --port 8000
+
+up: up-preflight web-config db langfuse-up web-build
+	cd backend && $(WEB_ENV) $(SERVE)
+
+# API with --reload on :8000 plus Vite (proxying /api) in parallel; Ctrl-C stops both.
+dev: web-config db langfuse-up
+	(cd frontend && npm run dev) & cd backend && $(WEB_ENV) $(SERVE) --reload --reload-dir src
+
+# Scripted model unless PROVIDER is given on the command line: make e2e PROVIDER=gemini.
+E2E_FAKE = $(if $(filter command line,$(origin PROVIDER)),,EMPORIO_FAKE_MODEL=1)
+
+e2e: db langfuse-up web-build
+	cd backend && uv run playwright install chromium
+	$(E2E_FAKE) $(WEB_ENV) uv run --project backend pytest e2e -q

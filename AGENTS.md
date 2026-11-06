@@ -17,6 +17,10 @@ Run from the repo root; all targets execute in `backend/`.
 - `make mcp`: the store tools over MCP stdio; `EMPORIO_MCP_CUSTOMER_ID=14` fixes the identity, unset is anonymous. Needs no model key.
 - `make langfuse-up`: local Langfuse (compose `observability` profile) at http://localhost:3000.
 - `make fmt`: ruff format and `ruff check --fix`.
+- `make up [PROVIDER=...]`: check config, DB, Langfuse, build the frontend, serve the web demo at http://localhost:8000. Needs `make web-keys` and `DEMO_EMAIL`/`DEMO_PASSWORD` in `.env`; `EMPORIO_FAKE_MODEL=1` swaps in the scripted model (no provider key).
+- `make dev`: the API with `--reload` on :8000 plus Vite (proxying `/api`).
+- `make check-web`: frontend oxlint + Vitest + `tsc -b` + `vite build`.
+- `make e2e [PROVIDER=...]`: Playwright browser flow against a real server; scripted model unless `PROVIDER` is given. Needs Docker; not part of `make check`.
 
 ## Architecture rules
 Enforced by `import-linter` (`make imports`).
