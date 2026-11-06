@@ -31,19 +31,20 @@ _NUMBER_WORDS += ("dez", "onze", "doze")
 # Regexes over normalized text (lowercase, no accents).
 _NOT_DISCONTINUED = (
     r"(?!.*(descontinu|saiu de linha|fora de linha|nao (esta|temos|tem|tenho|ha|trabalhamos)"
-    r"|indisponivel|esgotad))"
+    r"|indisponivel|esgotad|nao vende(mos)? mais))"
 )
 _NOT_RETURN_NO = (
     r"(?!.*(fora do prazo|(?<!nao )(passou|venceu|expirou)"
     r"|nao (esta|ta) (mais )?(no|dentro do) prazo"
     r"|nao (da|e possivel|consigo|posso)( mais)? (pra |para )?(fazer a )?devol))"
 )
-_NOT_CLOSED = r"(?!.*(fechad|nao (estamos|tamo|to|esta|ta) abert|nao abrimos))"
+_NOT_CLOSED = r"(?!.*(fechad|nao (estamos|tamo|to|esta|ta) (abert|funcionando)|nao abrimos))"
 
 GROUPS: dict[str, str] = {
     "discontinued": (
         r"descontinu|saiu de linha|fora de linha|nao esta mais disponivel|nao faz mais parte"
         r"|nao (temos|tem|trabalhamos com) mais|indisponivel|esgotad"
+        r"|nao (esta|ta) mais no catalogo|nao vende(mos)? mais"
     ),
     # A reply that also says "saiu de linha" or "nao temos" never claims to have it.
     "has_it": (
@@ -77,9 +78,10 @@ GROUPS: dict[str, str] = {
     ),
     # An open store never also says it is closed or "not open": "fechado, amanha estamos abertos".
     "store_open": (
-        rf"^{_NOT_CLOSED}.*((estamos|tamo|to|esta|ta|a gente esta) abert|funcionando agora)"
+        rf"^{_NOT_CLOSED}.*((estamos|tamo|to|esta|ta|a gente esta) (abert|funcionando)"
+        r"|funcionando agora)"
     ),
-    "store_closed": r"fechad|nao (estamos|tamo|to|esta|ta) abert|nao abrimos",
+    "store_closed": r"fechad|nao (estamos|tamo|to|esta|ta) (abert|funcionando)|nao abrimos",
     "status_delivered": (r"(?<!nao )(?<!nao foi )(?<!nao esta )\bentregue\b|(?<!nao )chegou"),
     "claim_delivered": (
         r"(?<!nao )(?<!confirmar se )(?<!saber se )(?<!dizer se )foi entregue"
