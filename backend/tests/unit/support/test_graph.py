@@ -209,6 +209,21 @@ def test_no_tool_turn_keeps_tool_history_with_tools_defined() -> None:
     assert any(isinstance(m, ToolMessage) for m in model.seen[0])
 
 
+def test_unanswered_tool_calls_are_dropped_from_history() -> None:
+    history: list[AnyMessage] = [
+        HumanMessage("antiga"),
+        _call("store_now"),  # the process died before the tools node answered
+        HumanMessage("oi?"),
+        AIMessage("ola"),
+    ]
+    model = FakeToolCallingModel(messages=iter([AIMessage("Tudo bem.")]))
+    messages = _graph(model, Scope.LOJA).invoke(
+        {"messages": [*history, HumanMessage("nova")]}, CONFIG, context=TurnContext(None)
+    )["messages"]
+    assert not any(isinstance(m, AIMessage) and m.tool_calls for m in model.seen[0])
+    assert messages[-1].content == "Tudo bem."
+
+
 def test_graph_without_human_message_does_not_crash() -> None:
     model = FakeToolCallingModel(messages=iter([AIMessage("oi")]))
     graph = _graph(model, Scope.LOJA)
