@@ -15,6 +15,7 @@ from langchain_core.messages import (
     BaseMessage,
     HumanMessage,
     SystemMessage,
+    ToolMessage,
     trim_messages,
 )
 from langchain_core.messages.utils import count_tokens_approximately
@@ -59,6 +60,30 @@ def bind_without_tool_calls(model: BaseChatModel, tools: Sequence[BaseTool]) -> 
     return model.bind_tools(tools, tool_choice=choice)  # pyright: ignore[reportArgumentType]
 
 
+def drop_unanswered_tool_calls(messages: Sequence[BaseMessage]) -> list[BaseMessage]:
+    """Drop every AI message whose tool call no later ToolMessage answers.
+
+    A process death between the agent and the tools node leaves such a message in the
+    checkpoint, and providers answer the next request with a 400. Answers to a dropped
+    message go with it, so no ToolMessage is left orphaned.
+    """
+    answered: set[str] = set()
+    dropped: set[str] = set()
+    kept: list[BaseMessage] = []
+    for message in reversed(messages):
+        if isinstance(message, ToolMessage):
+            answered.add(message.tool_call_id)
+        elif isinstance(message, AIMessage) and message.tool_calls:
+            ids = {c["id"] for c in message.tool_calls}
+            if not ids <= answered:
+                dropped |= ids
+                continue
+        kept.append(message)
+    return [
+        m for m in reversed(kept) if not (isinstance(m, ToolMessage) and m.tool_call_id in dropped)
+    ]
+
+
 def _tool_failure(error: Exception) -> str:
     # Never log the exception text or traceback: they echo the tool arguments (e-mail, phone).
     name = getattr(error, "tool_name", "unknown")
@@ -97,7 +122,7 @@ def build_graph(
         # The current turn is never trimmed: only older history is, within what is left.
         budget = max(0, max_history_tokens - count_tokens_approximately(turn))
         history = trim_messages(
-            messages[:current],
+            drop_unanswered_tool_calls(messages[:current]),
             strategy="last",
             token_counter=count_tokens_approximately,
             max_tokens=budget,
