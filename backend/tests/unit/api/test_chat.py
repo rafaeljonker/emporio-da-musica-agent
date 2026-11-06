@@ -42,7 +42,9 @@ def two_bubbles(failed: bool = False, **kw: object) -> Reply:
 
 
 def test_chat_event_order_and_payload_keys(client: TestClient, agent: FakeAgent) -> None:
-    agent.reply = two_bubbles(tools=("search_products",), cost_brl=Decimal("0.01234"))
+    agent.reply = two_bubbles(
+        tools=("search_products",), cost_brl=Decimal("0.01234"), provider="gemini"
+    )
     login(client)
     response = send(client)
     assert response.headers["content-type"].startswith("text/event-stream")
@@ -79,6 +81,15 @@ def test_unpriced_metrics_basis_depends_on_provider(
     assert metrics["cost_brl"] is None
     assert metrics["cost_basis"] == basis
     assert metrics["action"] == "sem ferramenta"
+
+
+def test_gemma_turn_cost_is_gpu_seconds_upper_bound(client: TestClient, agent: FakeAgent) -> None:
+    agent.reply = two_bubbles(cost_brl=Decimal("3.95") * 2 / 3600 * Decimal("5.50"))
+    login(client)
+    metrics = events(send(client).text)[3][1]
+    assert isinstance(metrics, dict)
+    assert metrics["cost_brl"] == "0.0121"
+    assert metrics["cost_basis"] == "Teto pelo tempo de GPU desta resposta"
 
 
 def test_metrics_action_maps_tool_names() -> None:

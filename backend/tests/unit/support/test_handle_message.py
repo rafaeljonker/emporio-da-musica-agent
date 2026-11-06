@@ -12,7 +12,7 @@ from emporio.support.application.ports import TurnMetrics
 from emporio.support.domain.channel_identity import ChannelIdentity
 from emporio.support.domain.scope import Scope
 from emporio.support.infrastructure.agent.graph import AgentGraph, build_graph
-from emporio.support.infrastructure.agent.runner import GraphRunner
+from emporio.support.infrastructure.agent.runner import GraphRunner, TurnProbe
 from emporio.support.infrastructure.agent.tools import build_tools
 from tests.fakes.fake_chat_model import FakeToolCallingModel
 from tests.fakes.recording_tracer import RecordingTracer
@@ -123,6 +123,41 @@ def test_runner_prices_turn_with_settings_prices() -> None:
     assert m.cached_tokens == 500_000
     usd = Decimal("0.10") * Decimal("0.5") + Decimal("0.01") * Decimal("0.5") + Decimal("0.50")
     assert m.cost_brl == usd * Decimal("5.50")
+
+
+def _cost_runner(**env: str) -> GraphRunner:
+    graph = build_graph(
+        FakeToolCallingModel(messages=iter([])),
+        build_tools(make_box()),
+        lambda _m: Scope.LOJA,
+        InMemorySaver(),
+    )
+    return GraphRunner(graph, Settings(_env_file=None, **env), RecordingTracer(), no_name)  # pyright: ignore[reportCallIssue]
+
+
+def _timed_probe() -> TurnProbe:
+    probe = TurnProbe()
+    probe.ms_guard, probe.ms_llm = 0.4, 1.6
+    return probe
+
+
+def test_gemini_turn_is_priced() -> None:
+    probe = _timed_probe()
+    probe.input_tokens, probe.output_tokens = 1_000_000, 1_000_000
+    runner = _cost_runner(LLM_PROVIDER="gemini", GEMINI_API_KEY="k")
+    cost = runner._cost_brl("gemini-3.8-flash", probe)  # pyright: ignore[reportPrivateUsage]
+    assert cost == (Decimal("0.75") + Decimal("3.75")) * Decimal("5.50")
+
+
+def test_gemma_turn_cost_is_gpu_seconds_upper_bound() -> None:
+    runner = _cost_runner(GPU_USD_PER_HOUR="3.95")
+    cost = runner._cost_brl("google/gemma-4-31B-it", _timed_probe())  # pyright: ignore[reportPrivateUsage]
+    assert cost == Decimal("3.95") * 2 / 3600 * Decimal("5.50")
+
+
+def test_gemma_cost_null_without_gpu_price() -> None:
+    runner = _cost_runner()
+    assert runner._cost_brl("google/gemma-4-31B-it", _timed_probe()) is None  # pyright: ignore[reportPrivateUsage]
 
 
 class _Exploding:
