@@ -2,10 +2,9 @@
 
 Deploy with `make deploy-api [API_PROVIDER=gemma|gemini] [LLM_APP=emporio-llm-<gpu>-<weights>]
 [LOADTEST=1]`. API_PROVIDER=gemini talks to the Gemini API (secret `emporio-gemini`, no GPU,
-no warm-up). LOADTEST=1
-deploys `emporio-api-loadtest`: scripted model, raised rate limits, no GPU. From backend/,
-`uv run modal run ../deploy/modal_api.py::ingest` migrates and indexes the data into the
-`emporio-db` database (frontend/dist must exist: `make web-build`).
+no warm-up). LOADTEST=1 deploys `emporio-api-loadtest`: scripted model, raised rate limits,
+no GPU. From backend/, `uv run modal run ../deploy/modal_api.py::ingest` migrates and indexes
+the data into the `emporio-db` database (frontend/dist must exist: `make web-build`).
 """
 
 import os
@@ -20,7 +19,8 @@ import modal
 WARM_READY_TTL_SECONDS = 240
 # USD per hour, modal.com/pricing on 2026-11-06. Keys must match deploy/modal_llm.py GPUS.
 GPU_PRICES = {"H100": "3.95", "L40S": "1.95"}
-# Keys of deploy/modal_llm.py WEIGHTS. "-snap" is the GPU memory-snapshot variant (Task 9).
+# Keys of deploy/modal_llm.py WEIGHTS. "-snap" is reserved for a GPU memory-snapshot variant,
+# not built (skipped for budget; docs/scaling-and-cost.md).
 LLM_WEIGHTS = ("fp8", "bf16")
 LLM_APPS = {
     f"emporio-llm-{gpu.lower()}-{weights}{variant}": gpu
