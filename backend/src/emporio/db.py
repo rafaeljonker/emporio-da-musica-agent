@@ -42,12 +42,15 @@ def connect(url: str | None = None) -> psycopg.Connection:
     return conn
 
 
-def make_pool(url: str | None = None, *, min_size: int = 1, max_size: int = 4) -> ConnectionPool:
+def make_pool(
+    url: str | None = None, *, min_size: int = 1, max_size: int = 4, timeout: float = 30.0
+) -> ConnectionPool:
     """Shared autocommit pool for read adapters; callers close it."""
     return ConnectionPool(
         url or database_url(),
         min_size=min_size,
         max_size=max_size,
+        timeout=timeout,
         kwargs={"autocommit": True},
         configure=register_vector_if_available,
         check=ConnectionPool.check_connection,
