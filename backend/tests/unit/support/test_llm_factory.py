@@ -46,3 +46,10 @@ def test_gemini_thinking_is_minimal():
 def test_gemma_without_base_url_raises():
     with pytest.raises(ConfigError, match="VLLM_BASE_URL"):
         make_chat_model(Settings(provider=Provider.GEMMA))
+
+
+def test_local_provider_uses_the_ollama_openai_endpoint():
+    model = make_chat_model(Settings(provider=Provider.LOCAL))
+    assert type(model).__name__ == "ChatOpenAI"
+    assert getattr(model, "model_name", None) == "emporio-gemma"
+    assert str(getattr(model, "openai_api_base", "")) == "http://localhost:11434/v1"

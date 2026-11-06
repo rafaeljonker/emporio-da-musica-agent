@@ -92,6 +92,15 @@ def test_gemma_turn_cost_is_gpu_seconds_upper_bound(client: TestClient, agent: F
     assert metrics["cost_basis"] == "Teto pelo tempo de GPU desta resposta"
 
 
+def test_local_turn_cost_basis(client: TestClient, agent: FakeAgent) -> None:
+    agent.reply = two_bubbles(provider="local")
+    login(client)
+    metrics = events(send(client).text)[3][1]
+    assert isinstance(metrics, dict)
+    assert metrics["cost_brl"] is None
+    assert metrics["cost_basis"] == "Rodando na sua máquina, sem custo por uso"
+
+
 def test_metrics_action_maps_tool_names() -> None:
     assert action_label(()) == "sem ferramenta"
     assert action_label(("search_products", "get_product")) == "busca no catálogo"

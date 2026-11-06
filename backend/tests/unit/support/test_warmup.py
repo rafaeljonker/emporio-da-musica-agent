@@ -1,3 +1,4 @@
+import json
 import threading
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
@@ -236,3 +237,25 @@ def test_start_keeps_ready_within_the_ready_ttl():
     clock.advance(299)
     again = warm.start()
     assert (again.stage, again.started_at) == (WarmStage.READY, first)
+
+
+def test_ollama_probe_true_only_on_200():
+    from emporio.support.infrastructure.warmup import ollama_load_probe
+
+    calls: list[httpx.Request] = []
+    outcomes = iter([404, 500, 200])
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(next(outcomes))
+
+    probe = ollama_load_probe(
+        "http://localhost:11434/v1", "emporio-gemma", transport=httpx.MockTransport(handler)
+    )
+    assert [probe(), probe(), probe()] == [False, False, True]
+    assert {(r.method, r.url.path) for r in calls} == {("POST", "/api/generate")}
+    assert json.loads(calls[0].content) == {
+        "model": "emporio-gemma",
+        "prompt": "",
+        "keep_alive": "30m",
+    }

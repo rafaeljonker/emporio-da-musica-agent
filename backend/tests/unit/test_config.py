@@ -166,3 +166,11 @@ def test_fake_model_skips_provider_keys_but_not_langfuse(monkeypatch: pytest.Mon
         monkeypatch.delenv(name)
     with pytest.raises(LangfuseRequired):
         load_web_settings()
+
+
+def test_local_provider_needs_no_key():
+    settings = load_settings(Provider.LOCAL)
+    assert (settings.ollama_base_url, settings.ollama_model) == (
+        "http://localhost:11434/v1",
+        "emporio-gemma",
+    )
