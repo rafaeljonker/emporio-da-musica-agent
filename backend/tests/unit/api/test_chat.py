@@ -197,3 +197,13 @@ def test_exception_after_a_bubble_emits_partial_error(
     assert got[-1][1] == {"partial": True}
     monkeypatch.undo()
     assert events(send(client).text)[-1][0] == "done"
+
+
+def test_identity_rotation_does_not_bypass_chat_limits(client: TestClient) -> None:
+    login(client)
+    codes = []
+    for i in range(250):
+        if i % 20 == 0:
+            client.put("/api/identity", json={"customer_id": 14 if i % 40 else None})
+        codes.append(send(client).status_code)
+    assert 429 in codes
