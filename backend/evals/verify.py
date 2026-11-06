@@ -67,7 +67,7 @@ GROUPS: dict[str, str] = {
     "recommends_movie": r"recomend\w* (o|um) filme|assista|assiste|que tal assistir",
     "return_yes": (
         rf"^{_NOT_RETURN_NO}.*(pode devolver|da pra devolver|consegue devolver|dentro do prazo"
-        r"|esta no prazo|tem direito|ainda da)"
+        r"|(?<!nao )(esta|ta) no prazo|tem direito|ainda da)"
     ),
     "return_no": (
         r"fora do prazo|nao (esta|ta) (mais )?(no|dentro do) prazo"
