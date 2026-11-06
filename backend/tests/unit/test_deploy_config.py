@@ -32,3 +32,11 @@ def test_gpu_prices_cover_every_gpu():
     assert isinstance(prices, dict)
     assert isinstance(gpus, tuple)
     assert set(prices) == set(gpus)
+
+
+def test_llm_weights_cover_every_weights_key():
+    names = _constant("modal_api.py", "LLM_WEIGHTS")
+    weights = _constant("modal_llm.py", "WEIGHTS")
+    assert isinstance(names, tuple)
+    assert isinstance(weights, dict)
+    assert set(names) == set(weights)

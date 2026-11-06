@@ -85,6 +85,8 @@ class Settings(BaseSettings):
     anthropic_api_key: SecretStr | None = None
 
     database_url: str | None = None
+    # Read pool per process; the load-test app raises it to measure the API, not the pool.
+    db_pool_max: int = Field(default=4, ge=1)
     store_today: date = date(2026, 2, 20)
 
     # Mandatory tracing: presence and the three disabling switches are enforced in load_settings.

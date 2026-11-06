@@ -88,7 +88,7 @@ def build_toolbox(
     stack: ExitStack, url: str, settings: Settings
 ) -> tuple[Toolbox, CsvCustomerRepository, ConnectionPool]:
     """Wire the ten tools' dependencies; shared by the agent and the MCP server."""
-    pool = stack.enter_context(make_pool(url))
+    pool = stack.enter_context(make_pool(url, max_size=settings.db_pool_max))
     embedder = E5Embedder()
     catalog = CsvCatalogRepository()
     orders = CsvOrderRepository()

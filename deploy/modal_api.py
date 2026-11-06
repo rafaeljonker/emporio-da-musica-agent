@@ -18,6 +18,14 @@ import modal
 WARM_READY_TTL_SECONDS = 540
 # USD per hour, modal.com/pricing on 2026-11-06. Keys must match deploy/modal_llm.py GPUS.
 GPU_PRICES = {"H100": "3.95", "L40S": "1.95"}
+# Keys of deploy/modal_llm.py WEIGHTS. "-snap" is the GPU memory-snapshot variant (Task 9).
+LLM_WEIGHTS = ("fp8", "bf16")
+LLM_APPS = {
+    f"emporio-llm-{gpu.lower()}-{weights}{variant}": gpu
+    for gpu in GPU_PRICES
+    for weights in LLM_WEIGHTS
+    for variant in ("", "-snap")
+}
 FASTEMBED_CACHE = "/models/fastembed"
 MINUTES = 60
 
@@ -26,11 +34,10 @@ LOADTEST = os.environ.get("EMPORIO_LOADTEST", "")
 if LOADTEST not in ("", "1"):
     msg = f"EMPORIO_LOADTEST must be unset or 1, got {LOADTEST!r}"
     raise SystemExit(msg)
-LLM_GPU = LLM_APP.removeprefix("emporio-llm-").split("-")[0].upper()
-if not LLM_APP.startswith("emporio-llm-") or LLM_GPU not in GPU_PRICES:
-    gpus = "|".join(GPU_PRICES).lower()
-    msg = f"EMPORIO_LLM_APP must be emporio-llm-<{gpus}>-<weights>, got {LLM_APP!r}"
+if LLM_APP not in LLM_APPS:
+    msg = f"EMPORIO_LLM_APP must be one of {sorted(LLM_APPS)}, got {LLM_APP!r}"
     raise SystemExit(msg)
+LLM_GPU = LLM_APPS[LLM_APP]
 
 # Local repo root. In the container this file sits in /root, so these paths only matter at deploy.
 ROOT = Path(__file__).resolve().parents[1]
@@ -45,7 +52,12 @@ runtime_env = {
 }
 if LOADTEST:
     # RATE_LIMIT_MULTIPLIER boots only together with EMPORIO_FAKE_MODEL=1 (cost guard).
-    runtime_env |= {"EMPORIO_FAKE_MODEL": "1", "RATE_LIMIT_MULTIPLIER": "100"}
+    # DB_POOL_MAX: 100-300 users must measure the API, not a PoolTimeout on the demo's 4.
+    runtime_env |= {
+        "EMPORIO_FAKE_MODEL": "1",
+        "RATE_LIMIT_MULTIPLIER": "100",
+        "DB_POOL_MAX": "20",
+    }
 
 
 def bake_e5() -> None:
@@ -106,10 +118,13 @@ if not LOADTEST:
 @modal.asgi_app()
 def web() -> object:  # the FastAPI app
     if not LOADTEST:
-        url = modal.Function.from_name(LLM_APP, "serve").get_web_url()
+        missing = f"{LLM_APP} has no web URL: run make deploy-llm first"
+        try:
+            url = modal.Function.from_name(LLM_APP, "serve").get_web_url()
+        except modal.exception.NotFoundError as err:
+            raise SystemExit(missing) from err
         if not url:
-            msg = f"{LLM_APP} has no web URL: run make deploy-llm first"
-            raise SystemExit(msg)
+            raise SystemExit(missing)
         os.environ["VLLM_BASE_URL"] = f"{url}/v1"
     from emporio.web import create_web_app
 
