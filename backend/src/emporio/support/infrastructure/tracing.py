@@ -10,6 +10,7 @@ import hashlib
 import hmac
 import logging
 import re
+from collections.abc import Callable, Iterable, Sequence
 from typing import Protocol
 from uuid import uuid4
 
@@ -63,21 +64,41 @@ def _phone_or_same(run: re.Match[str]) -> str:
     return REDACTED if _BR_PHONE.fullmatch(digits) else run.group()
 
 
-def redact(text: str) -> str:
-    return _PHONE_RUN.sub(_phone_or_same, _PII.sub(REDACTED, text))
+def name_pattern(names: Iterable[str]) -> re.Pattern[str] | None:
+    """Each full name and its first token (tokens under 3 characters dropped), longest first."""
+    found: set[str] = set()
+    for name in names:
+        tokens = name.split()
+        found.update([" ".join(tokens), *tokens[:1]])
+    # ponytail: masks every CSV customer name, so a name that is also a common word is
+    # over-redacted; switch to per-turn names if traces lose meaning.
+    alternatives = sorted((re.escape(n) for n in found if len(n) >= 3), key=len, reverse=True)
+    if not alternatives:
+        return None
+    return re.compile(rf"(?<!\w)(?:{'|'.join(alternatives)})(?!\w)", re.IGNORECASE)
 
 
-def mask_otel_spans(*, params: MaskOtelSpansParams) -> MaskOtelSpansResult:
-    patches: dict[OtelSpanIdentifier, OtelSpanPatch | None] = {}
-    for identifier, span in params.spans.items():
-        changed = {
-            key: redact(value)
-            for key, value in span.attributes.items()
-            if key not in _IDENTIFIER_KEYS and isinstance(value, str) and redact(value) != value
-        }
-        if changed:
-            patches[identifier] = OtelSpanPatch(set_attributes=changed)
-    return MaskOtelSpansResult(span_patches=patches)
+def redact(text: str, names: re.Pattern[str] | None = None) -> str:
+    text = _PHONE_RUN.sub(_phone_or_same, _PII.sub(REDACTED, text))
+    return names.sub(REDACTED, text) if names else text
+
+
+def make_mask(names: re.Pattern[str] | None) -> Callable[..., MaskOtelSpansResult]:
+    def mask_otel_spans(*, params: MaskOtelSpansParams) -> MaskOtelSpansResult:
+        patches: dict[OtelSpanIdentifier, OtelSpanPatch | None] = {}
+        for identifier, span in params.spans.items():
+            changed = {
+                key: masked
+                for key, value in span.attributes.items()
+                if key not in _IDENTIFIER_KEYS
+                and isinstance(value, str)
+                and (masked := redact(value, names)) != value
+            }
+            if changed:
+                patches[identifier] = OtelSpanPatch(set_attributes=changed)
+        return MaskOtelSpansResult(span_patches=patches)
+
+    return mask_otel_spans
 
 
 def pseudonym(salt: str, customer_id: int | None) -> str:
@@ -119,7 +140,7 @@ class LangfuseTracerFactory:
 _client: Langfuse | None = None
 
 
-def make_langfuse(settings: Settings) -> Langfuse:
+def make_langfuse(settings: Settings, customer_names: Sequence[str] = ()) -> Langfuse:
     """Build the masked client and verify the server and keys now, not silently per turn."""
     global _client
     require_langfuse_settings(settings)
@@ -129,7 +150,7 @@ def make_langfuse(settings: Settings) -> Langfuse:
         base_url=settings.langfuse_base_url,
         tracing_enabled=True,
         sample_rate=1.0,
-        mask_otel_spans=mask_otel_spans,
+        mask_otel_spans=make_mask(name_pattern(customer_names)),
     )
     try:
         ok = client.auth_check()

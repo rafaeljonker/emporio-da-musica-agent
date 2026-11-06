@@ -121,7 +121,7 @@ def build_agent(settings: Settings) -> Agent:
         saver = make_checkpointer(url)
         stack.enter_context(saver.conn)  # pyright: ignore[reportArgumentType]  # pool is a context manager
         graph = build_graph(model, build_tools(box), classify, saver)
-        langfuse = make_langfuse(settings)
+        langfuse = make_langfuse(settings, customers.names())
         stack.callback(shutdown_tracing)
         tracer = LangfuseTracerFactory(
             langfuse,

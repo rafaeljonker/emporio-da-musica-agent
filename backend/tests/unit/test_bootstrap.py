@@ -43,7 +43,7 @@ def test_failed_langfuse_check_closes_what_was_opened(monkeypatch: pytest.Monkey
     for name, fake in patches.items():
         monkeypatch.setattr(bootstrap, name, fake)
 
-    def unreachable(settings: Settings) -> None:
+    def unreachable(settings: Settings, names: object) -> None:
         raise LangfuseUnreachable("http://unused")
 
     monkeypatch.setattr(bootstrap, "make_langfuse", unreachable)
@@ -73,7 +73,7 @@ def test_fake_model_wires_scripted_model_and_store_scope(monkeypatch: pytest.Mon
         "make_checkpointer": lambda url: SimpleNamespace(conn=FakePool()),
         "build_tools": lambda box: [],
         "build_graph": lambda *args: built.append(args),
-        "make_langfuse": lambda settings: object(),
+        "make_langfuse": lambda settings, names: object(),
         "LangfuseTracerFactory": lambda *args: object(),
     }
     for name, fake in patches.items():
