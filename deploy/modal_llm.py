@@ -114,6 +114,9 @@ def serve() -> None:
         "fp8",
         "--gpu-memory-utilization",
         "0.92",
+        # Text only: every modality limit is 0, so vLLM 0.33 builds no multimodal processor and
+        # skips the ~60 s multimodal warm-up and the encoder-cache profiling at boot.
+        "--language-model-only",
         "--enable-auto-tool-choice",
         "--tool-call-parser",
         "gemma4",
