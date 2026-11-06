@@ -109,6 +109,27 @@ def test_switch_customer_appends_divider(signed_in_page: Page, real_model: bool)
     expect(after_divider).to_have_count(1)
 
 
+def test_sending_follows_to_the_bottom_when_scrolled_up(signed_in_page: Page) -> None:
+    page = signed_in_page
+    page.set_viewport_size({"width": 1024, "height": 500})
+    composer = page.get_by_label("Mensagem", exact=True)
+    log = page.get_by_role("log")
+    typing = page.get_by_role("status").filter(has_text="O assistente está digitando")
+    for n in range(4):
+        composer.fill(f"Mensagem {n}")
+        composer.press("Enter")
+        expect(log.locator("p", has_text=f"Você: Mensagem {n}")).to_have_count(1)
+        reply = log.get_by_text(f"Assistente: Você escreveu: Mensagem {n}")
+        expect(reply).to_have_count(1, timeout=AGENT_TIMEOUT_MS)
+        expect(typing).to_have_count(0, timeout=AGENT_TIMEOUT_MS)
+
+    log.evaluate("el => { el.scrollTop = 0 }")
+    expect(log.locator("p", has_text="Você: Mensagem 3")).not_to_be_in_viewport()
+    composer.fill("Mensagem final")
+    composer.press("Enter")
+    expect(log.locator("p", has_text="Você: Mensagem final")).to_be_in_viewport()
+
+
 def test_failed_turn_offers_resend(signed_in_page: Page, real_model: bool) -> None:
     if real_model:
         pytest.skip("[falha] is a scripted-model marker")

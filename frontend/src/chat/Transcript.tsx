@@ -29,15 +29,20 @@ export function Transcript({ entries, queued, onUndo, onResend }: Props) {
   const contentKey = `${entries.map((e) => (isExchange(e) ? `${e.turn.bubbles.length}${e.turn.status}${e.retried}` : '-')).join()}:${queued?.length}`
 
   // Follow new content only when the reader is already near the bottom; otherwise offer the pill.
+  // Sending a message always follows: the reader's own bubble must not land off screen.
   // Focus never moves.
   const nearBottom = useRef(true)
+  const sentLines = useRef(0)
   const [unseen, setUnseen] = useState(false)
+  const userLines = entries.filter((e) => isExchange(e) && !e.resend).length + (queued?.length ?? 0)
   useEffect(() => {
     const el = ref.current
     if (!el) return
+    if (userLines > sentLines.current) nearBottom.current = true
+    sentLines.current = userLines
     if (nearBottom.current) el.scrollTop = el.scrollHeight
     else setUnseen(true)
-  }, [contentKey])
+  }, [contentKey, userLines])
 
   const resend = (id: string) => {
     onResend(id)
