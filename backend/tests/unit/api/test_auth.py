@@ -3,7 +3,13 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from tests.fakes.fake_agent import FakeAgent
-from tests.unit.api.conftest import CREDENTIALS, client_with_multiplier, client_with_static
+from tests.unit.api.conftest import (
+    CREDENTIALS,
+    PROXY_PHRASE,
+    client_behind_proxy,
+    client_with_multiplier,
+    client_with_static,
+)
 
 
 def test_login_ok_sets_cookie_and_returns_warm_status(client: TestClient):
@@ -39,6 +45,34 @@ def test_login_limit_scales_with_multiplier(agent: FakeAgent):
     with client_with_multiplier(agent, 2) as client:
         codes = [client.post("/api/auth/login", json=bad).status_code for _ in range(11)]
     assert codes == [401] * 10 + [429]
+
+
+def test_spoofed_client_ip_with_a_wrong_secret_is_still_limited(agent: FakeAgent):
+    bad = {**CREDENTIALS, "password": "nope"}
+    with client_behind_proxy(agent, PROXY_PHRASE) as client:
+        codes = [
+            client.post(
+                "/api/auth/login",
+                json=bad,
+                headers={"X-Client-IP": f"198.51.100.{n}", "X-Proxy-Auth": "guess"},
+            ).status_code
+            for n in range(6)
+        ]
+    assert codes == [401] * 5 + [429]
+
+
+def test_trusted_client_ips_are_limited_separately(agent: FakeAgent):
+    bad = {**CREDENTIALS, "password": "nope"}
+    with client_behind_proxy(agent, PROXY_PHRASE) as client:
+        codes = [
+            client.post(
+                "/api/auth/login",
+                json=bad,
+                headers={"X-Client-IP": f"198.51.100.{n}", "X-Proxy-Auth": PROXY_PHRASE},
+            ).status_code
+            for n in range(6)
+        ]
+    assert codes == [401] * 6
 
 
 def test_me_requires_session(client: TestClient):
