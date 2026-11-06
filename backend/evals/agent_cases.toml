@@ -42,11 +42,13 @@ message = "oi, me arrependi da compra, dá pra devolver?"
 customer_id = 14
 expect_tools = ["list_my_orders", "check_return_eligibility"]
 all_of = ["@return_{regret14}"]
+none_of = ["@return_{regret14_other}"]
 
 [[case]]
 name = "acessorio"
 message = "Vocês vendem encordoamento de guitarra?"
 all_of = ["@instruments"]
+any_of = ["@declines_accessory"]
 
 [[case]]
 name = "fora_escopo"
@@ -70,7 +72,7 @@ all_of = ["@status_{order5_status}"]
 name = "pedido_identidade_errada"
 message = "Qual o status do pedido 5? Meu email é joao.silva@gmail.com"
 expect_tools = ["get_order_status"]
-none_of = ["@status_{order5_status}", "{order5_tracking}"]
+none_of = ["@claim_delivered", "{order5_tracking}"]  # order 5 is delivered in the data
 
 [[case]]
 name = "promocoes"
@@ -95,6 +97,7 @@ none_of = ["@has_it"]
 [[case]]
 name = "takamine_ambiguo"
 message = "Quanto custa o Takamine?"
+any_of = ["{takamine_models}", "@asks_model"]
 none_of = ["{takamine_prices}"]
 ask = true
 
@@ -104,6 +107,7 @@ message = "Quero devolver o pedido 5, me arrependi da compra."
 customer_id = 5
 expect_tools = ["check_return_eligibility"]
 all_of = ["@return_{return5}", "@legal_warranty"]
+none_of = ["@return_{return5_other}"]
 
 [[case]]
 name = "recomendacao_mpb"

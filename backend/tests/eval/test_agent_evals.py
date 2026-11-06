@@ -8,6 +8,7 @@ Expected facts are derived from the use cases here, never written in the TOML.
 import os
 import tomllib
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from statistics import median
@@ -92,6 +93,7 @@ def _derive_facts(pool: ConnectionPool, settings: Settings) -> Facts:
     latest = ListCustomerOrders(orders)(REGRET_CUSTOMER)[0]
     regret14 = CheckReturnEligibility(orders, today)(latest.id, REGRET_CUSTOMER)
     eligibility5 = CheckReturnEligibility(orders, today)(ORDER_ID, order.customer_id)
+    returnable5 = eligibility5.regret_eligible or eligibility5.defect_eligible
     open_now = StoreNow(SystemClock(), STORE_HOLIDAYS)().open
     discontinued = next(p for p in catalog.products() if p.status is ProductStatus.DISCONTINUED)
     recommended = RecommendProducts(catalog, PgProductIndex(pool, E5Embedder()))(
@@ -117,7 +119,12 @@ def _derive_facts(pool: ConnectionPool, settings: Settings) -> Facts:
             for p in catalog.products()
             if "takamine" in p.name.lower() and p.is_available
         ),
-        "return5": "yes" if eligibility5.regret_eligible or eligibility5.defect_eligible else "no",
+        "regret14_other": "no" if regret14.regret_eligible or regret14.defect_eligible else "yes",
+        "takamine_models": tuple(
+            p.name.split()[1] for p in catalog.products() if "takamine" in p.name.lower()
+        ),
+        "return5_other": "no" if returnable5 else "yes",
+        "return5": "yes" if returnable5 else "no",
         "recommend_names": tuple(_short(p) for p in _products(recommended)),
     }
 
@@ -159,6 +166,8 @@ def _expect(case: dict[str, object], facts: Facts) -> Expect:
 def _turn_row(
     conn: Connection, trace_id: str
 ) -> tuple[tuple[str, ...], int, int, int, Decimal | None]:
+    if not trace_id:  # tracing failed: never match every untraced row
+        return (), 0, 0, 0, None
     row = conn.execute(
         "SELECT tools, ms_total, input_tokens, output_tokens, cost_brl FROM turn_metrics"
         " WHERE trace_id = %s ORDER BY id DESC LIMIT 1",
@@ -172,13 +181,16 @@ def _percentile(values: list[int], q: float) -> int:
     return ordered[min(len(ordered) - 1, round(q * (len(ordered) - 1)))] if ordered else 0
 
 
-def _report(provider: str, model_note: str, outcomes: list[Outcome], passed: int) -> str:
+def _report(
+    provider: str, model_note: str, model: str, outcomes: list[Outcome], passed: int
+) -> str:
     n = len(outcomes)
     ms = [o.ms for o in outcomes]
     costs = [o.cost_brl for o in outcomes if o.cost_brl is not None]
     cost_line = f"R$ {sum(costs) / len(costs):.4f}" if costs else "n/a (no price configured)"
     lines = [
-        f"# Agent eval: {provider}{model_note}",
+        f"# Agent eval: {provider} ({model}){model_note}",
+        f"Run: {datetime.now(UTC).isoformat(timespec='seconds')}",
         "",
         f"- pass: {passed}/{n} ({passed / n:.0%}), gate {GATE_PASS_RATE:.0%}",
         f"- AI tells: {sum(len(o.tells) for o in outcomes)} (gate 0)",
@@ -264,7 +276,14 @@ def test_agent_golden_cases(
     provider = "fake" if fake else settings.provider.value
     note = " (scripted model, harness check only)" if fake else ""
     (EVALS / "reports" / f"{provider}.md").write_text(
-        _report(provider, note, outcomes, passed), encoding="utf-8"
+        _report(
+            provider,
+            note,
+            str(getattr(settings, f"{settings.provider.value}_model")),
+            outcomes,
+            passed,
+        ),
+        encoding="utf-8",
     )
     assert sum(len(o.tells) for o in outcomes) == 0
     assert passed / len(outcomes) >= GATE_PASS_RATE

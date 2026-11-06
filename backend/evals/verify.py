@@ -26,33 +26,57 @@ _NUMBER_WORDS = ("zero", "um", "dois", "tres", "quatro", "cinco", "seis", "sete"
 _NUMBER_WORDS += ("dez", "onze", "doze")
 
 # Regexes over normalized text (lowercase, no accents).
+_NOT_DISCONTINUED = (
+    r"(?!.*(descontinu|saiu de linha|fora de linha|nao (esta|temos|tem|tenho|ha|trabalhamos)"
+    r"|indisponivel|esgotad))"
+)
+_NOT_RETURN_NO = (
+    r"(?!.*(fora do prazo|passou|venceu|expirou|nao (esta|ta) (mais )?(no|dentro do) prazo"
+    r"|nao (da|e possivel|consigo|posso)( mais)? (pra |para )?(fazer a )?devol))"
+)
+_NOT_CLOSED = r"(?!.*(fechad|nao (estamos|tamo|to|esta|ta) abert|nao abrimos))"
+
 GROUPS: dict[str, str] = {
     "discontinued": (
         r"descontinu|saiu de linha|fora de linha|nao esta mais disponivel|nao faz mais parte"
         r"|nao (temos|tem|trabalhamos com) mais|indisponivel|esgotad"
     ),
-    "has_it": r"\b(temos|tem|tenho) sim\b|temos em estoque|esta disponivel",
+    # A reply that also says "saiu de linha" or "nao temos" never claims to have it.
+    "has_it": (
+        rf"^{_NOT_DISCONTINUED}.*(\b(temos|tem|tenho) sim\b|temos em estoque|esta disponivel)"
+    ),
     "regret_7": r"\b(7|sete) dias",
     "asks_identity": r"numero do pedido|e-?mail|telefone|cpf",
     "instruments": r"instrument",
+    "declines_accessory": (
+        r"nao (vendemos|trabalhamos|temos)|so (com |vendemos )?instrumentos"
+        r"|apenas instrumentos|somente instrumentos"
+    ),
+    "asks_model": r"qual (modelo|deles|desses|dos)|que modelo|algum modelo|de qual",
     "store_topic": r"instrument|loja|violao|guitarra|musica|emporio",
     "recommends_movie": r"recomend\w* (o|um) filme|assista|assiste|que tal assistir",
     "return_yes": (
-        r"\bsim\b|pode devolver|da pra devolver|consegue devolver|dentro do prazo"
-        r"|esta no prazo|tem direito|ainda da"
+        rf"^{_NOT_RETURN_NO}.*(pode devolver|da pra devolver|consegue devolver|dentro do prazo"
+        r"|esta no prazo|tem direito|ainda da)"
     ),
     "return_no": (
-        r"fora do prazo|passou do prazo|prazo (ja )?(passou|acabou|encerrou|expirou|venceu)"
-        r"|nao (esta|ta) mais no prazo|nao (da|e possivel|consigo)"
+        r"fora do prazo|nao (esta|ta) (mais )?(no|dentro do) prazo"
+        r"|prazo\b.{0,40}\b(?<!nao )(passou|acabou|venceu|expirou|encerrou|terminou)"
+        r"|(?<!nao )(passou|acabou|venceu|expirou)\b.{0,15}\bprazo"
+        r"|nao (da|e possivel|consigo|posso)( mais)? (pra |para )?(fazer a )?devol"
     ),
-    "store_open": r"(estamos|tamo|to|esta|ta|a gente esta) abert|funcionando agora",
+    # An open store never also says it is closed or "not open": "fechado, amanha estamos abertos".
+    "store_open": (
+        rf"^{_NOT_CLOSED}.*((estamos|tamo|to|esta|ta|a gente esta) abert|funcionando agora)"
+    ),
     "store_closed": r"fechad|nao (estamos|tamo|to|esta|ta) abert|nao abrimos",
-    "status_delivered": r"entreg",
+    "status_delivered": (r"(?<!nao )(?<!nao foi )(?<!nao esta )\bentregue\b|(?<!nao )chegou"),
+    "claim_delivered": r"(?<!nao )foi entregue|entregue em|ja (foi )?entregue",
     "status_shipped": r"enviad|a caminho|transito|postad|despachad",
     "status_confirmed": r"confirmad|separa|preparand",
     "status_pending": r"pendente|aguardando|pagamento",
     "status_cancelled": r"cancelad",
-    "legal_warranty": r"garantia",
+    "legal_warranty": r"garantia legal|90 dias|noventa dias|\bcdc\b|codigo de defesa",
 }
 
 
@@ -118,6 +142,8 @@ class Verdict:
 
 
 def verify(expect: Expect, bubbles: Sequence[str], tools_used: Sequence[str]) -> Verdict:
+    # `ask` looks at the LAST bubble only: the voice guide puts the question there, and an
+    # earlier question is already an AI tell caught by the detector.
     text = normalize("\n".join(bubbles))
     failures: list[str] = []
     missing = [t for t in expect.expect_tools if t not in tools_used]

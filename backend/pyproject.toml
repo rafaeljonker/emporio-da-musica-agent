@@ -55,7 +55,7 @@ known-first-party = ["emporio"]
 
 [tool.basedpyright]
 typeCheckingMode = "standard"
-include = ["src", "tests"]
+include = ["src", "tests", "evals"]
 strict = ["src/emporio/*/domain", "src/emporio/*/application", "src/emporio/shared"]
 
 [tool.pytest.ini_options]
