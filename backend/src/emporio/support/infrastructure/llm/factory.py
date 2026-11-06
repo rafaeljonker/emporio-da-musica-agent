@@ -49,3 +49,17 @@ def make_chat_model(settings: Settings) -> BaseChatModel:
                 api_key=settings.anthropic_api_key,
                 temperature=_TEMPERATURE,
             )
+
+
+def make_guard_model(settings: Settings) -> BaseChatModel:
+    """Model for the scope classifier: Gemini uses a Flash-Lite model, others the chat model."""
+    if settings.provider is not Provider.GEMINI:
+        return make_chat_model(settings)
+    require_provider_settings(settings)
+    return init_chat_model(
+        settings.gemini_guard_model,
+        model_provider="google_genai",
+        api_key=settings.gemini_api_key,
+        thinking_level="minimal",  # Flash-Lite accepts "minimal" (3.8 Flash does not)
+        temperature=_TEMPERATURE,
+    )

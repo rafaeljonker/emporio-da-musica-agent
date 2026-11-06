@@ -72,6 +72,8 @@ class Settings(BaseSettings):
     fake_model: bool = Field(default=False, validation_alias="EMPORIO_FAKE_MODEL")
     gemma_model: str = "google/gemma-4-31B-it"
     gemini_model: str = "gemini-3.8-flash"
+    # Scope classifier only: a Flash-Lite model cuts the guard from ~2.7 s to ~0.9 s.
+    gemini_guard_model: str = "gemini-3.1-flash-lite"
     openai_model: str = "gpt-6-luna"
     anthropic_model: str = "claude-haiku-5-5"
     # Ollama on this machine; `emporio local-model` creates the model with a 16k context.
@@ -130,6 +132,7 @@ class Settings(BaseSettings):
         default_factory=lambda: {
             # list price until 2026-12-31; 1.50 / 7.50 / 0.15 from 2027-01-01
             "gemini-3.8-flash": (Decimal("0.75"), Decimal("3.75"), Decimal("0.075")),
+            "gemini-3.1-flash-lite": (Decimal("0.25"), Decimal("1.50"), Decimal("0.025")),
             "gpt-6-luna": (Decimal("0.10"), Decimal("0.50"), Decimal("0.01")),
             "claude-haiku-5-5": (Decimal("0.10"), Decimal("0.50"), Decimal("0.01")),
         }

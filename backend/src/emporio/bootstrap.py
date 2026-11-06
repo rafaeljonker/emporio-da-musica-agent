@@ -45,7 +45,7 @@ from emporio.support.infrastructure.agent.guard import make_classifier
 from emporio.support.infrastructure.agent.runner import GraphRunner
 from emporio.support.infrastructure.agent.tools import Toolbox, build_tools
 from emporio.support.infrastructure.checkpointer import make_checkpointer
-from emporio.support.infrastructure.llm.factory import make_chat_model
+from emporio.support.infrastructure.llm.factory import make_chat_model, make_guard_model
 from emporio.support.infrastructure.llm.scripted import ScriptedChatModel
 from emporio.support.infrastructure.mcp.server import build_mcp
 from emporio.support.infrastructure.metrics_store import PgMetricsStore
@@ -122,7 +122,7 @@ def build_agent(settings: Settings) -> Agent:
             classify = _store_scope
         else:
             model = make_chat_model(settings)
-            classify = make_classifier(model)
+            classify = make_classifier(make_guard_model(settings))
         saver = make_checkpointer(url)
         stack.enter_context(saver.conn)  # pyright: ignore[reportArgumentType]  # pool is a context manager
         graph = build_graph(model, build_tools(box), classify, saver)

@@ -50,6 +50,7 @@ def test_failed_langfuse_check_closes_what_was_opened(monkeypatch: pytest.Monkey
         "PgProductIndex": lambda pool, embedder: object(),
         "PgPolicyIndex": lambda pool, embedder: object(),
         "make_chat_model": lambda settings: object(),
+        "make_guard_model": lambda settings: object(),
         "make_checkpointer": lambda url: SimpleNamespace(conn=FakePool()),
         "build_tools": lambda box: [],
         "make_classifier": lambda model: object(),
