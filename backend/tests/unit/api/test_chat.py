@@ -2,6 +2,7 @@ import json
 import threading
 from decimal import Decimal
 
+import pytest
 from fastapi.testclient import TestClient
 
 from emporio.api.chat import action_label
@@ -132,12 +133,28 @@ def test_concurrent_turn_on_same_thread_gets_409(client: TestClient, agent: Fake
 def test_stale_lock_is_reclaimed() -> None:
     now = [0.0]
     locks = ThreadLocks(stale_after=300, clock=lambda: now[0])
-    assert locks.try_acquire("t")
-    assert not locks.try_acquire("t")
+    first = locks.try_acquire("t")
+    assert first is not None
+    assert locks.try_acquire("t") is None
     now[0] = 301
-    assert locks.try_acquire("t")
-    locks.release("t")
-    assert locks.try_acquire("t")
+    second = locks.try_acquire("t")
+    assert second is not None
+    locks.release("t", second)
+    assert locks.try_acquire("t") is not None
+
+
+def test_stale_owner_release_does_not_free_new_holder() -> None:
+    now = [0.0]
+    locks = ThreadLocks(stale_after=300, clock=lambda: now[0])
+    old = locks.try_acquire("t")
+    assert old is not None
+    now[0] = 301
+    new = locks.try_acquire("t")
+    assert new is not None
+    locks.release("t", old)
+    assert locks.try_acquire("t") is None
+    locks.release("t", new)
+    assert locks.try_acquire("t") is not None
 
 
 def test_failed_turn_emits_error_and_releases_lock(client: TestClient, agent: FakeAgent) -> None:
@@ -153,4 +170,20 @@ def test_exception_before_any_bubble_emits_error(client: TestClient, agent: Fake
     login(client)
     assert events(send(client).text) == [("typing", {}), ("error", {"partial": False})]
     agent.error = None
+    assert events(send(client).text)[-1][0] == "done"
+
+
+def test_exception_after_a_bubble_emits_partial_error(
+    client: TestClient, agent: FakeAgent, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def boom(_m: object) -> dict[str, object]:
+        raise RuntimeError("boom")
+
+    agent.reply = two_bubbles()
+    monkeypatch.setattr("emporio.api.chat._metrics_payload", boom)
+    login(client)
+    got = events(send(client).text)
+    assert [name for name, _ in got] == ["typing", "bubble", "bubble", "error"]
+    assert got[-1][1] == {"partial": True}
+    monkeypatch.undo()
     assert events(send(client).text)[-1][0] == "done"
