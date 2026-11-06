@@ -209,3 +209,30 @@ def test_status_survives_a_failing_reply_p50():
     warm.join(5)
     assert warm.status().reply_p50_seconds is None
     assert ReadyWarmup(WarmMode.PROVIDER_API, broken).start().reply_p50_seconds is None
+
+
+def test_start_rearms_a_ready_probe_after_the_ready_ttl():
+    clock = StepClock()
+    up = [True]
+    warm = _warm(lambda: up[0], clock)
+    warm.start()
+    warm.join(5)
+    assert warm.status().stage is WarmStage.READY
+    clock.advance(301)
+    up[0] = False
+    assert warm.status().stage is WarmStage.READY  # status() never re-arms
+    rearmed = warm.start()
+    assert (rearmed.stage, rearmed.started_at) == (WarmStage.SERVER_STARTING, clock.now)
+    up[0] = True
+    warm.join(5)
+    assert warm.status().stage is WarmStage.READY
+
+
+def test_start_keeps_ready_within_the_ready_ttl():
+    clock = StepClock()
+    warm = _warm(lambda: True, clock)
+    first = warm.start().started_at
+    warm.join(5)
+    clock.advance(299)
+    again = warm.start()
+    assert (again.stage, again.started_at) == (WarmStage.READY, first)
