@@ -15,6 +15,7 @@ from emporio.support.infrastructure.tracing import (
     make_langfuse,
     mask_otel_spans,
     pseudonym,
+    redact,
 )
 from tests.fakes.fake_chat_model import FakeToolCallingModel
 from tests.fakes.recording_tracer import RecordingTracer
@@ -29,6 +30,38 @@ def _offline_client() -> Langfuse:
     )
 
 
+def _all_digit_customer(salt: str) -> int:
+    return next(i for i in range(10_000) if pseudonym(salt, i).removeprefix("cust-").isdigit())
+
+
+def test_pseudonym_survives_redact() -> None:
+    who = pseudonym("salt", _all_digit_customer("salt"))
+    assert redact(f"user {who} asked") == f"user {who} asked"
+    digits = who.removeprefix("cust-")
+    key = OtelSpanIdentifier("a" * 32, "b" * 16)
+    attributes = {"user.id": digits, "session.id": digits, "langfuse.user.id": digits}
+    span = OtelSpanData("a" * 32, "b" * 16, None, "n", None, None, attributes, {})
+    assert mask_otel_spans(params=MaskOtelSpansParams(spans={key: span})).span_patches == {}
+
+
+def test_hex_id_not_redacted() -> None:
+    ids = "trace 12345678901234567890123456789012 span 1234567890123456 cust-1234567890"
+    assert redact(ids) == ids
+
+
+def test_handler_is_bound_to_our_client() -> None:
+    other = Langfuse(
+        public_key="pk-other", secret_key=FAKE_SK, base_url="http://y.test", tracing_enabled=False
+    )
+    ours = _offline_client()
+    (handler,), _ = LangfuseTracerFactory(ours, "salt", "pk").for_turn(
+        ChannelIdentity("web", None, "s")
+    )
+    bound = vars(handler)["_langfuse_client"]
+    assert bound._resources is ours._resources  # pyright: ignore[reportPrivateUsage]
+    assert bound._resources is not other._resources  # pyright: ignore[reportPrivateUsage]
+
+
 def test_pseudonym_is_stable_and_not_the_id() -> None:
     first = pseudonym("salt", 42)
     assert first == pseudonym("salt", 42)
@@ -40,7 +73,7 @@ def test_pseudonym_is_stable_and_not_the_id() -> None:
 
 def test_turn_metadata_sets_session_and_pseudonymous_user() -> None:
     client = _offline_client()
-    factory = LangfuseTracerFactory(client, "salt")
+    factory = LangfuseTracerFactory(client, "salt", "pk")
     meta = factory.turn_metadata(ChannelIdentity("web", 7, "s"))
     assert meta == {
         "langfuse_session_id": "web:customer:7",
@@ -50,7 +83,7 @@ def test_turn_metadata_sets_session_and_pseudonymous_user() -> None:
 
 def test_for_turn_returns_fresh_handler_and_distinct_trace_ids() -> None:
     client = _offline_client()
-    factory = LangfuseTracerFactory(client, "salt")
+    factory = LangfuseTracerFactory(client, "salt", "pk")
     who = ChannelIdentity("web", None, "s")
     (a,), id_a = factory.for_turn(who)
     (b,), id_b = factory.for_turn(who)

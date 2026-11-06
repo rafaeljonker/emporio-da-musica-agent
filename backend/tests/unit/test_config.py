@@ -95,6 +95,8 @@ def test_missing_langfuse_vars_fail_startup(monkeypatch: pytest.MonkeyPatch):
         ("LANGFUSE_TRACING_ENABLED", "false"),
         ("OTEL_SDK_DISABLED", "true"),
         ("LANGFUSE_SAMPLE_RATE", "0.5"),
+        ("LANGFUSE_SAMPLE_RATE", "nan"),
+        ("LANGFUSE_SAMPLE_RATE", "2"),
     ],
 )
 def test_disabling_vars_are_rejected(monkeypatch: pytest.MonkeyPatch, variable: str, value: str):
