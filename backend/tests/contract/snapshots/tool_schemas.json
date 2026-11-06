@@ -3,6 +3,9 @@
     "count": {
       "anyOf": [
         {
+          "description": "Número de parcelas, de 1 a 12, ex.: 4.",
+          "maximum": 12,
+          "minimum": 1,
           "type": "integer"
         },
         {
@@ -13,21 +16,20 @@
       "title": "Count"
     },
     "total": {
-      "anyOf": [
-        {
-          "type": "number"
-        },
-        {
-          "type": "string"
-        }
-      ],
-      "title": "Total"
+      "description": "Valor total em reais como número, ex.: 459.90; sem R$ e sem vírgula.",
+      "exclusiveMinimum": 0,
+      "maximum": 1000000,
+      "title": "Total",
+      "type": "number"
     }
   },
   "check_return_eligibility": {
     "email_or_phone": {
       "anyOf": [
         {
+          "description": "E-mail ou telefone do cadastro, ex.: ana@email.com ou 85999990000.",
+          "maxLength": 254,
+          "minLength": 5,
           "type": "string"
         },
         {
@@ -38,6 +40,8 @@
       "title": "Email Or Phone"
     },
     "order_id": {
+      "description": "Número do pedido, só dígitos, ex.: 1234.",
+      "minimum": 1,
       "title": "Order Id",
       "type": "integer"
     }
@@ -46,6 +50,9 @@
     "email_or_phone": {
       "anyOf": [
         {
+          "description": "E-mail ou telefone do cadastro, ex.: ana@email.com ou 85999990000.",
+          "maxLength": 254,
+          "minLength": 5,
           "type": "string"
         },
         {
@@ -56,12 +63,16 @@
       "title": "Email Or Phone"
     },
     "order_id": {
+      "description": "Número do pedido, só dígitos, ex.: 1234.",
+      "minimum": 1,
       "title": "Order Id",
       "type": "integer"
     }
   },
   "get_product": {
     "product_id": {
+      "description": "Id numérico do produto, vindo da busca, ex.: 12.",
+      "minimum": 1,
       "title": "Product Id",
       "type": "integer"
     }
@@ -70,12 +81,18 @@
   "list_my_orders": {},
   "recommend_products": {
     "need": {
+      "description": "O que o cliente procura, ex.: violão para iniciante.",
+      "maxLength": 500,
+      "minLength": 1,
       "title": "Need",
       "type": "string"
     }
   },
   "search_policies": {
     "question": {
+      "description": "Pergunta sobre a loja, ex.: prazo de troca.",
+      "maxLength": 500,
+      "minLength": 1,
       "title": "Question",
       "type": "string"
     }
@@ -84,10 +101,10 @@
     "max_price": {
       "anyOf": [
         {
+          "description": "Preço máximo em reais como número, ex.: 459.90; sem R$ e sem vírgula.",
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
           "type": "number"
-        },
-        {
-          "type": "string"
         },
         {
           "type": "null"
@@ -97,6 +114,9 @@
       "title": "Max Price"
     },
     "query": {
+      "description": "Nome ou termo, ex.: Rozini RC-104.",
+      "maxLength": 200,
+      "minLength": 1,
       "title": "Query",
       "type": "string"
     }

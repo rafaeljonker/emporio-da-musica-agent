@@ -1,6 +1,9 @@
 """The ten agent tools. Plain functions hold the logic; `build_tools` wraps them for LangChain.
 
 Identity (`customer_id`) comes only from `TurnContext`, never from a model argument.
+Arguments are strict: money is a JSON number (never `Decimal`'s number-or-string), ids and
+counts are bounded integers, unknown fields are rejected. The `Annotated` types below are
+shared with the MCP server through the plain functions' signatures.
 """
 
 import logging
@@ -8,9 +11,14 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from decimal import Decimal
 from functools import wraps
+from typing import Annotated, override
 
-from langchain.tools import BaseTool, ToolRuntime, tool
-from langchain_core.tools import ToolException
+from langchain.tools import BaseTool, ToolRuntime
+from langchain_core.tools import StructuredTool, ToolException
+from langchain_core.tools.base import ArgsSchema
+from pydantic import BaseModel, ConfigDict, Field, InstanceOf, ValidationError
+from pydantic.json_schema import SkipJsonSchema
+from pydantic.v1 import ValidationError as ValidationErrorV1
 
 from emporio.catalog.application.get_product import GetProduct
 from emporio.catalog.application.list_promotions import ListPromotions
@@ -57,6 +65,45 @@ INSTALLMENTS_NOT_ALLOWED = "Esse parcelamento não é permitido para esse valor.
 INDEX_UNAVAILABLE = "Busca indisponível agora; ofereça encaminhar para a equipe."
 PRODUCT_NOT_FOUND = "Produto não encontrado."
 TOOL_FAILURE = "Não consegui consultar isso agora; ofereça passar o e-mail e o WhatsApp da loja."
+
+_IN_REAIS = "em reais como número, ex.: 459.90; sem R$ e sem vírgula."
+MAX_REAIS = 1_000_000
+
+# strict: a numeric string ("459.90", "R$ 459,90") is rejected, never parsed.
+Total = Annotated[
+    float, Field(gt=0, le=MAX_REAIS, strict=True, description=f"Valor total {_IN_REAIS}")
+]
+MaxPrice = Annotated[
+    float, Field(gt=0, le=MAX_REAIS, strict=True, description=f"Preço máximo {_IN_REAIS}")
+]
+Count = Annotated[int, Field(ge=1, le=12, description="Número de parcelas, de 1 a 12, ex.: 4.")]
+ProductId = Annotated[
+    int, Field(ge=1, description="Id numérico do produto, vindo da busca, ex.: 12.")
+]
+OrderId = Annotated[int, Field(ge=1, description="Número do pedido, só dígitos, ex.: 1234.")]
+EmailOrPhone = Annotated[
+    str,
+    Field(
+        min_length=5,
+        max_length=254,
+        description="E-mail ou telefone do cadastro, ex.: ana@email.com ou 85999990000.",
+    ),
+]
+Query = Annotated[
+    str, Field(min_length=1, max_length=200, description="Nome ou termo, ex.: Rozini RC-104.")
+]
+Need = Annotated[
+    str,
+    Field(
+        min_length=1,
+        max_length=500,
+        description="O que o cliente procura, ex.: violão para iniciante.",
+    ),
+]
+Question = Annotated[
+    str,
+    Field(min_length=1, max_length=500, description="Pergunta sobre a loja, ex.: prazo de troca."),
+]
 
 
 class ToolCrashed(ToolException):
@@ -106,6 +153,11 @@ def _safe[**P](fn: Callable[P, ToolOutput]) -> Callable[P, ToolOutput]:
     return run
 
 
+def _reais(amount: float) -> Decimal:
+    """Through `str`, so 459.9 becomes Decimal("459.9"), not the binary float's expansion."""
+    return Decimal(str(amount))
+
+
 def _categories(box: Toolbox) -> dict[int, str]:
     names = {c.id: c.name for c in box.catalog.categories()}
     return {p.id: names.get(p.category_id, "") for p in box.catalog.products()}
@@ -128,9 +180,9 @@ def _product_names(box: Toolbox) -> dict[int, str]:
 
 @_safe
 def search_products(
-    box: Toolbox, ctx: TurnContext, query: str, max_price: Decimal | None = None
+    box: Toolbox, ctx: TurnContext, query: Query, max_price: MaxPrice | None = None
 ) -> ToolOutput:
-    ceiling = None if max_price is None else Money(max_price)
+    ceiling = None if max_price is None else Money(_reais(max_price))
     result = box.search_products(query, ceiling)
     if isinstance(result, NoMatch):
         # Report discontinued products with their status instead of "not found".
@@ -139,13 +191,13 @@ def search_products(
 
 
 @_safe
-def recommend_products(box: Toolbox, ctx: TurnContext, need: str) -> ToolOutput:
+def recommend_products(box: Toolbox, ctx: TurnContext, need: Need) -> ToolOutput:
     result = box.recommend_products(need)
     return search_json(result, _quotes(box, result), _categories(box))
 
 
 @_safe
-def get_product(box: Toolbox, ctx: TurnContext, product_id: int) -> ToolOutput:
+def get_product(box: Toolbox, ctx: TurnContext, product_id: ProductId) -> ToolOutput:
     found, quote = box.get_product(product_id)
     return product_json(found, quote, _categories(box).get(product_id, ""))
 
@@ -158,11 +210,11 @@ def list_active_promotions(box: Toolbox, ctx: TurnContext) -> ToolOutput:
 
 @_safe
 def calc_installments(
-    box: Toolbox, ctx: TurnContext, total: Decimal, count: int | None = None
+    box: Toolbox, ctx: TurnContext, total: Total, count: Count | None = None
 ) -> ToolOutput:
     if total <= 0:
         return "O valor precisa ser maior que zero."
-    money = Money(total)
+    money = Money(_reais(total))
     try:
         return installments_json(box.quote_installments(money, count))
     except InvalidInstallments:
@@ -180,7 +232,7 @@ def list_my_orders(box: Toolbox, ctx: TurnContext) -> ToolOutput:
 
 @_safe
 def get_order_status(
-    box: Toolbox, ctx: TurnContext, order_id: int, email_or_phone: str | None = None
+    box: Toolbox, ctx: TurnContext, order_id: OrderId, email_or_phone: EmailOrPhone | None = None
 ) -> ToolOutput:
     names = _product_names(box)
     if ctx.customer_id is not None:
@@ -198,7 +250,7 @@ def get_order_status(
 
 @_safe
 def check_return_eligibility(
-    box: Toolbox, ctx: TurnContext, order_id: int, email_or_phone: str | None = None
+    box: Toolbox, ctx: TurnContext, order_id: OrderId, email_or_phone: EmailOrPhone | None = None
 ) -> ToolOutput:
     owner = ctx.customer_id
     if owner is None:
@@ -214,83 +266,195 @@ def store_now(box: Toolbox, ctx: TurnContext) -> ToolOutput:
 
 
 @_safe
-def search_policies(box: Toolbox, ctx: TurnContext, question: str) -> ToolOutput:
+def search_policies(box: Toolbox, ctx: TurnContext, question: Question) -> ToolOutput:
     return policy_hits_json(box.search_policies(question, 5))
 
 
+class _Args(BaseModel):
+    """Base of every tool's arguments. `runtime` is injected by ToolNode (it overwrites anything
+    the model sends) and hidden from the JSON schema, so identity never comes from the model."""
+
+    model_config = ConfigDict(extra="forbid")
+    runtime: SkipJsonSchema[InstanceOf[ToolRuntime]]
+
+
+class _NoArgs(_Args):
+    pass
+
+
+class _SearchProductsArgs(_Args):
+    query: Query
+    max_price: MaxPrice | None = None
+
+
+class _RecommendProductsArgs(_Args):
+    need: Need
+
+
+class _GetProductArgs(_Args):
+    product_id: ProductId
+
+
+class _CalcInstallmentsArgs(_Args):
+    total: Total
+    count: Count | None = None
+
+
+class _OrderArgs(_Args):
+    order_id: OrderId
+    email_or_phone: EmailOrPhone | None = None
+
+
+class _SearchPoliciesArgs(_Args):
+    question: Question
+
+
+class _StrictTool(StructuredTool):
+    """Shows the model the args model itself; LangChain's default rebuilds a copy of it that
+    drops `extra="forbid"`, so `additionalProperties: false` would never reach the provider."""
+
+    @property
+    @override
+    def tool_call_schema(self) -> ArgsSchema:
+        return self.args_schema or super().tool_call_schema
+
+
+def _description(prop: dict[str, object]) -> str:
+    options = prop.get("anyOf")
+    for option in options if isinstance(options, list) else [prop]:
+        if isinstance(option, dict) and isinstance(text := option.get("description"), str):
+            return text
+    return ""
+
+
+def _retry_hint(
+    name: str, args: type[_Args]
+) -> Callable[[ValidationError | ValidationErrorV1], str]:
+    """One pt-BR line naming the bad field and its expected form, so the model retries.
+
+    Never echoes the received value: it can be an e-mail, a phone or anything the user typed.
+    """
+    properties: dict[str, dict[str, object]] = args.model_json_schema().get("properties", {})
+
+    def hint(error: ValidationError | ValidationErrorV1) -> str:
+        first = error.errors()[0]
+        field = str(first["loc"][0]) if first["loc"] else ""
+        logger.warning("tool %s rejected arguments: %s", name, first["type"])
+        if field not in properties:
+            allowed = ", ".join(properties) or "nenhum"
+            return f"Argumento não aceito em {name}; use só: {allowed}."
+        expected = _description(properties[field])
+        return f"{field} inválido; esperado: {expected} Corrija e chame de novo."
+
+    return hint
+
+
+def _strict_tool(
+    name: str, args: type[_Args], fn: Callable[..., ToolOutput], description: str
+) -> BaseTool:
+    built = _StrictTool.from_function(fn, name=name, description=description, args_schema=args)
+    built.handle_validation_error = _retry_hint(name, args)
+    return built
+
+
 def build_tools(box: Toolbox) -> list[BaseTool]:
-    @tool("search_products")
     def search_products_tool(
-        query: str, runtime: ToolRuntime[TurnContext], max_price: Decimal | None = None
+        query: str, runtime: ToolRuntime[TurnContext], max_price: float | None = None
     ) -> ToolOutput:
-        """Busca produtos pelo nome ou termo; max_price opcional é o teto em reais."""
         return search_products(box, runtime.context, query, max_price)
 
-    @tool("recommend_products")
     def recommend_products_tool(need: str, runtime: ToolRuntime[TurnContext]) -> ToolOutput:
-        """Recomenda produtos a partir da necessidade descrita pelo cliente."""
         return recommend_products(box, runtime.context, need)
 
-    @tool("get_product")
     def get_product_tool(product_id: int, runtime: ToolRuntime[TurnContext]) -> ToolOutput:
-        """Mostra os dados e o preço de um produto pelo id."""
         return get_product(box, runtime.context, product_id)
 
-    @tool("list_active_promotions")
     def list_active_promotions_tool(runtime: ToolRuntime[TurnContext]) -> ToolOutput:
-        """Lista os produtos disponíveis que estão em promoção agora."""
         return list_active_promotions(box, runtime.context)
 
-    @tool("calc_installments")
     def calc_installments_tool(
-        total: Decimal, runtime: ToolRuntime[TurnContext], count: int | None = None
+        total: float, runtime: ToolRuntime[TurnContext], count: int | None = None
     ) -> ToolOutput:
-        """Calcula o parcelamento de um valor; sem count, devolve o máximo de parcelas."""
         return calc_installments(box, runtime.context, total, count)
 
-    @tool("list_my_orders")
     def list_my_orders_tool(runtime: ToolRuntime[TurnContext]) -> ToolOutput:
-        """Lista os pedidos do cliente identificado, do mais recente ao mais antigo."""
         return list_my_orders(box, runtime.context)
 
-    @tool("get_order_status")
     def get_order_status_tool(
         order_id: int, runtime: ToolRuntime[TurnContext], email_or_phone: str | None = None
     ) -> ToolOutput:
-        """Consulta o status de um pedido; cliente anônimo precisa de e-mail ou telefone."""
         return get_order_status(box, runtime.context, order_id, email_or_phone)
 
-    @tool("check_return_eligibility")
     def check_return_eligibility_tool(
         order_id: int, runtime: ToolRuntime[TurnContext], email_or_phone: str | None = None
     ) -> ToolOutput:
-        """Verifica se o pedido pode ser devolvido; anônimo precisa de e-mail ou telefone."""
         return check_return_eligibility(box, runtime.context, order_id, email_or_phone)
 
-    @tool("store_now")
     def store_now_tool(runtime: ToolRuntime[TurnContext]) -> ToolOutput:
-        """Diz se a loja está aberta agora e quando abre de novo."""
         return store_now(box, runtime.context)
 
-    @tool("search_policies")
     def search_policies_tool(question: str, runtime: ToolRuntime[TurnContext]) -> ToolOutput:
-        """Busca nas políticas da loja (troca, garantia, frete, horários)."""
         return search_policies(box, runtime.context, question)
 
-    tools = [
-        search_products_tool,
-        recommend_products_tool,
-        get_product_tool,
-        list_active_promotions_tool,
-        calc_installments_tool,
-        list_my_orders_tool,
-        get_order_status_tool,
-        check_return_eligibility_tool,
-        store_now_tool,
-        search_policies_tool,
+    return [
+        _strict_tool(
+            "search_products",
+            _SearchProductsArgs,
+            search_products_tool,
+            "Busca produtos pelo nome ou termo; max_price opcional é o teto em reais.",
+        ),
+        _strict_tool(
+            "recommend_products",
+            _RecommendProductsArgs,
+            recommend_products_tool,
+            "Recomenda produtos a partir da necessidade descrita pelo cliente.",
+        ),
+        _strict_tool(
+            "get_product",
+            _GetProductArgs,
+            get_product_tool,
+            "Mostra os dados e o preço de um produto pelo id.",
+        ),
+        _strict_tool(
+            "list_active_promotions",
+            _NoArgs,
+            list_active_promotions_tool,
+            "Lista os produtos disponíveis que estão em promoção agora.",
+        ),
+        _strict_tool(
+            "calc_installments",
+            _CalcInstallmentsArgs,
+            calc_installments_tool,
+            "Calcula o parcelamento de um valor; sem count, devolve o máximo de parcelas.",
+        ),
+        _strict_tool(
+            "list_my_orders",
+            _NoArgs,
+            list_my_orders_tool,
+            "Lista os pedidos do cliente identificado, do mais recente ao mais antigo.",
+        ),
+        _strict_tool(
+            "get_order_status",
+            _OrderArgs,
+            get_order_status_tool,
+            "Consulta o status de um pedido; cliente anônimo precisa de e-mail ou telefone.",
+        ),
+        _strict_tool(
+            "check_return_eligibility",
+            _OrderArgs,
+            check_return_eligibility_tool,
+            "Verifica se o pedido pode ser devolvido; anônimo precisa de e-mail ou telefone.",
+        ),
+        _strict_tool(
+            "store_now",
+            _NoArgs,
+            store_now_tool,
+            "Diz se a loja está aberta agora e quando abre de novo.",
+        ),
+        _strict_tool(
+            "search_policies",
+            _SearchPoliciesArgs,
+            search_policies_tool,
+            "Busca nas políticas da loja (troca, garantia, frete, horários).",
+        ),
     ]
-    for built in tools:
-        # Malformed arguments: a fixed text, so neither the model-visible message nor the span
-        # status echoes the arguments (they may hold an e-mail or phone).
-        built.handle_validation_error = TOOL_FAILURE
-    return tools
