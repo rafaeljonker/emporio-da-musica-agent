@@ -34,7 +34,7 @@ export DATABASE_URL
 # Tests truncate tables, so they get their own database.
 TEST_DATABASE_URL := postgresql://emporio:emporio@localhost:5434/emporio_test
 
-db-up:
+db-up: langfuse-keys
 	docker compose up -d --wait db
 
 db-test: db-up

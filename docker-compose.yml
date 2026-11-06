@@ -37,41 +37,41 @@ services:
     environment: &langfuse-env
       NEXTAUTH_URL: http://localhost:3000
       DATABASE_URL: postgresql://emporio:emporio@db:5432/langfuse
-      SALT: ${SALT:-}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      SALT: ${SALT:?run make langfuse-keys}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?run make langfuse-keys}
       TELEMETRY_ENABLED: "false"
       CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
       CLICKHOUSE_URL: http://clickhouse:8123
       CLICKHOUSE_USER: clickhouse
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?run make langfuse-keys}
       CLICKHOUSE_CLUSTER_ENABLED: "false"
       LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
       LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
       LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: minio
-      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-}
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?run make langfuse-keys}
       LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
       LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
       LANGFUSE_S3_EVENT_UPLOAD_PREFIX: events/
       LANGFUSE_S3_MEDIA_UPLOAD_BUCKET: langfuse
       LANGFUSE_S3_MEDIA_UPLOAD_REGION: auto
       LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: minio
-      LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-}
+      LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?run make langfuse-keys}
       LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://localhost:9090
       LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE: "true"
       LANGFUSE_S3_MEDIA_UPLOAD_PREFIX: media/
       REDIS_HOST: redis
       REDIS_PORT: "6379"
-      REDIS_AUTH: ${REDIS_AUTH:-}
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-}
+      REDIS_AUTH: ${REDIS_AUTH:?run make langfuse-keys}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?run make langfuse-keys}
       LANGFUSE_INIT_ORG_ID: ${LANGFUSE_INIT_ORG_ID:-}
       LANGFUSE_INIT_ORG_NAME: ${LANGFUSE_INIT_ORG_NAME:-}
       LANGFUSE_INIT_PROJECT_ID: ${LANGFUSE_INIT_PROJECT_ID:-}
       LANGFUSE_INIT_PROJECT_NAME: ${LANGFUSE_INIT_PROJECT_NAME:-}
-      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY:-}
-      LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY:-}
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY:?run make langfuse-keys}
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY:?run make langfuse-keys}
       LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL:-}
       LANGFUSE_INIT_USER_NAME: ${LANGFUSE_INIT_USER_NAME:-}
-      LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD:-}
+      LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD:?run make langfuse-keys}
     healthcheck:
       # Next.js binds the container hostname, not 127.0.0.1.
       test: ["CMD-SHELL", "wget -qO /dev/null http://$$HOSTNAME:3000/api/public/health || exit 1"]
@@ -95,7 +95,7 @@ services:
     environment:
       CLICKHOUSE_DB: default
       CLICKHOUSE_USER: clickhouse
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?run make langfuse-keys}
     volumes:
       - langfuse_clickhouse_data:/var/lib/clickhouse
       - langfuse_clickhouse_logs:/var/log/clickhouse-server
@@ -108,14 +108,14 @@ services:
 
   minio:
     profiles: [observability]
-    image: cgr.dev/chainguard/minio
+    image: cgr.dev/chainguard/minio@sha256:cee9a8e35885e93f14b3cb32960e5017aff74e2adfb52ba87c65003b0163886b
     restart: unless-stopped
     entrypoint: sh
     # create the 'langfuse' bucket before starting the service
     command: -c 'mkdir -p /data/langfuse && minio server --address ":9000" --console-address ":9001" /data'
     environment:
       MINIO_ROOT_USER: minio
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?run make langfuse-keys}
     ports:
       - "127.0.0.1:9090:9000"
     volumes:
@@ -129,9 +129,9 @@ services:
 
   redis:
     profiles: [observability]
-    image: docker.io/redis:7
+    image: docker.io/redis:7@sha256:2e3eb11462c4e3759e6972678dd051d150ff54b1e60714b3c33b701260172a90
     restart: unless-stopped
-    command: --requirepass ${REDIS_AUTH:-} --maxmemory-policy noeviction
+    command: --requirepass ${REDIS_AUTH:?run make langfuse-keys} --maxmemory-policy noeviction
     volumes:
       - langfuse_redis_data:/data
     healthcheck:
