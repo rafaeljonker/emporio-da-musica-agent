@@ -1,3 +1,4 @@
+import time
 from decimal import Decimal
 
 import pytest
@@ -185,3 +186,20 @@ def test_metrics_save_failure_keeps_the_reply() -> None:
 
     reply = HandleMessage(FakeRunner("Temos sim."), Raising())(ANON, "oi")
     assert reply.bubbles == ("Temos sim.",)
+
+
+def test_guard_llm_time_is_not_counted_as_ms_llm() -> None:
+    slow = FakeToolCallingModel(messages=iter([AIMessage("pronto")]))
+
+    def slow_classify(_messages: object) -> Scope:
+        time.sleep(0.05)  # stands in for the classifier's own model call
+        slow.invoke("classifique")
+        return Scope.LOJA
+
+    model = FakeToolCallingModel(messages=iter([AIMessage("Oi.")]))
+    graph = build_graph(model, build_tools(make_box()), slow_classify, InMemorySaver())
+    runner = GraphRunner(graph, SETTINGS, RecordingTracer(), no_name)
+    m = runner.run(ANON, "oi")[2]
+    assert m.llm_calls == 2
+    assert m.ms_guard >= 50
+    assert m.ms_llm < m.ms_guard
