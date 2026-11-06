@@ -28,11 +28,20 @@ class ReadyWarmup:
 
     def status(self) -> WarmStatus:
         started_at = self._started_at or SystemClock().now().astimezone(UTC)
-        return WarmStatus(self.mode, WarmStage.READY, started_at, 0, 0, self._reply_p50())
+        return WarmStatus(self.mode, WarmStage.READY, started_at, 0, 0, _safe_p50(self._reply_p50))
 
 
 def _utc_now() -> datetime:
     return SystemClock().now().astimezone(UTC)
+
+
+def _safe_p50(reply_p50: Callable[[], float | None]) -> float | None:
+    """The p50 is decoration: a failing metrics query must never break the warm status."""
+    try:
+        return reply_p50()
+    except Exception:
+        logging.getLogger(__name__).warning("reply p50 unavailable", exc_info=True)
+        return None
 
 
 def vllm_health_probe(
@@ -111,16 +120,18 @@ class ProbeWarmup:
         if self._thread is None:
             self.start()
         with self._lock:
-            started_at = self._started_at or self._clock()
-            elapsed = (self._ended_at or self._clock()) - started_at
-            return WarmStatus(
-                self.mode,
-                self._stage,
-                started_at,
-                int(elapsed.total_seconds()),
-                self.expected_seconds,
-                self._reply_p50(),
-            )
+            now = self._clock()
+            started_at = self._started_at or now
+            elapsed = (self._ended_at or now) - started_at
+            stage = self._stage
+        return WarmStatus(
+            self.mode,
+            stage,
+            started_at,
+            int(elapsed.total_seconds()),
+            self.expected_seconds,
+            _safe_p50(self._reply_p50),
+        )
 
     def _is_up(self) -> bool:
         try:

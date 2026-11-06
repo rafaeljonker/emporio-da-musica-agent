@@ -145,7 +145,7 @@ def build_agent(settings: Settings) -> Agent:
             stack.pop_all().close,
             lambda cid: customers.by_id(cid) is not None,
             demo,
-            store.reply_p50_seconds,
+            lambda: store.reply_p50_seconds(settings.provider_name),
         )
 
 

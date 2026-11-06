@@ -25,12 +25,13 @@ class PgMetricsStore:
                 ),
             )  # fmt: skip
 
-    def reply_p50_seconds(self, limit: int = 50) -> float | None:
-        """Median turn time over the last `limit` turns, None when there are none."""
+    def reply_p50_seconds(self, provider: str, limit: int = 50) -> float | None:
+        """Median turn time over the last `limit` turns of `provider`, None when there are none."""
         with self._pool.connection() as conn:
             row = conn.execute(
                 "SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY ms_total) FROM"
-                " (SELECT ms_total FROM turn_metrics ORDER BY id DESC LIMIT %s) recent",
-                (limit,),
+                " (SELECT ms_total FROM turn_metrics WHERE provider = %s ORDER BY id DESC LIMIT %s)"
+                " recent",
+                (provider, limit),
             ).fetchone()
         return None if row is None or row[0] is None else float(row[0]) / 1000
