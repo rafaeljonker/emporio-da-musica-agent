@@ -92,8 +92,8 @@ def test_turn_metadata_sets_session_and_pseudonymous_user() -> None:
 def test_langfuse_session_scoped_and_pseudonymous() -> None:
     factory = LangfuseTracerFactory(_offline_client(), "salt", "pk")
     session = factory.turn_metadata(ChannelIdentity("web", 14, "abc"))["langfuse_session_id"]
-    assert session.endswith(":abc")
-    assert "14" not in session
+    assert session == f"web:{pseudonym('salt', 14)}:abc"
+    assert ":customer:" not in session
 
 
 def test_anonymous_session_id_keeps_the_anon_thread_shape() -> None:

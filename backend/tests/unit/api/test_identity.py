@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from tests.fakes.fake_agent import FakeAgent
@@ -45,9 +46,13 @@ def test_unknown_customer_404_keeps_session(client: TestClient, agent: FakeAgent
 def test_identity_null_clears_customer(client: TestClient, agent: FakeAgent) -> None:
     login(client)
     client.put("/api/identity", json={"customer_id": 14})
+    send(client)
     assert client.put("/api/identity", json={"customer_id": None}).json() == {"customer_id": None}
     send(client)
-    assert agent.calls[0][0].customer_id is None
+    (before, _), (after, _) = agent.calls
+    assert before.customer_id == 14
+    assert after.customer_id is None
+    assert before.session != after.session
 
 
 def test_identity_requires_json(client: TestClient) -> None:
@@ -61,3 +66,14 @@ def test_identity_requires_json(client: TestClient) -> None:
 def test_identity_requires_session(client: TestClient) -> None:
     assert client.put("/api/identity", json={"customer_id": 14}).status_code == 401
     assert client.get("/api/customers").status_code == 401
+
+
+def test_identity_rejects_non_int_and_out_of_range(
+    client: TestClient, agent: FakeAgent, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    asked: list[int] = []
+    monkeypatch.setattr(agent, "customer_exists", lambda customer_id: asked.append(customer_id))
+    login(client)
+    for bad in (True, 1.5, 1.0, 0, 2**40):
+        assert client.put("/api/identity", json={"customer_id": bad}).status_code == 422
+    assert asked == []
