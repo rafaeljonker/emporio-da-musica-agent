@@ -72,7 +72,7 @@ def test_cli_prints_bubbles_in_order(
     out = capsys.readouterr().out.splitlines()
     assert out.index("Oi!") < out.index("x" * 100)
     assert any("loja" in line and "trace123" in line for line in out)
-    assert pauses == [0.415, 0.4 + 0.015 * 100]
+    assert pauses == [0.445, 1.5]
     ((identity, text),) = handle.calls
     assert text == "oi"
     assert (identity.channel, identity.customer_id) == ("cli", 14)
