@@ -53,8 +53,11 @@ db: db-up
 test-pg: db-up db-test
 	cd backend && DATABASE_URL=$(TEST_DATABASE_URL) uv run pytest -q -m "postgres and not eval"
 
+# PROVIDER picks the model (gemma|gemini|openai|anthropic) and names backend/evals/reports/<provider>.md.
+# EVAL_FAKE_MODEL=1 swaps in a scripted model to check the harness only (the gate then fails).
+PROVIDER ?= gemma
 evals: db-up db-test
-	cd backend && DATABASE_URL=$(TEST_DATABASE_URL) uv run pytest -q -m eval -s
+	cd backend && LLM_PROVIDER=$(PROVIDER) DATABASE_URL=$(TEST_DATABASE_URL) uv run pytest -q -m eval -s
 
 # Writes the Langfuse secrets into .env only when absent; values are never printed.
 langfuse-keys:

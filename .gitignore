@@ -23,3 +23,7 @@ dist/
 .claude/hooks/
 .claude/templates/
 .claude/settings.json
+
+# Eval reports are local; commit one on purpose with `git add -f backend/evals/reports/<provider>.md`.
+backend/evals/reports/*
+!backend/evals/reports/.gitkeep

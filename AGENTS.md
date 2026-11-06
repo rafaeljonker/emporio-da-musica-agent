@@ -12,7 +12,7 @@ Run from the repo root; all targets execute in `backend/`.
 - `make test`: pytest only.
 - `make db`: start Postgres (host port 5434), migrate, ingest policies and products.
 - `make test-pg`: Postgres integration tests on a separate `emporio_test` database; never touches dev data.
-- `make evals`: real-model retrieval eval on `emporio_test` (ingests by itself, no `make db` needed); not part of `make check`.
+- `make evals [PROVIDER=gemma|gemini|openai|anthropic]`: retrieval eval plus the agent golden cases (real model) on `emporio_test`; not part of `make check`.
 - `make fmt`: ruff format and `ruff check --fix`.
 
 ## Architecture rules

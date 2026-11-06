@@ -7,7 +7,6 @@ Expected facts are derived from the use cases here, never written in the TOML.
 
 import os
 import tomllib
-from collections.abc import Callable
 from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
@@ -15,8 +14,6 @@ from statistics import median
 from uuid import uuid4
 
 import pytest
-from evals.verify import Expect, Facts, Verdict, expand, verify
-from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage
 from psycopg import Connection
 from psycopg_pool import ConnectionPool
@@ -48,6 +45,9 @@ from emporio.policies.infrastructure.pg_policy_index import PgPolicyIndex
 from emporio.shared.clock import FixedClock, SystemClock
 from emporio.shared.money import Money
 from emporio.support.domain.channel_identity import ChannelIdentity
+from emporio.support.domain.scope import Scope
+from evals.verify import Expect, Facts, Verdict, expand, verify
+from tests.fakes.fake_chat_model import FakeToolCallingModel
 
 pytestmark = [pytest.mark.eval, pytest.mark.postgres]
 
@@ -206,10 +206,10 @@ def _report(provider: str, model_note: str, outcomes: list[Outcome], passed: int
     return "\n".join(lines) + "\n"
 
 
-def _fake_model(*_: object) -> GenericFakeChatModel:
-    """Answers every turn with the same generic line; the guard sees it as plain text."""
+def _fake_model(*_: object) -> FakeToolCallingModel:
+    """Answers every turn with the same generic line and never calls a tool."""
     reply = "Oi, tudo bem?\n\nPosso ajudar com algum instrumento?"
-    return GenericFakeChatModel(messages=iter(AIMessage(reply) for _ in range(10_000)))
+    return FakeToolCallingModel(messages=iter(AIMessage(reply) for _ in range(10_000)))
 
 
 def _agent_settings(fake: bool) -> Settings:
@@ -229,8 +229,8 @@ def test_agent_golden_cases(
     )
     facts = _derive_facts(pg_pool, settings)
     if fake:
-        make: Callable[[Settings], object] = _fake_model
-        monkeypatch.setattr(bootstrap, "make_chat_model", make)
+        monkeypatch.setattr(bootstrap, "make_chat_model", _fake_model)
+        monkeypatch.setattr(bootstrap, "make_classifier", lambda model: lambda messages: Scope.LOJA)
     agent = build_agent(settings)
     run_id = uuid4().hex[:8]
     outcomes: list[Outcome] = []
