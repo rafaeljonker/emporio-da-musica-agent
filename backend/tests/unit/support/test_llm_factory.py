@@ -1,4 +1,5 @@
 import pytest
+from pydantic import SecretStr
 
 from emporio.config import Provider, Settings
 from emporio.support.infrastructure.llm.factory import make_chat_model
@@ -26,9 +27,9 @@ def test_factory_builds_each_provider_without_network(
     settings = Settings(
         provider=provider,
         vllm_base_url="http://vllm.test/v1",
-        gemini_api_key="fake",
-        openai_api_key="fake",
-        anthropic_api_key="fake",
+        gemini_api_key=SecretStr("fake"),
+        openai_api_key=SecretStr("fake"),
+        anthropic_api_key=SecretStr("fake"),
     )
     model = make_chat_model(settings)
     assert type(model).__name__ == class_name

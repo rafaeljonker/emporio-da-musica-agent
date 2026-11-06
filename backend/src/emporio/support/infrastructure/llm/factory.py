@@ -1,0 +1,41 @@
+from langchain.chat_models import init_chat_model
+from langchain_core.language_models.chat_models import BaseChatModel
+
+from emporio.config import Provider, Settings
+
+_TEMPERATURE = 0.3
+
+
+def make_chat_model(settings: Settings) -> BaseChatModel:
+    """Build the chat model for the configured provider; no network call happens here."""
+    match settings.provider:
+        case Provider.GEMMA:
+            return init_chat_model(
+                settings.gemma_model,
+                model_provider="openai",
+                base_url=settings.vllm_base_url,
+                api_key=settings.vllm_api_key,
+                temperature=_TEMPERATURE,
+            )
+        case Provider.GEMINI:
+            return init_chat_model(
+                settings.gemini_model,
+                model_provider="google_genai",
+                api_key=settings.gemini_api_key,
+                thinking_level="minimal",
+                temperature=_TEMPERATURE,
+            )
+        case Provider.OPENAI:
+            return init_chat_model(
+                settings.openai_model,
+                model_provider="openai",
+                api_key=settings.openai_api_key,
+                temperature=_TEMPERATURE,
+            )
+        case Provider.ANTHROPIC:
+            return init_chat_model(
+                settings.anthropic_model,
+                model_provider="anthropic",
+                api_key=settings.anthropic_api_key,
+                temperature=_TEMPERATURE,
+            )
