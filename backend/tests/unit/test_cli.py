@@ -146,3 +146,25 @@ def test_cli_unknown_customer_exits_2(
     assert exc.value.code == 2
     assert "cliente 999 não encontrado" in capsys.readouterr().err
     assert closed.done
+
+
+def test_check_config_exits_2_naming_the_missing_variable(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def fail(provider: Provider | None = None) -> None:
+        raise MissingSetting("GEMINI_API_KEY", Provider.GEMINI, "gemma")
+
+    monkeypatch.setattr(cli, "load_provider_settings", fail)
+    monkeypatch.setattr(cli, "build_agent", lambda s: pytest.fail("must not build the agent"))
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["check-config", "--provider", "gemini", "--as-customer", "14"])
+    assert exc.value.code == 2
+    assert "GEMINI_API_KEY is required" in capsys.readouterr().err
+
+
+def test_check_config_passes_without_starting_anything(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[Provider | None] = []
+    monkeypatch.setattr(cli, "load_provider_settings", lambda provider=None: seen.append(provider))
+    monkeypatch.setattr(cli, "build_agent", lambda s: pytest.fail("must not build the agent"))
+    cli.main(["check-config", "--provider", "openai"])
+    assert seen == [Provider.OPENAI]

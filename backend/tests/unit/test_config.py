@@ -2,7 +2,13 @@ from datetime import date
 
 import pytest
 
-from emporio.config import ConfigError, Provider, Settings, load_mcp_settings, load_settings
+from emporio.config import (
+    ConfigError,
+    Provider,
+    Settings,
+    load_mcp_settings,
+    load_settings,
+)
 
 _ENV_VARS = (
     "LLM_PROVIDER", "VLLM_BASE_URL", "VLLM_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY",
@@ -110,3 +116,14 @@ def test_mcp_settings_load_without_provider_vars():
     assert load_mcp_settings().provider is Provider.GEMMA
     with pytest.raises(ConfigError, match="VLLM_BASE_URL"):
         load_settings()
+
+
+def test_provider_check_needs_the_provider_key_but_not_langfuse(monkeypatch: pytest.MonkeyPatch):
+    from emporio.config import load_provider_settings
+
+    for name in _FAKE_LANGFUSE:
+        monkeypatch.delenv(name)
+    with pytest.raises(ConfigError, match="GEMINI_API_KEY"):
+        load_provider_settings(Provider.GEMINI)
+    monkeypatch.setenv("GEMINI_API_KEY", "fake")
+    assert load_provider_settings(Provider.GEMINI).provider is Provider.GEMINI
