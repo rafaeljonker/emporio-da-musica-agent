@@ -28,6 +28,14 @@ def _ms(seconds: float) -> int:
     return round(seconds * 1000)
 
 
+def _usd(
+    price: tuple[Decimal, Decimal, Decimal], input_tokens: int, cached: int, output: int
+) -> Decimal:
+    usd_in, usd_out, usd_cached = price
+    fresh = input_tokens - cached
+    return (fresh * usd_in + cached * usd_cached + output * usd_out) / Decimal(1_000_000)
+
+
 class TurnProbe(BaseCallbackHandler):
     """Per-turn timings, model calls, token usage and tool names, read from callbacks.
 
@@ -47,6 +55,10 @@ class TurnProbe(BaseCallbackHandler):
         self.input_tokens = 0
         self.output_tokens = 0
         self.cached_tokens = 0
+        # Share of the totals above spent by the guard (priced at the guard model).
+        self.guard_input_tokens = 0
+        self.guard_output_tokens = 0
+        self.guard_cached_tokens = 0
         self.tools: list[str] = []
         self._guard_runs: set[UUID] = set()
         self._parents: dict[UUID, UUID | None] = {}
@@ -111,16 +123,21 @@ class TurnProbe(BaseCallbackHandler):
     ) -> None:
         with self._lock:
             elapsed = self._elapsed(run_id)
-            if not self._in_guard(self._parents.get(run_id)):
+            in_guard = self._in_guard(self._parents.get(run_id))
+            if not in_guard:
                 self.ms_llm += elapsed
             for generation in response.generations[0][:1]:
                 message = getattr(generation, "message", None)
                 usage = message.usage_metadata if isinstance(message, AIMessage) else None
                 if usage:
+                    cached = (usage.get("input_token_details") or {}).get("cache_read", 0)
                     self.input_tokens += usage["input_tokens"]
                     self.output_tokens += usage["output_tokens"]
-                    details = usage.get("input_token_details") or {}
-                    self.cached_tokens += details.get("cache_read", 0)
+                    self.cached_tokens += cached
+                    if in_guard:
+                        self.guard_input_tokens += usage["input_tokens"]
+                        self.guard_output_tokens += usage["output_tokens"]
+                        self.guard_cached_tokens += cached
 
     def on_tool_start(
         self,
@@ -167,6 +184,12 @@ class GraphRunner:
             Provider.LOCAL: s.ollama_model,
         }[s.provider]
 
+    def _guard_model(self, model: str) -> str:
+        s = self._settings
+        if s.fake_model or s.provider is not Provider.GEMINI:
+            return model
+        return s.gemini_guard_model
+
     def _cost_brl(self, model: str, probe: TurnProbe) -> Decimal | None:
         price = self._settings.prices.get(model)
         if price is None:
@@ -176,12 +199,20 @@ class GraphRunner:
             # Upper bound: assumes the GPU served only this turn (concurrency 1).
             ms = Decimal(_ms(probe.ms_guard) + _ms(probe.ms_llm))
             return gpu * ms / 3_600_000 * self._settings.usd_brl
-        usd_in, usd_out, usd_cached = price
-        fresh = probe.input_tokens - probe.cached_tokens
-        usd = (
-            fresh * usd_in + probe.cached_tokens * usd_cached + probe.output_tokens * usd_out
-        ) / Decimal(1_000_000)
-        return usd * self._settings.usd_brl
+        guard_price = self._settings.prices.get(self._guard_model(model), price)
+        agent_usd = _usd(
+            price,
+            probe.input_tokens - probe.guard_input_tokens,
+            probe.cached_tokens - probe.guard_cached_tokens,
+            probe.output_tokens - probe.guard_output_tokens,
+        )
+        guard_usd = _usd(
+            guard_price,
+            probe.guard_input_tokens,
+            probe.guard_cached_tokens,
+            probe.guard_output_tokens,
+        )
+        return (agent_usd + guard_usd) * self._settings.usd_brl
 
     def run(self, identity: ChannelIdentity, text: str) -> tuple[str, Scope, TurnMetrics]:
         started = perf_counter()

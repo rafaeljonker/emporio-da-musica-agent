@@ -114,7 +114,7 @@ The real-model load test (10–20 users on the H100) was skipped for budget (own
 ## 5. Cost per conversation
 
 ### Gemini (measured)
-The Gemini eval run reports **R$ 0.0307 per eval case** (about $0.0056; 6,554 input and 184 output tokens on average), including the Flash-Lite guard, at the list price valid until 2026-12-31 (from 2027-01-01 it doubles). A live turn on the hosted demo showed R$ 0.0255. Most eval cases are a single customer message, so a 4-turn conversation is about **R$ 0.12 ($0.022)** (estimate: 4 × the per-case cost; later turns carry more history, so this leans low).
+The Gemini eval run reports **R$ 0.0307 per eval case** (about $0.0056; 6,554 input and 184 output tokens on average). That run priced every token, the Flash-Lite guard's included, at the Flash rate, so the figure is a slight overestimate; the runner now prices guard tokens at the Flash-Lite rate. Both rates are the list price valid until 2026-12-31 (from 2027-01-01 it doubles). A live turn on the hosted demo showed R$ 0.0255. Most eval cases are a single customer message, so a 4-turn conversation is about **R$ 0.12 ($0.022)** (estimate: 4 × the per-case cost; later turns carry more history, so this leans low).
 
 ### Gemma (upper bound vs real session)
 The metrics panel prices a Gemma turn as **GPU seconds × the GPU's hourly price** (`cost_basis` "Teto pelo tempo de GPU desta resposta"): an upper bound that assumes the GPU serves only this turn (concurrency 1).
