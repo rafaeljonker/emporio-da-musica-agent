@@ -167,12 +167,15 @@ def _expect(case: dict[str, object], facts: Facts) -> Expect:
 
     tools = case.get("expect_tools", [])
     assert isinstance(tools, list)
+    forbidden = case.get("forbid_tools", [])
+    assert isinstance(forbidden, list)
     return Expect(
         expect_tools=tuple(str(t) for t in tools),
         all_of=tokens("all_of") or (),
         any_of=tokens("any_of"),
         none_of=tokens("none_of") or (),
         ask=bool(case.get("ask", False)),
+        forbid_tools=tuple(str(t) for t in forbidden),
     )
 
 
@@ -235,6 +238,7 @@ def _send(
     agent: Agent, identity: ChannelIdentity, case: dict[str, object], facts: Facts
 ) -> tuple[str, Reply]:
     """Send the case's message(s) in order on one identity; the last one is what gets verified."""
+    # Tools (turn_metrics) are read for the last turn only, via the last reply's trace.
     raw = case.get("messages") or [case["message"]]
     assert isinstance(raw, list)
     texts = [str(m).format_map(facts) for m in raw]

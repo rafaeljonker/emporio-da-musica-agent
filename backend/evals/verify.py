@@ -148,6 +148,7 @@ class Expect:
     any_of: tuple[str, ...] | None = None  # () means "required but no candidate": always fails
     none_of: tuple[str, ...] = ()
     ask: bool = False
+    forbid_tools: tuple[str, ...] = ()  # "*" forbids any tool
 
 
 @dataclass(frozen=True)
@@ -167,6 +168,9 @@ def verify(expect: Expect, bubbles: Sequence[str], tools_used: Sequence[str]) ->
     missing = [t for t in expect.expect_tools if not set(t.split("|")) & set(tools_used)]
     if missing:
         failures.append(f"tools not called: {', '.join(missing)}")
+    called = [t for t in tools_used if "*" in expect.forbid_tools or t in expect.forbid_tools]
+    if called:
+        failures.append(f"forbidden tools called: {', '.join(called)}")
     failures += [f"missing: {t}" for t in expect.all_of if not matches(t, text)]
     if expect.any_of is not None and not any(matches(t, text) for t in expect.any_of):
         failures.append(f"none of: {', '.join(expect.any_of) or '(no candidates derived)'}")
