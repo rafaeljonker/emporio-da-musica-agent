@@ -33,12 +33,23 @@ ACTIONS = {
     "search_policies": "consulta às políticas",
 }
 PRICED = "Estimado pelo preço de lista do provedor"
-UNPRICED = "Custo de GPU ainda não medido"
+GPU_UNMEASURED = "Custo de GPU ainda não medido"
+PRICE_UNCONFIRMED = "Preço do provedor ainda não confirmado"
+FAKE = "Modo de teste, sem custo"
 
 
 def action_label(tools: Sequence[str]) -> str:
     labels = dict.fromkeys(ACTIONS[t] for t in tools if t in ACTIONS)
     return " + ".join(labels) or "sem ferramenta"
+
+
+def _cost_basis(m: TurnMetrics) -> str:
+    """Why `cost_brl` is what it is: priced, self-hosted GPU, unpriced API, or the fake model."""
+    if m.provider == "fake":
+        return FAKE
+    if m.cost_brl is not None:
+        return PRICED
+    return GPU_UNMEASURED if m.provider == "gemma" else PRICE_UNCONFIRMED
 
 
 def _metrics_payload(m: TurnMetrics) -> dict[str, object]:
@@ -53,7 +64,7 @@ def _metrics_payload(m: TurnMetrics) -> dict[str, object]:
         "ms_llm": m.ms_llm,
         "ms_tools": m.ms_tools,
         "cost_brl": cost,
-        "cost_basis": UNPRICED if cost is None else PRICED,
+        "cost_basis": _cost_basis(m),
         "action": action_label(m.tools),
     }
 
