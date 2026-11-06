@@ -160,10 +160,16 @@ def load_mcp_settings() -> Settings:
     return _read_settings()
 
 
-def load_settings(provider: Provider | None = None) -> Settings:
+def load_provider_settings(provider: Provider | None = None) -> Settings:
+    """Settings with the provider check only: a fast fail before slow setup (Docker, Langfuse)."""
     settings = _read_settings()
     if provider is not None:
         settings = settings.model_copy(update={"provider": provider})
     require_provider_settings(settings)
+    return settings
+
+
+def load_settings(provider: Provider | None = None) -> Settings:
+    settings = load_provider_settings(provider)
     require_langfuse_settings(settings)
     return settings

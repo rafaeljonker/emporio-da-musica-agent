@@ -9,7 +9,13 @@ from collections.abc import Callable, Sequence
 from uuid import uuid4
 
 from emporio.bootstrap import build_agent, run_mcp
-from emporio.config import ConfigError, Provider, load_mcp_settings, load_settings
+from emporio.config import (
+    ConfigError,
+    Provider,
+    load_mcp_settings,
+    load_provider_settings,
+    load_settings,
+)
 from emporio.db import DatabaseNotConfigured
 from emporio.support.domain.channel_identity import ChannelIdentity
 
@@ -28,9 +34,17 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="emporio")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("mcp", help="serve the tools over MCP (stdio)")
-    chat = commands.add_parser("chat")
-    chat.add_argument("--as-customer", type=int, metavar="ID", help="log in as this customer id")
-    chat.add_argument("--provider", type=Provider, choices=list(Provider))
+    chat_options = argparse.ArgumentParser(add_help=False)
+    chat_options.add_argument(
+        "--as-customer", type=int, metavar="ID", help="log in as this customer id"
+    )
+    chat_options.add_argument("--provider", type=Provider, choices=list(Provider))
+    commands.add_parser("chat", parents=[chat_options])
+    commands.add_parser(
+        "check-config",
+        parents=[chat_options],
+        help="check the provider settings and exit (no Langfuse, no database)",
+    )
     return parser
 
 
@@ -57,6 +71,13 @@ def main(
     args = _parser().parse_args(argv)
     if args.command == "mcp":
         _serve_mcp()
+        return
+    if args.command == "check-config":
+        try:
+            load_provider_settings(args.provider)
+        except ConfigError as err:
+            print(err, file=sys.stderr)
+            raise SystemExit(2) from err
         return
     try:
         agent = build_agent(load_settings(provider=args.provider))
