@@ -1,5 +1,6 @@
 import logging
 from collections.abc import Sequence
+from dataclasses import replace
 
 import pytest
 from langchain_core.language_models import BaseChatModel
@@ -241,7 +242,8 @@ def test_unexpected_tool_exception_becomes_a_tool_message(
         first = _ask(graph, "1")
     assert any(isinstance(m, ToolMessage) and m.content == TOOL_FAILURE_TEXT for m in first)
     assert first[-1].content == "Não consegui."
-    assert any(r.exc_info for r in caplog.records)
+    assert any("RuntimeError" in r.getMessage() for r in caplog.records)
+    assert not any(r.exc_info for r in caplog.records)  # a traceback would echo the arguments
     _ask(graph, "2")
     sent = model.seen[-1]
     calls = {c["id"] for m in sent if isinstance(m, AIMessage) for c in m.tool_calls}
@@ -260,3 +262,21 @@ def test_checkpointed_scope_is_a_plain_string(caplog: pytest.LogCaptureFixture) 
         stored = graph.get_state(CONFIG).values["scope"]
     assert type(stored) is str
     assert "unregistered type" not in caplog.text
+
+
+def test_crashing_tool_is_logged_by_name_and_type_only(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    def broken(question: str, k: int) -> object:
+        raise RuntimeError("segredo@exemplo.com")
+
+    box = replace(make_box(), search_policies=broken)  # pyright: ignore[reportArgumentType]
+    model = FakeToolCallingModel(
+        messages=iter([_call("search_policies", question="troca"), AIMessage("Não consegui.")])
+    )
+    graph = build_graph(model, build_tools(box), lambda _m: Scope.LOJA, InMemorySaver())
+    with caplog.at_level(logging.DEBUG):
+        messages = _ask(graph, "e a troca?")
+    assert any(isinstance(m, ToolMessage) and m.content == TOOL_FAILURE_TEXT for m in messages)
+    assert "tool search_policies raised RuntimeError" in caplog.text
+    assert "segredo" not in caplog.text

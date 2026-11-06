@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 
@@ -178,3 +179,13 @@ def test_generic_domain_error_is_logged_not_echoed(caplog: pytest.LogCaptureFixt
 
     assert result == "Dado inválido."
     assert "segredo interno" in caplog.text
+
+
+def test_unexpected_exception_is_reduced_to_tool_name_and_type() -> None:
+    def broken(question: str, k: int) -> object:
+        raise RuntimeError("segredo@exemplo.com")
+
+    box = replace(make_box(), search_policies=broken)  # pyright: ignore[reportArgumentType]
+    with pytest.raises(tools.ToolCrashed) as crash:
+        tools.search_policies(box, ANON, "troca")
+    assert str(crash.value) == "search_policies raised RuntimeError"

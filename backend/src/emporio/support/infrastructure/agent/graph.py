@@ -29,11 +29,11 @@ from langgraph.runtime import Runtime
 from emporio.support.domain.scope import Scope
 from emporio.support.infrastructure.agent.context import TurnContext
 from emporio.support.infrastructure.agent.prompt import scope_note, system_prompt
+from emporio.support.infrastructure.agent.tools import TOOL_FAILURE
 
 logger = logging.getLogger("emporio.support.tools")
 
 MAX_TOOL_ROUNDS = 5
-TOOL_FAILURE = "Não consegui consultar isso agora; ofereça passar o e-mail e o WhatsApp da loja."
 NO_MORE_TOOLS = "Responda com o que você já tem, sem chamar mais ferramentas."
 
 ABUSE_REPLY = (
@@ -60,7 +60,9 @@ def bind_without_tool_calls(model: BaseChatModel, tools: Sequence[BaseTool]) -> 
 
 
 def _tool_failure(error: Exception) -> str:
-    logger.error("tool raised", exc_info=error)
+    # Never log the exception text or traceback: they echo the tool arguments (e-mail, phone).
+    name = getattr(error, "tool_name", "unknown")
+    logger.error("tool %s raised %s", name, getattr(error, "error_type", type(error).__name__))
     return TOOL_FAILURE
 
 

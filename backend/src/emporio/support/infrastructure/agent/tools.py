@@ -10,6 +10,7 @@ from decimal import Decimal
 from functools import wraps
 
 from langchain.tools import BaseTool, ToolRuntime, tool
+from langchain_core.tools import ToolException
 
 from emporio.catalog.application.get_product import GetProduct
 from emporio.catalog.application.list_promotions import ListPromotions
@@ -55,6 +56,17 @@ ASK_EMAIL_OR_PHONE = "Peça o e-mail ou telefone do cadastro do pedido."
 INSTALLMENTS_NOT_ALLOWED = "Esse parcelamento não é permitido para esse valor."
 INDEX_UNAVAILABLE = "Busca indisponível agora; ofereça encaminhar para a equipe."
 PRODUCT_NOT_FOUND = "Produto não encontrado."
+TOOL_FAILURE = "Não consegui consultar isso agora; ofereça passar o e-mail e o WhatsApp da loja."
+
+
+class ToolCrashed(ToolException):
+    """An unexpected tool failure reduced to name and type: the original message and arguments
+    can carry an e-mail or phone, and this text reaches logs and the trace span status."""
+
+    def __init__(self, tool_name: str, error_type: str) -> None:
+        super().__init__(f"{tool_name} raised {error_type}")
+        self.tool_name = tool_name
+        self.error_type = error_type
 
 
 @dataclass(frozen=True)
@@ -88,6 +100,8 @@ def _safe[**P](fn: Callable[P, ToolOutput]) -> Callable[P, ToolOutput]:
         except DomainError as err:  # e.g. InvalidMoney
             logger.warning("tool input rejected: %s", err)
             return "Dado inválido."
+        except Exception as err:
+            raise ToolCrashed(fn.__name__, type(err).__name__) from err
 
     return run
 
@@ -263,7 +277,7 @@ def build_tools(box: Toolbox) -> list[BaseTool]:
         """Busca nas políticas da loja (troca, garantia, frete, horários)."""
         return search_policies(box, runtime.context, question)
 
-    return [
+    tools = [
         search_products_tool,
         recommend_products_tool,
         get_product_tool,
@@ -275,3 +289,8 @@ def build_tools(box: Toolbox) -> list[BaseTool]:
         store_now_tool,
         search_policies_tool,
     ]
+    for built in tools:
+        # Malformed arguments: a fixed text, so neither the model-visible message nor the span
+        # status echoes the arguments (they may hold an e-mail or phone).
+        built.handle_validation_error = TOOL_FAILURE
+    return tools
