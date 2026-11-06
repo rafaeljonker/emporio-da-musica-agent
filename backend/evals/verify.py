@@ -7,6 +7,9 @@ thousands dots, ",00"), so "R$ 2.199,00", "2199 reais" and "R$2.199" all match t
 "nove vezes" are one answer; "descontinuado" and "saiu de linha" are one answer.
 """
 
+# ponytail: regex heuristics with a known ceiling. A wrong verdict is audited by reading the
+# failure transcripts in the report; the upgrade path is an LLM judge (report-only, not gating).
+
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -31,7 +34,8 @@ _NOT_DISCONTINUED = (
     r"|indisponivel|esgotad))"
 )
 _NOT_RETURN_NO = (
-    r"(?!.*(fora do prazo|passou|venceu|expirou|nao (esta|ta) (mais )?(no|dentro do) prazo"
+    r"(?!.*(fora do prazo|(?<!nao )(passou|venceu|expirou)"
+    r"|nao (esta|ta) (mais )?(no|dentro do) prazo"
     r"|nao (da|e possivel|consigo|posso)( mais)? (pra |para )?(fazer a )?devol))"
 )
 _NOT_CLOSED = r"(?!.*(fechad|nao (estamos|tamo|to|esta|ta) abert|nao abrimos))"
@@ -49,10 +53,14 @@ GROUPS: dict[str, str] = {
     "asks_identity": r"numero do pedido|e-?mail|telefone|cpf",
     "instruments": r"instrument",
     "declines_accessory": (
-        r"nao (vendemos|trabalhamos|temos)|so (com |vendemos )?instrumentos"
-        r"|apenas instrumentos|somente instrumentos"
+        r"nao (vendemos|trabalhamos com|temos|tem) (\w+ )?"
+        r"(encordoamento|acessori|corda|cabo|palheta|pedal|amplificador|case)"
+        r"|(?<!nao temos )(?<!nao tem )(so|apenas|somente) (com |vendemos )?instrumentos"
     ),
-    "asks_model": r"qual (modelo|deles|desses|dos)|que modelo|algum modelo|de qual",
+    "asks_model": (
+        r"qual (modelo|deles|desses|dos)|que modelo|algum modelo|de qual"
+        r"|qual (voce|vc) (procura|quer|prefere)"
+    ),
     "store_topic": r"instrument|loja|violao|guitarra|musica|emporio",
     "recommends_movie": r"recomend\w* (o|um) filme|assista|assiste|que tal assistir",
     "return_yes": (
@@ -64,6 +72,7 @@ GROUPS: dict[str, str] = {
         r"|prazo\b.{0,40}\b(?<!nao )(passou|acabou|venceu|expirou|encerrou|terminou)"
         r"|(?<!nao )(passou|acabou|venceu|expirou)\b.{0,15}\bprazo"
         r"|nao (da|e possivel|consigo|posso)( mais)? (pra |para )?(fazer a )?devol"
+        r"|nao da mais"
     ),
     # An open store never also says it is closed or "not open": "fechado, amanha estamos abertos".
     "store_open": (
@@ -71,12 +80,18 @@ GROUPS: dict[str, str] = {
     ),
     "store_closed": r"fechad|nao (estamos|tamo|to|esta|ta) abert|nao abrimos",
     "status_delivered": (r"(?<!nao )(?<!nao foi )(?<!nao esta )\bentregue\b|(?<!nao )chegou"),
-    "claim_delivered": r"(?<!nao )foi entregue|entregue em|ja (foi )?entregue",
+    "claim_delivered": (
+        r"(?<!nao )(?<!confirmar se )(?<!saber se )(?<!dizer se )foi entregue"
+        r"|entregue em|ja (foi )?entregue|(?<!nao )chegou"
+    ),
     "status_shipped": r"enviad|a caminho|transito|postad|despachad",
     "status_confirmed": r"confirmad|separa|preparand",
     "status_pending": r"pendente|aguardando|pagamento",
     "status_cancelled": r"cancelad",
-    "legal_warranty": r"garantia legal|90 dias|noventa dias|\bcdc\b|codigo de defesa",
+    "legal_warranty": (
+        r"^(?!.*garantia\b.{0,30}\b(acabou|expirou|venceu|passou|encerrou|terminou))"
+        r".*(garantia legal|90 dias|noventa dias|\bcdc\b|codigo de defesa)"
+    ),
 }
 
 
