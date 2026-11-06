@@ -4,7 +4,7 @@ export PATH := $(CURDIR)/backend/.venv/bin:$(PATH)
 .DEFAULT_GOAL := help
 
 help:
-	@echo "targets: up dev e2e local-model setup fmt lint typecheck imports test check web-install web-build check-web db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp deploy-llm deploy-api deploy-proxy"
+	@echo "targets: up dev e2e local-model setup fmt lint typecheck imports test check web-install web-build check-web db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp deploy-llm deploy-api deploy-proxy loadtest"
 
 setup:
 	cd backend && uv sync && uv run pre-commit install --config ../.pre-commit-config.yaml
@@ -12,8 +12,8 @@ setup:
 fmt:
 	cd backend && uv run ruff format . && uv run ruff check --fix .
 
-# Outside backend/, linted with its config; loadtest/ joins once it exists.
-LINT_EXTRA = e2e deploy $(wildcard loadtest)
+# Outside backend/, linted with its config (CI runs the same list).
+LINT_EXTRA = e2e deploy loadtest
 
 lint:
 	cd backend && uv run ruff check . && uv run ruff format --check .
