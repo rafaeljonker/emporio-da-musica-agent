@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from emporio.config import ConfigError, Provider, Settings, load_settings
+from emporio.config import ConfigError, Provider, Settings, load_mcp_settings, load_settings
 
 _ENV_VARS = (
     "LLM_PROVIDER", "VLLM_BASE_URL", "VLLM_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY",
@@ -104,3 +104,9 @@ def test_disabling_vars_are_rejected(monkeypatch: pytest.MonkeyPatch, variable: 
     monkeypatch.setenv(variable, value)
     with pytest.raises(ConfigError, match=variable):
         load_settings(Provider.OPENAI)
+
+
+def test_mcp_settings_load_without_provider_vars():
+    assert load_mcp_settings().provider is Provider.GEMMA
+    with pytest.raises(ConfigError, match="VLLM_BASE_URL"):
+        load_settings()
