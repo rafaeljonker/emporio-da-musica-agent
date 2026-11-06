@@ -115,6 +115,8 @@ class Settings(BaseSettings):
     session_secret: SecretStr | None = None
     session_https_only: bool = True
     session_max_age_seconds: int = 28800
+    # Shared with the Cloudflare Worker: only a request carrying it may name the client IP.
+    proxy_secret: SecretStr | None = None
     # Scales the login and chat rate limits for load tests; only with the fake model (no GPU cost).
     rate_limit_multiplier: int = Field(default=1, ge=1)
 
