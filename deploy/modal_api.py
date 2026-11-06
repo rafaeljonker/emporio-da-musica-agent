@@ -13,9 +13,9 @@ from pathlib import Path
 
 import modal
 
-# Under the GPU scaledown (deploy/modal_llm.py GPU_SCALEDOWN_SECONDS = 600): a READY older than this
+# Under the GPU scaledown (deploy/modal_llm.py GPU_SCALEDOWN_SECONDS = 300): a READY older than this
 # is probed again, so the API never reports a GPU that has already scaled down.
-WARM_READY_TTL_SECONDS = 540
+WARM_READY_TTL_SECONDS = 240
 # USD per hour, modal.com/pricing on 2026-11-06. Keys must match deploy/modal_llm.py GPUS.
 GPU_PRICES = {"H100": "3.95", "L40S": "1.95"}
 # Keys of deploy/modal_llm.py WEIGHTS. "-snap" is the GPU memory-snapshot variant (Task 9).

@@ -198,3 +198,8 @@ Decided by the owner on 2026-11-06:
 2. **GPU scaledown window:** 10 min; `WARM_READY_TTL_SECONDS` about 540 s, just under it.
 3. **`PROVIDER=local`:** the lean version (about 2 h): macOS native, Docker CPU and Docker NVIDIA detection, the three warnings, a Modelfile with a 16k context, one eval run on the owner's Mac.
 4. **Snapshot and load test:** GPU memory snapshot time-boxed to 90 min at the end (documented either way); Locust against a fake-model app at 100–300 users; a 10–20 user real-model run only if time is left.
+
+Revised by the owner on 2026-11-06 after checking the Modal balance ($8 credit, no card: the apps stop when it runs out):
+5. **Budget:** measure only H100 FP8 and L40S FP8 (about $2.50). Skip the BF16 baseline (compare against the spike's 14/14 on BF16), the GPU memory snapshot and the real-model load test. Keep about $5 for evaluator sessions.
+6. **Scaledown:** 300 s instead of 600 s (about $1.15 per evaluator session on H100); `WARM_READY_TTL_SECONDS` 240.
+7. **Plan B:** if the credit nears $1, the hosted demo switches to Gemini through an env variable, with no code change, and the README documents both.

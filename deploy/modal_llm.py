@@ -21,7 +21,7 @@ WEIGHTS = {
     "fp8": ("RedHatAI/gemma-4-31B-it-FP8-dynamic", "d4ab4f579dd3516f97d8a6a4c98d0653480bad15"),
     "bf16": ("google/gemma-4-31B-it", "842da3794eaa0b77d5f08bae87a17459d91ff475"),
 }
-GPU_SCALEDOWN_SECONDS = 600
+GPU_SCALEDOWN_SECONDS = 300
 SERVED_MODEL_NAME = "google/gemma-4-31B-it"
 VLLM_VERSION = "0.33.0"
 VLLM_PORT = 8000
