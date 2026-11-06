@@ -33,3 +33,21 @@ def test_metrics_row_roundtrip(pg_pool: ConnectionPool) -> None:
     finally:
         with pg_pool.connection() as conn:
             conn.execute("TRUNCATE turn_metrics")
+
+
+def test_reply_p50_from_turn_metrics(pg_pool: ConnectionPool) -> None:
+    store = PgMetricsStore(pg_pool)
+    with pg_pool.connection() as conn:
+        conn.execute("TRUNCATE turn_metrics")
+    try:
+        assert store.reply_p50_seconds() is None
+        for ms in (1000, 3000, 9000):
+            store.save(
+                TurnMetrics(
+                    "web:anon:s", "gemma", "m", Scope.LOJA, 1, 1, 0, 1, (), ms, 0, 0, 0, None, None
+                )
+            )
+        assert store.reply_p50_seconds() == 3.0
+    finally:
+        with pg_pool.connection() as conn:
+            conn.execute("TRUNCATE turn_metrics")
