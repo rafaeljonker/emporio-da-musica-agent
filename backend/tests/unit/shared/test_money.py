@@ -39,3 +39,11 @@ def test_from_str_rejects_garbage():
 )
 def test_percent_off_never_exceeds_original(value: Decimal, pct: int):
     assert Money(value).percent_off(Decimal(pct)) <= Money(value)
+
+
+def test_money_method_format_brl_drops_zero_cents():
+    assert Money.from_str("2199").format_brl() == "R$ 2.199"
+
+
+def test_money_method_format_brl_keeps_cents():
+    assert Money.from_str("2089.05").format_brl() == "R$ 2.089,05"
