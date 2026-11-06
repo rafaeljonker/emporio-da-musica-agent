@@ -1,10 +1,11 @@
 """The web API (FastAPI + the built frontend) on Modal, with Railway Postgres and Langfuse Cloud.
 
-Deploy with `make deploy-api [API_PROVIDER=gemma|gemini] [LLM_APP=emporio-llm-<gpu>-<weights>]
-[LOADTEST=1]`. API_PROVIDER=gemini talks to the Gemini API (secret `emporio-gemini`, no GPU,
-no warm-up). LOADTEST=1 deploys `emporio-api-loadtest`: scripted model, raised rate limits,
-no GPU. From backend/, `uv run modal run ../deploy/modal_api.py::ingest` migrates and indexes
-the data into the `emporio-db` database (frontend/dist must exist: `make web-build`).
+Deploy with `make deploy-api [API_PROVIDER=gemini|gemma] [LLM_APP=emporio-llm-<gpu>-<weights>]
+[LOADTEST=1]`. API_PROVIDER defaults to gemini (the hosted demo, like the Makefile): the Gemini
+API (secret `emporio-gemini`, no GPU, no warm-up); gemma calls the GPU app LLM_APP.
+LOADTEST=1 deploys `emporio-api-loadtest`: scripted model, raised rate limits, no GPU.
+From backend/, `uv run modal run ../deploy/modal_api.py::ingest` migrates and indexes the data
+into the `emporio-db` database (frontend/dist must exist: `make web-build`).
 """
 
 import os
@@ -35,7 +36,7 @@ API_PROVIDERS = ("gemma", "gemini")
 
 LLM_APP = os.environ.get("EMPORIO_LLM_APP", "emporio-llm-h100-fp8")
 LOADTEST = os.environ.get("EMPORIO_LOADTEST", "")
-API_PROVIDER = os.environ.get("EMPORIO_API_PROVIDER", "gemma")
+API_PROVIDER = os.environ.get("EMPORIO_API_PROVIDER", "gemini")
 if API_PROVIDER not in API_PROVIDERS:
     msg = f"EMPORIO_API_PROVIDER must be one of {API_PROVIDERS}, got {API_PROVIDER!r}"
     raise SystemExit(msg)
