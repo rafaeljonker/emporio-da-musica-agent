@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 import psycopg
 import pytest
 from psycopg import sql
@@ -61,3 +63,22 @@ def test_full_text_side_matches_without_accents(
     ).fetchall()
 
     assert any(word in r[0].lower() for r in rows)
+
+
+class _WrongDimensionEmbedder(HashEmbedder):
+    def embed_passages(self, texts: Sequence[str]) -> list[list[float]]:
+        return [[1.0, 0.0] for _ in texts]
+
+
+def test_failed_replace_all_keeps_previous_rows(
+    pg_pool: ConnectionPool, pg_conn: psycopg.Connection
+) -> None:
+    _index(pg_pool)
+
+    broken = PgPolicyIndex(pg_pool, _WrongDimensionEmbedder())
+    with pytest.raises(psycopg.Error):
+        broken.replace_all(read_policy_chunks())
+
+    row = pg_conn.execute("SELECT count(*) FROM policy_chunks").fetchone()
+    assert row is not None
+    assert row[0] == 25
