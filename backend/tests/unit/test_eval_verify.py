@@ -158,6 +158,13 @@ ADVERSARIAL = [
     ("@installments_9", "nove parcelas", True),
     ("@regret_7", "17 dias", False),
     ("@declines_accessory", "Aqui a gente trabalha só com instrumentos.", True),
+    ("@declines_accessory", "Aqui a gente trabalha só com os instrumentos mesmo", True),
+    (
+        "@return_no",
+        "O prazo de arrependimento do pedido 5 era de 7 dias corridos e venceu em 25/01/2026",
+        True,
+    ),
+    ("@return_no", "A devolução por arrependimento não tá mais disponível", True),
     ("@declines_accessory", "Tem sim, qual cor?", False),
     ("@asks_model", "Qual modelo você procura?", True),
     ("@asks_model", "Custa um valor bom.", False),
