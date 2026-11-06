@@ -8,8 +8,11 @@ it; `turn_metadata` supplies those keys and the runner puts them in the graph co
 
 import hashlib
 import hmac
+import json
 import logging
 import re
+import unicodedata
+from collections.abc import Callable, Iterable, Sequence
 from typing import Protocol
 from uuid import uuid4
 
@@ -63,21 +66,59 @@ def _phone_or_same(run: re.Match[str]) -> str:
     return REDACTED if _BR_PHONE.fullmatch(digits) else run.group()
 
 
-def redact(text: str) -> str:
-    return _PHONE_RUN.sub(_phone_or_same, _PII.sub(REDACTED, text))
+_PARTICLES = frozenset({"da", "de", "do", "das", "dos", "e"})
 
 
-def mask_otel_spans(*, params: MaskOtelSpansParams) -> MaskOtelSpansResult:
-    patches: dict[OtelSpanIdentifier, OtelSpanPatch | None] = {}
-    for identifier, span in params.spans.items():
-        changed = {
-            key: redact(value)
-            for key, value in span.attributes.items()
-            if key not in _IDENTIFIER_KEYS and isinstance(value, str) and redact(value) != value
-        }
-        if changed:
-            patches[identifier] = OtelSpanPatch(set_attributes=changed)
-    return MaskOtelSpansResult(span_patches=patches)
+def _forms(token: str) -> list[str]:
+    """The token as written, accent-stripped, and as json.dumps escapes it (`\\u00ed`)."""
+    plain = "".join(c for c in unicodedata.normalize("NFKD", token) if not unicodedata.combining(c))
+    return [token, plain, json.dumps(token)[1:-1]]
+
+
+def name_pattern(names: Iterable[str]) -> re.Pattern[str] | None:
+    """Full names (any whitespace between tokens), the first token (3+ chars) and every other
+    token of 4+ chars that is not a particle, each also accent-stripped and JSON-escaped.
+    Langfuse serialises with ensure_ascii, so "Letícia" can arrive as `Let\\u00edcia`.
+    """
+    # ponytail: masks every CSV name token, so a name or surname that is also a common word is
+    # over-redacted; switch to per-turn names if traces lose meaning.
+    found: set[str] = set()
+    for name in names:
+        tokens = name.split()
+        if len(tokens) > 1:
+            for variant in range(3):
+                found.add(r"\s+".join(re.escape(_forms(t)[variant]) for t in tokens))
+        keep = [t for i, t in enumerate(tokens) if len(t) >= (3 if i == 0 else 4)]
+        for token in keep:
+            if token.casefold() not in _PARTICLES:
+                found.update(re.escape(f) for f in _forms(token))
+    if not found:
+        return None
+    alternatives = "|".join(sorted(found, key=len, reverse=True))
+    return re.compile(rf"(?<!\w)(?:{alternatives})(?!\w)", re.IGNORECASE)
+
+
+def redact(text: str, names: re.Pattern[str] | None = None) -> str:
+    text = _PHONE_RUN.sub(_phone_or_same, _PII.sub(REDACTED, text))
+    return names.sub(REDACTED, text) if names else text
+
+
+def make_mask(names: re.Pattern[str] | None) -> Callable[..., MaskOtelSpansResult]:
+    def mask_otel_spans(*, params: MaskOtelSpansParams) -> MaskOtelSpansResult:
+        patches: dict[OtelSpanIdentifier, OtelSpanPatch | None] = {}
+        for identifier, span in params.spans.items():
+            changed = {
+                key: masked
+                for key, value in span.attributes.items()
+                if key not in _IDENTIFIER_KEYS
+                and isinstance(value, str)
+                and (masked := redact(value, names)) != value
+            }
+            if changed:
+                patches[identifier] = OtelSpanPatch(set_attributes=changed)
+        return MaskOtelSpansResult(span_patches=patches)
+
+    return mask_otel_spans
 
 
 def pseudonym(salt: str, customer_id: int | None) -> str:
@@ -119,7 +160,7 @@ class LangfuseTracerFactory:
 _client: Langfuse | None = None
 
 
-def make_langfuse(settings: Settings) -> Langfuse:
+def make_langfuse(settings: Settings, customer_names: Sequence[str] = ()) -> Langfuse:
     """Build the masked client and verify the server and keys now, not silently per turn."""
     global _client
     require_langfuse_settings(settings)
@@ -129,7 +170,7 @@ def make_langfuse(settings: Settings) -> Langfuse:
         base_url=settings.langfuse_base_url,
         tracing_enabled=True,
         sample_rate=1.0,
-        mask_otel_spans=mask_otel_spans,
+        mask_otel_spans=make_mask(name_pattern(customer_names)),
     )
     try:
         ok = client.auth_check()

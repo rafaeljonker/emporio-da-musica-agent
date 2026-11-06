@@ -14,6 +14,7 @@ from emporio.api.guards import (
     require_json,
     require_session,
 )
+from emporio.config import Settings
 from emporio.support.application.ports import ChatAgent, TurnMetrics
 from emporio.support.domain.bubbles import pace_bubbles
 from emporio.support.domain.channel_identity import ChannelIdentity
@@ -33,9 +34,11 @@ ACTIONS = {
     "search_policies": "consulta às políticas",
 }
 PRICED = "Estimado pelo preço de lista do provedor"
+GPU_UPPER_BOUND = "Teto pelo tempo de GPU desta resposta"
 GPU_UNMEASURED = "Custo de GPU ainda não medido"
 PRICE_UNCONFIRMED = "Preço do provedor ainda não confirmado"
 FAKE = "Modo de teste, sem custo"
+LOCAL = "Rodando na sua máquina, sem custo por uso"
 
 
 def action_label(tools: Sequence[str]) -> str:
@@ -47,9 +50,11 @@ def _cost_basis(m: TurnMetrics) -> str:
     """Why `cost_brl` is what it is: priced, self-hosted GPU, unpriced API, or the fake model."""
     if m.provider == "fake":
         return FAKE
-    if m.cost_brl is not None:
-        return PRICED
-    return GPU_UNMEASURED if m.provider == "gemma" else PRICE_UNCONFIRMED
+    if m.provider == "local":
+        return LOCAL
+    if m.provider == "gemma":
+        return GPU_UNMEASURED if m.cost_brl is None else GPU_UPPER_BOUND
+    return PRICED if m.cost_brl is not None else PRICE_UNCONFIRMED
 
 
 def _metrics_payload(m: TurnMetrics) -> dict[str, object]:
@@ -78,11 +83,11 @@ class ChatIn(BaseModel):
     text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=1000)]
 
 
-def build_chat_router(agent: ChatAgent) -> APIRouter:
+def build_chat_router(agent: ChatAgent, settings: Settings) -> APIRouter:
     router = APIRouter(prefix="/api/chat")
-    per_session = SlidingWindow(20, 600)
+    per_session = SlidingWindow(20 * settings.rate_limit_multiplier, 600)
     # ponytail: per process; one shared GPU budget, move to a shared store with several containers
-    overall = SlidingWindow(200, 600)
+    overall = SlidingWindow(200 * settings.rate_limit_multiplier, 600)
     locks = ThreadLocks()
 
     def turn_slot(

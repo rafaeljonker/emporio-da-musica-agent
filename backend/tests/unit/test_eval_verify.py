@@ -133,11 +133,20 @@ ADVERSARIAL = [
         True,
     ),
     ("@return_no", "Já passou o prazo de 7 dias.", True),
+    (
+        "@return_no",
+        "O prazo de 7 dias pra devolução por arrependimento e o de 30 dias pra troca por "
+        "defeito já passaram.",
+        True,
+    ),
+    ("@return_no", "Os prazos de devolução ainda não passaram.", False),
     ("@return_no", "O prazo de 7 dias venceu em 25/01.", True),
     ("@return_no", "O prazo de 7 dias ainda não passou.", False),
     ("@return_yes", "Sim, entendo. Mas o prazo de 7 dias já passou.", False),
     ("@return_yes", "Você não está dentro do prazo.", False),
     ("@return_yes", "Pode devolver sim, está dentro do prazo.", True),
+    ("@return_yes", "Vi que o pedido foi entregue dia 17 e você ainda tá no prazo.", True),
+    ("@return_yes", "Você não tá mais no prazo.", False),
     ("@legal_warranty", "A garantia já acabou.", False),
     ("@legal_warranty", "Vale a garantia legal de 90 dias.", True),
     ("@status_delivered", "Não consigo passar detalhes da entrega sem confirmar o e-mail.", False),
@@ -149,6 +158,13 @@ ADVERSARIAL = [
     ("@installments_9", "nove parcelas", True),
     ("@regret_7", "17 dias", False),
     ("@declines_accessory", "Aqui a gente trabalha só com instrumentos.", True),
+    ("@declines_accessory", "Aqui a gente trabalha só com os instrumentos mesmo", True),
+    (
+        "@return_no",
+        "O prazo de arrependimento do pedido 5 era de 7 dias corridos e venceu em 25/01/2026",
+        True,
+    ),
+    ("@return_no", "A devolução por arrependimento não tá mais disponível", True),
     ("@declines_accessory", "Tem sim, qual cor?", False),
     ("@asks_model", "Qual modelo você procura?", True),
     ("@asks_model", "Custa um valor bom.", False),
@@ -191,6 +207,34 @@ SECOND_BATCH = [
 
 @pytest.mark.parametrize(("token", "spoken", "expected"), SECOND_BATCH)
 def test_group_judges_second_batch(token: str, spoken: str, expected: bool) -> None:
+    assert matches(token, normalize(spoken)) is expected
+
+
+# Review probes (PR #7): a negated "passou" is not a closed window, and a reply that says the
+# window closed never also counts as "can return".
+NEGATION_AND_CONTRAST = [
+    (
+        "@return_no",
+        "o prazo de 7 dias começou na entrega e a loja já aprovou, nada passou",
+        False,
+    ),
+    ("@return_no", "O prazo de 7 dias, nunca passou.", False),
+    ("@return_no", "O prazo de 7 dias nem de longe passou.", False),
+    ("@return_no", "O prazo ainda não passou, pode devolver.", False),
+    ("@return_yes", "O prazo ainda não passou, pode devolver.", True),
+    ("@return_no", "Pode devolver sim, mas o prazo já encerrou.", True),
+    ("@return_yes", "Pode devolver sim, mas o prazo já encerrou.", False),
+    ("@return_yes", "Pode devolver sim, mas o prazo acabou.", False),
+    ("@return_yes", "Pode devolver sim, mas o prazo terminou em 25/01.", False),
+    ("@return_yes", "Tem direito à troca, mas os 7 dias já passaram.", False),
+    ("@return_yes", "Seu pedido acabou de ser entregue, pode devolver sim.", True),
+]
+
+
+@pytest.mark.parametrize(("token", "spoken", "expected"), NEGATION_AND_CONTRAST)
+def test_return_groups_respect_negation_and_contrast(
+    token: str, spoken: str, expected: bool
+) -> None:
     assert matches(token, normalize(spoken)) is expected
 
 
@@ -252,3 +296,10 @@ def test_forbidden_tools_fail_with_one_line() -> None:
     verdict = verify(Expect(forbid_tools=("store_now",)), ("ok",), ("store_now", "x"))
     assert len(verdict.failures) == 1
     assert verify(Expect(forbid_tools=("store_now",)), ("ok",), ("x",)).passed
+
+
+@pytest.mark.parametrize(
+    "markup", ["<|channel>thought\n<channel|>Oi", "Oi<channel|>", "Oi <|channel>"]
+)
+def test_channel_markup_fails_any_case(markup: str) -> None:
+    assert not verify(Expect(), (markup,), ()).passed

@@ -45,7 +45,7 @@ from emporio.support.infrastructure.agent.guard import make_classifier
 from emporio.support.infrastructure.agent.runner import GraphRunner
 from emporio.support.infrastructure.agent.tools import Toolbox, build_tools
 from emporio.support.infrastructure.checkpointer import make_checkpointer
-from emporio.support.infrastructure.llm.factory import make_chat_model
+from emporio.support.infrastructure.llm.factory import make_chat_model, make_guard_model
 from emporio.support.infrastructure.llm.scripted import ScriptedChatModel
 from emporio.support.infrastructure.mcp.server import build_mcp
 from emporio.support.infrastructure.metrics_store import PgMetricsStore
@@ -54,7 +54,12 @@ from emporio.support.infrastructure.tracing import (
     make_langfuse,
     shutdown_tracing,
 )
-from emporio.support.infrastructure.warmup import ProbeWarmup, ReadyWarmup, vllm_health_probe
+from emporio.support.infrastructure.warmup import (
+    ProbeWarmup,
+    ReadyWarmup,
+    ollama_load_probe,
+    vllm_health_probe,
+)
 
 # Order 7 (in the regret window), order 5 (out of it), shipped, pending, two cancelled,
 # confirmed, and one customer with no orders.
@@ -83,7 +88,8 @@ def build_toolbox(
     stack: ExitStack, url: str, settings: Settings
 ) -> tuple[Toolbox, CsvCustomerRepository, ConnectionPool]:
     """Wire the ten tools' dependencies; shared by the agent and the MCP server."""
-    pool = stack.enter_context(make_pool(url))
+    size = settings.db_pool_max  # opened at full size: growing under load queued turns
+    pool = stack.enter_context(make_pool(url, min_size=size, max_size=size))
     embedder = E5Embedder()
     catalog = CsvCatalogRepository()
     orders = CsvOrderRepository()
@@ -117,11 +123,11 @@ def build_agent(settings: Settings) -> Agent:
             classify = _store_scope
         else:
             model = make_chat_model(settings)
-            classify = make_classifier(model)
-        saver = make_checkpointer(url)
+            classify = make_classifier(make_guard_model(settings))
+        saver = make_checkpointer(url, max_size=settings.db_pool_max)
         stack.enter_context(saver.conn)  # pyright: ignore[reportArgumentType]  # pool is a context manager
         graph = build_graph(model, build_tools(box), classify, saver)
-        langfuse = make_langfuse(settings)
+        langfuse = make_langfuse(settings, customers.names())
         stack.callback(shutdown_tracing)
         tracer = LangfuseTracerFactory(
             langfuse,
@@ -150,7 +156,7 @@ def build_agent(settings: Settings) -> Agent:
 
 
 def build_warmup(settings: Settings, reply_p50: Callable[[], float | None]) -> Warmup:
-    """The honest warm-up: a vLLM health probe for Gemma, ready at once for provider APIs."""
+    """The honest warm-up: vLLM health for Gemma, an Ollama load for local, ready for APIs."""
     if settings.fake_model:
         if settings.fake_warm_seconds <= 0:
             return ReadyWarmup(WarmMode.PROVIDER_API, reply_p50)
@@ -178,6 +184,15 @@ def build_warmup(settings: Settings, reply_p50: Callable[[], float | None]) -> W
             WarmMode.MODAL_GPU,
             settings.warm_expected_seconds_gpu,
             reply_p50,
+            ready_ttl_seconds=settings.warm_ready_ttl_seconds,
+        )
+    if settings.provider is Provider.LOCAL:
+        return ProbeWarmup(
+            ollama_load_probe(settings.ollama_base_url, settings.ollama_model),
+            WarmMode.LOCAL_CPU,
+            settings.warm_expected_seconds_local,
+            reply_p50,
+            stage=WarmStage.MODEL_LOADING,
             ready_ttl_seconds=settings.warm_ready_ttl_seconds,
         )
     return ReadyWarmup(WarmMode.PROVIDER_API, reply_p50)

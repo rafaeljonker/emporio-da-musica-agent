@@ -5,7 +5,13 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict
 
-from emporio.api.guards import Session, SlidingWindow, require_json, require_session
+from emporio.api.guards import (
+    Session,
+    SlidingWindow,
+    client_ip,
+    require_json,
+    require_session,
+)
 from emporio.config import Settings
 from emporio.support.application.warmup import Warmup
 
@@ -22,15 +28,14 @@ def _same(given: str, expected: str) -> bool:
 
 def build_auth_router(settings: Settings, warmup: Warmup) -> APIRouter:
     router = APIRouter(prefix="/api/auth")
-    # The Modal proxy IP is unconfirmed, so the per-IP limit has an overall backstop.
-    per_ip = SlidingWindow(5, 60)
-    overall = SlidingWindow(30, 60)
+    # Without PROXY_SECRET every client shares the proxy IP, so keep an overall backstop.
+    per_ip = SlidingWindow(5 * settings.rate_limit_multiplier, 60)
+    overall = SlidingWindow(30 * settings.rate_limit_multiplier, 60)
     demo_password = settings.demo_password.get_secret_value() if settings.demo_password else None
 
     @router.post("/login", dependencies=[Depends(require_json)])
     def login(body: LoginIn, request: Request) -> dict[str, object]:
-        ip = request.client.host if request.client else "unknown"
-        if not (per_ip.allow(ip) and overall.allow("*")):
+        if not (per_ip.allow(client_ip(request, settings)) and overall.allow("*")):
             raise HTTPException(status_code=429, detail="too_many_attempts")
         if (
             settings.demo_email is None

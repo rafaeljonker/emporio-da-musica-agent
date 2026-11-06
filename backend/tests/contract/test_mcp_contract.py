@@ -4,6 +4,7 @@ from typing import Any
 
 from fastmcp import Client
 from langchain.tools import BaseTool
+from langchain_core.utils.function_calling import convert_to_openai_tool
 
 from emporio.support.infrastructure.agent import tools
 from emporio.support.infrastructure.agent.context import TurnContext
@@ -59,3 +60,14 @@ def test_mcp_call_returns_same_json() -> None:
 
     assert now == json.loads(json.dumps(tools.store_now(box, ctx)))
     assert found == json.loads(json.dumps(tools.search_products(box, ctx, "violao")))
+
+
+def test_mcp_schemas_match_what_the_agent_model_sees() -> None:
+    # Bounds, descriptions and additionalProperties included, not only the types.
+    agent = {
+        t.name: convert_to_openai_tool(t)["function"]["parameters"]
+        for t in tools.build_tools(make_box())
+    }
+    mcp = {t.name: t.input_schema for t in _mcp_tools()}
+
+    assert mcp == agent

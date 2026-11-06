@@ -27,6 +27,7 @@ from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.runtime import Runtime
 
+from emporio.support.domain.bubbles import strip_channel_markup
 from emporio.support.domain.scope import Scope
 from emporio.support.infrastructure.agent.context import TurnContext
 from emporio.support.infrastructure.agent.prompt import scope_note, system_prompt
@@ -132,7 +133,10 @@ def build_graph(
         head = system_prompt(ctx.customer_name, ctx.today)
         prompt = [SystemMessage("\n\n".join([head, *notes])), *history, *turn]
         runner = with_tools if scope is Scope.LOJA and not capped else without_calls
-        return {"messages": [runner.invoke(prompt)]}
+        reply = runner.invoke(prompt)
+        if isinstance(reply.content, str):  # keep channel markup out of the checkpointed history
+            reply.content = strip_channel_markup(reply.content)
+        return {"messages": [reply]}
 
     def route_scope(state: AgentState) -> str:
         return "abuse_reply" if state["scope"] == Scope.ABUSO else "agent"

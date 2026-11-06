@@ -23,11 +23,12 @@ class HandleMessage:
             self._metrics.save(metrics)
         except Exception:  # a metrics outage must not lose a produced reply
             logger.exception("metrics save failed")
+        bubbles = split_bubbles(answer)
         return Reply(
-            split_bubbles(answer),
+            bubbles,
             scope,
             metrics.trace_id,
-            ai_tells(answer),
+            ai_tells("\n\n".join(bubbles)),  # measured on what the customer receives
             metrics,
             failed=metrics.failed,
         )

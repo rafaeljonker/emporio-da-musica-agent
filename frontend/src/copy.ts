@@ -33,7 +33,7 @@ export const copy = {
     errorPartial: 'Perdi o fio no meio da resposta.',
     resend: 'Manda de novo?',
     newMessages: 'Novas mensagens',
-    localNotice: 'Modo local, sem GPU: cada resposta pode levar de 30 s a alguns minutos.',
+    localNotice: 'Modo local: cada resposta pode levar de 30 s a alguns minutos.',
     empty: 'Pergunta de preço, estoque, entrega ou qual instrumento combina com você. Pode mandar.',
     emptyNote: 'Na faixa de demonstração, "Conversar como…" simula quem manda mensagem pelo WhatsApp.',
   },
@@ -46,6 +46,7 @@ export const copy = {
     nowAnonymous: 'Agora conversando sem identificação',
   },
   metrics: {
+    title: 'Métricas',
     last: 'Última resposta',
     session: 'Sessão',
     history: 'Histórico',
@@ -73,7 +74,7 @@ export const copy = {
     explain: {
       modal_gpu:
         'O assistente roda no Gemma 4 31B, numa GPU só dele no Modal. Quando ninguém está usando, ela desliga pra não gerar custo, e ligar de novo leva um tempinho.',
-      local_cpu: 'O modelo está rodando na sua máquina, sem GPU. Cada resposta pode levar de 30 s a alguns minutos.',
+      local_cpu: 'O modelo está rodando na sua máquina. Cada resposta pode levar de 30 s a alguns minutos.',
     },
     noteGpu: (firstReply: string) =>
       `Com a máquina já ligada, a primeira mensagem sai em ${firstReply}. Se escrever agora, a mensagem vai sozinha quando ele ficar pronto.`,

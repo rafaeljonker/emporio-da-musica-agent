@@ -27,3 +27,6 @@ dist/
 # Eval reports are local; commit one on purpose with `git add -f backend/evals/reports/<provider>.md`.
 backend/evals/reports/*
 !backend/evals/reports/.gitkeep
+
+# wrangler local state
+deploy/cloudflare/.wrangler/

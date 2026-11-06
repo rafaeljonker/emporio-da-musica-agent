@@ -1,7 +1,6 @@
 from collections.abc import Sequence
 from dataclasses import replace
 from datetime import date
-from decimal import Decimal
 
 import pytest
 
@@ -128,7 +127,7 @@ def test_search_reports_discontinued_product() -> None:
 
 
 def test_calc_installments_error_names_the_maximum() -> None:
-    result = tools.calc_installments(make_box(), ANON, total=Decimal(100), count=10)
+    result = tools.calc_installments(make_box(), ANON, total=100, count=10)
 
     assert isinstance(result, str)
     assert result.startswith("Esse parcelamento não é permitido para esse valor.")
@@ -154,13 +153,13 @@ def test_domain_errors_become_tool_text(error: DomainError, text: str) -> None:
 
 
 def test_calc_installments_huge_total_returns_text() -> None:
-    result = tools.calc_installments(make_box(), ANON, total=Decimal("1e30"))
+    result = tools.calc_installments(make_box(), ANON, total=1e30)
 
     assert isinstance(result, str)
 
 
 def test_calc_installments_needs_positive_total() -> None:
-    result = tools.calc_installments(make_box(), ANON, total=Decimal(0))
+    result = tools.calc_installments(make_box(), ANON, total=0)
 
     assert result == "O valor precisa ser maior que zero."
 

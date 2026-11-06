@@ -4,6 +4,7 @@ import avatar from '@/assets/avatar.jpg'
 import { Button } from '@/components/ui/button'
 import { copy } from '@/copy'
 import { cn } from '@/lib/utils'
+import { TypingIndicator } from './TypingIndicator'
 import { isExchange, type Entry } from './useChatStream'
 
 const time = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' })
@@ -19,14 +20,16 @@ interface Props {
   entries: Entry[]
   /** Lines typed during warm-up, shown as one pending group until the model is ready. */
   queued?: string[]
+  /** A reply is being generated: dots after the last bubble. */
+  typing: boolean
   onUndo: () => void
   onResend: (id: string) => void
 }
 
 /** role="log": bubbles enter the DOM only when complete, so each is announced once. */
-export function Transcript({ entries, queued, onUndo, onResend }: Props) {
+export function Transcript({ entries, queued, typing, onUndo, onResend }: Props) {
   const ref = useRef<HTMLDivElement>(null)
-  const contentKey = `${entries.map((e) => (isExchange(e) ? `${e.turn.bubbles.length}${e.turn.status}${e.retried}` : '-')).join()}:${queued?.length}`
+  const contentKey = `${entries.map((e) => (isExchange(e) ? `${e.turn.bubbles.length}${e.turn.status}${e.retried}` : '-')).join()}:${queued?.length}:${typing}`
 
   // Follow new content only when the reader is already near the bottom; otherwise offer the pill.
   // Sending a message always follows: the reader's own bubble must not land off screen.
@@ -149,6 +152,7 @@ export function Transcript({ entries, queued, onUndo, onResend }: Props) {
               </Button>
             </div>
           )}
+          {typing && <TypingIndicator />}
         </div>
       </div>
       {unseen && (

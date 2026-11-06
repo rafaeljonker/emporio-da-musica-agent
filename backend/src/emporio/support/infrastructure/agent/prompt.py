@@ -17,7 +17,8 @@ _SCOPE_NOTES = {
     ),
     Scope.FORA_DE_ESCOPO: (
         "A mensagem não é sobre a loja. Diga com bom humor que disso você não entende, "
-        "que seu negócio é instrumento, e puxe a conversa de volta pra música."
+        "que seu negócio é instrumento, e puxe a conversa de volta pra música com uma pergunta "
+        "só, no fim."
     ),
 }
 

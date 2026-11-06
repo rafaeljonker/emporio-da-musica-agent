@@ -21,7 +21,7 @@ def test_login_chat_happy_path(page: Page, real_model: bool) -> None:
         expect(agent.first).to_be_visible(timeout=AGENT_TIMEOUT_MS)
     else:
         expect(agent).to_have_text(
-            ["Assistente: Oi! Aqui é o modo de teste da Empório.", "Assistente: Você escreveu: Oi"],
+            ["Assistente: Oi! Aqui é o modo de teste da Empório", "Assistente: Você escreveu: Oi"],
             timeout=AGENT_TIMEOUT_MS,
         )
     typing = page.get_by_role("status").filter(has_text="O assistente está digitando")
@@ -44,7 +44,7 @@ def test_queued_message_sent_once_when_ready(page: Page, start_server: StartServ
 
     agent = log.locator("p", has_text="Assistente: ")
     expect(agent).to_have_text(
-        ["Assistente: Oi! Aqui é o modo de teste da Empório.", "Assistente: Você escreveu: Oi"],
+        ["Assistente: Oi! Aqui é o modo de teste da Empório", "Assistente: Você escreveu: Oi"],
         timeout=AGENT_TIMEOUT_MS,
     )
     expect(log.locator("p", has_text="Você: ")).to_have_count(1)
@@ -160,7 +160,7 @@ def test_failed_turn_offers_resend(signed_in_page: Page, real_model: bool) -> No
     expect(error_line).to_have_count(2, timeout=AGENT_TIMEOUT_MS)
     resend.last.click()
     expect(log.locator("p", has_text="Assistente: ")).to_have_text(
-        ["Assistente: Oi! Aqui é o modo de teste da Empório.", "Assistente: Você escreveu: Oi"],
+        ["Assistente: Oi! Aqui é o modo de teste da Empório", "Assistente: Você escreveu: Oi"],
         timeout=AGENT_TIMEOUT_MS,
     )
     expect(error_line).to_have_count(1)
@@ -175,3 +175,104 @@ def test_logout_returns_to_login(signed_in_page: Page) -> None:
     expect(page.request.get("/api/auth/me")).not_to_be_ok()
     page.reload()
     expect(login_title).to_be_visible()
+
+
+# One unbroken token in a value (a long cost basis) must wrap inside the panel, not widen it.
+LONG_VALUE = "PrecoPorTokenAindaNaoConfirmadoPeloProvedor" * 3
+SSE_TURN = "".join(
+    f"event: {name}\ndata: {data}\n\n"
+    for name, data in [
+        ("typing", "{}"),
+        ("bubble", '{"kind": "text", "text": "Oi", "delay_ms": 0}'),
+        (
+            "metrics",
+            '{"input_tokens": 1200, "output_tokens": 80, "ms_model": 900, "ms_guard": 10,'
+            ' "ms_llm": 800, "ms_tools": 20, "cost_brl": "0.0123",'
+            f' "cost_basis": "{LONG_VALUE}", "action": "sem ferramenta"}}',
+        ),
+        ("done", '{"trace_id": null}'),
+    ]
+)
+
+
+def test_metrics_panel_fits_320px(signed_in_page: Page) -> None:
+    page = signed_in_page
+    page.set_viewport_size({"width": 320, "height": 640})
+    page.route(
+        "**/api/chat",
+        lambda route: route.fulfill(status=200, content_type="text/event-stream", body=SSE_TURN),
+    )
+    composer = page.get_by_label("Mensagem", exact=True)
+    composer.fill("Oi")
+    composer.press("Enter")
+    typing = page.get_by_role("status").filter(has_text="O assistente está digitando")
+    expect(typing).to_have_count(0, timeout=AGENT_TIMEOUT_MS)
+
+    log = page.get_by_role("log")
+    toggle = page.get_by_role("button", name="Métricas ·")
+    expect(toggle).to_have_attribute("aria-expanded", "false")  # the turn's totals are in
+    before = log.bounding_box()
+    toggle.click()
+    expect(toggle).to_have_attribute("aria-expanded", "true")
+    panel = page.get_by_role("region", name="Métricas")
+    expect(panel).to_contain_text(LONG_VALUE[:20])
+    # A floating panel: opening it never moves the transcript.
+    if log.bounding_box() != before:
+        pytest.fail("opening the metrics panel moved the transcript")
+    panel.evaluate("el => Promise.all(el.getAnimations().map(a => a.finished))")
+    fits = panel.evaluate(
+        "el => { const r = el.getBoundingClientRect();"
+        " return el.scrollWidth <= el.clientWidth && r.left >= 0 && r.right <= innerWidth"
+        " && r.top >= 0 && r.bottom <= innerHeight }"
+    )
+    if not fits:
+        pytest.fail("the metrics panel does not fit the 320 px viewport")
+
+    # Escape closes it and returns focus to the toggle; so does the toggle; outside click closes.
+    panel.focus()
+    page.keyboard.press("Escape")
+    expect(panel).to_be_hidden()
+    expect(toggle).to_be_focused()
+    toggle.click()
+    expect(panel).to_be_visible()
+    toggle.click()
+    expect(panel).to_be_hidden()
+    toggle.click()
+    page.get_by_role("heading", level=1).click()
+    expect(panel).to_be_hidden()
+
+
+PACED_TURN = "".join(
+    f"event: {name}\ndata: {data}\n\n"
+    for name, data in [
+        ("typing", "{}"),
+        ("bubble", '{"kind": "text", "text": "Primeira", "delay_ms": 0}'),
+        ("bubble", '{"kind": "text", "text": "Segunda", "delay_ms": 3000}'),
+        ("done", '{"trace_id": null}'),
+    ]
+)
+
+
+def test_typing_dots_sit_under_the_last_bubble(signed_in_page: Page) -> None:
+    page = signed_in_page
+    page.route(
+        "**/api/chat",
+        lambda route: route.fulfill(status=200, content_type="text/event-stream", body=PACED_TURN),
+    )
+    composer = page.get_by_label("Mensagem", exact=True)
+    composer.fill("Oi")
+    composer.press("Enter")
+    log = page.get_by_role("log")
+    first = log.locator("p", has_text="Assistente: Primeira")
+    dots = log.locator(".typing-dot").first
+    expect(first).to_be_visible(timeout=AGENT_TIMEOUT_MS)
+    # Visible in the conversation, hidden from the log; the status region speaks it instead.
+    expect(dots).to_be_visible()
+    typing = page.get_by_role("status").filter(has_text="O assistente está digitando")
+    expect(typing).to_have_count(1)
+    if not log.locator("[aria-hidden=true]:has(.typing-dot)").count():
+        pytest.fail("the typing dots are not aria-hidden inside the log")
+    if dots.bounding_box()["y"] <= first.bounding_box()["y"]:
+        pytest.fail("the typing dots are not under the last bubble")
+    expect(log.locator("p", has_text="Assistente: Segunda")).to_be_visible(timeout=AGENT_TIMEOUT_MS)
+    expect(dots).to_have_count(0)

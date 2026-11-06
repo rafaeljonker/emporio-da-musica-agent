@@ -1,10 +1,10 @@
 export PATH := $(CURDIR)/backend/.venv/bin:$(PATH)
 
-.PHONY: help setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp web-install web-build check-web up-preflight web-config up dev e2e
+.PHONY: help setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp deploy-llm deploy-api web-install web-build check-web up-preflight web-config local-model up dev e2e loadtest loadtest-down deploy-proxy
 .DEFAULT_GOAL := help
 
 help:
-	@echo "targets: up dev e2e setup fmt lint typecheck imports test check web-install web-build check-web db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp"
+	@echo "targets: up dev e2e local-model setup fmt lint typecheck imports test check web-install web-build check-web db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp deploy-llm deploy-api deploy-proxy loadtest loadtest-down"
 
 setup:
 	cd backend && uv sync && uv run pre-commit install --config ../.pre-commit-config.yaml
@@ -12,9 +12,12 @@ setup:
 fmt:
 	cd backend && uv run ruff format . && uv run ruff check --fix .
 
+# Outside backend/, linted with its config (CI runs the same list).
+LINT_EXTRA = e2e deploy loadtest
+
 lint:
 	cd backend && uv run ruff check . && uv run ruff format --check .
-	ruff check --config backend/pyproject.toml e2e && ruff format --config backend/pyproject.toml --check e2e
+	ruff check --config backend/pyproject.toml $(LINT_EXTRA) && ruff format --config backend/pyproject.toml --check $(LINT_EXTRA)
 
 typecheck:
 	cd backend && uv run basedpyright
@@ -64,14 +67,20 @@ db: db-up
 test-pg: db-up db-test
 	cd backend && DATABASE_URL=$(TEST_DATABASE_URL) uv run pytest -q -m "postgres and not eval"
 
-# PROVIDER picks the model (gemma|gemini|openai|anthropic) and names backend/evals/reports/<provider>.md.
+# PROVIDER picks the model (gemma|gemini|openai|anthropic|local) and names backend/evals/reports/<provider>.md.
 # EVAL_FAKE_MODEL=1 swaps in a scripted model to check the harness only (the gate then fails).
 PROVIDER ?= gemma
+# PROVIDER=local first picks, pulls and creates the Ollama model (warns about size and speed).
+LOCAL_MODEL = $(if $(filter local,$(PROVIDER)),local-model,)
+
+local-model:
+	cd backend && uv run emporio local-model
+
 # Fails in seconds on a missing provider key, before Docker, the database or Langfuse start.
 evals-config:
 	cd backend && LLM_PROVIDER=$(PROVIDER) uv run emporio check-config
 
-evals: evals-config db-test langfuse-up
+evals: evals-config $(LOCAL_MODEL) db-test langfuse-up
 	cd backend && LLM_PROVIDER=$(PROVIDER) DATABASE_URL=$(TEST_DATABASE_URL) uv run pytest -q -m eval -s
 
 # Writes the Langfuse secrets into .env only when absent; values are never printed.
@@ -130,6 +139,9 @@ up-preflight:
 # PROVIDER on the command line overrides LLM_PROVIDER; otherwise .env's LLM_PROVIDER wins.
 WEB_PROVIDER = $(if $(filter command line,$(origin PROVIDER)),LLM_PROVIDER=$(PROVIDER),)
 
+# Like WEB_PROVIDER: only PROVIDER=local on the command line prepares the Ollama model.
+WEB_LOCAL_MODEL = $(if $(filter command line,$(origin PROVIDER)),$(LOCAL_MODEL),)
+
 # Provider key (skipped under EMPORIO_FAKE_MODEL=1), demo login and SESSION_SECRET (make web-keys).
 web-config:
 	cd backend && $(WEB_PROVIDER) uv run emporio check-config --web
@@ -138,16 +150,47 @@ web-config:
 WEB_ENV = $(WEB_PROVIDER) SESSION_HTTPS_ONLY=false DATABASE_URL=$(LOCAL_DATABASE_URL)
 SERVE = uv run uvicorn --factory emporio.web:create_web_app --port 8000
 
-up: up-preflight web-config db langfuse-up web-build
+up: up-preflight web-config $(WEB_LOCAL_MODEL) db langfuse-up web-build
 	cd backend && $(WEB_ENV) $(SERVE)
 
 # API with --reload on :8000 plus Vite (proxying /api) in parallel; Ctrl-C stops both.
-dev: web-config db langfuse-up web-install
+dev: web-config $(WEB_LOCAL_MODEL) db langfuse-up web-install
 	(cd frontend && npm run dev) & cd backend && $(WEB_ENV) $(SERVE) --reload --reload-dir src
 
 # Scripted model unless PROVIDER is given on the command line: make e2e PROVIDER=gemini.
-E2E_FAKE = $(if $(filter command line,$(origin PROVIDER)),,EMPORIO_FAKE_MODEL=1)
+E2E_FAKE = $(if $(filter command line,$(origin PROVIDER)),,EMPORIO_FAKE_MODEL=1 RATE_LIMIT_MULTIPLIER=10)
 
 e2e: db langfuse-up web-build
 	cd backend && uv run playwright install chromium
 	$(E2E_FAKE) $(WEB_ENV) uv run --project backend pytest e2e -q
+
+# Deploys the vLLM app emporio-llm-<gpu>-<weights> on Modal (costs GPU time once it is called).
+LLM_GPU ?= H100
+LLM_WEIGHTS ?= fp8
+deploy-llm:
+	cd backend && EMPORIO_GPU=$(LLM_GPU) EMPORIO_WEIGHTS=$(LLM_WEIGHTS) uv run modal deploy ../deploy/modal_llm.py
+
+# Deploys emporio-api on Modal (CPU; calls LLM_APP's GPU). LOADTEST=1 deploys emporio-api-loadtest
+# instead: scripted model, raised rate limits, no GPU. Run make deploy-llm first.
+LLM_APP ?= emporio-llm-h100-fp8
+LOADTEST ?=
+# The hosted demo runs on Gemini (owner, 2026-11-06); API_PROVIDER=gemma uses the GPU app above.
+API_PROVIDER ?= gemini
+deploy-api: web-build
+	cd backend && EMPORIO_API_PROVIDER=$(API_PROVIDER) EMPORIO_LLM_APP=$(LLM_APP) EMPORIO_LOADTEST=$(LOADTEST) uv run modal deploy ../deploy/modal_api.py
+
+# Deploys the Cloudflare Worker emporio-proxy in front of emporio-api. The upstream URL is resolved
+# at run time and redacted from wrangler's output; the Worker's PROXY_SECRET is set once with wrangler secret put.
+deploy-proxy:
+	@url=$$(cd backend && uv run python -c 'import modal; print(modal.Function.from_name("emporio-api", "web").get_web_url() or "")') && \
+	[ -n "$$url" ] || { echo "emporio-api has no web URL: run make deploy-api first"; exit 1; }; \
+	cd deploy/cloudflare && out=$$(npx wrangler deploy --var "UPSTREAM:$$url" 2>&1); rc=$$?; \
+	printf '%s\n' "$$out" | sed "s#$$url#<upstream>#g"; exit $$rc
+
+# Locust against a running app: make loadtest ARGS="--host <url> -u 50 -r 10 -t 2m". Needs DEMO_EMAIL and DEMO_PASSWORD.
+loadtest:
+	cd backend && uv run --group load locust -f ../loadtest/locustfile.py --headless $(ARGS)
+
+# Stops the load-test app after every run: it shares the demo's secrets and DB, with raised limits.
+loadtest-down:
+	cd backend && uv run modal app stop --yes emporio-api-loadtest

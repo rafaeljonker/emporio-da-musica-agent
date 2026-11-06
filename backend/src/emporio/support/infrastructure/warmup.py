@@ -63,6 +63,23 @@ def vllm_health_probe(
     return probe
 
 
+def ollama_load_probe(
+    base_url: str, model: str, timeout: float = 600, transport: httpx.BaseTransport | None = None
+) -> Callable[[], bool]:
+    """True once Ollama has the model in memory: an empty prompt loads it and returns 200."""
+    url = base_url.rstrip("/").removesuffix("/v1") + "/api/generate"
+    body = {"model": model, "prompt": "", "keep_alive": "30m"}
+
+    def probe() -> bool:
+        try:
+            with httpx.Client(timeout=timeout, transport=transport) as client:
+                return client.post(url, json=body).status_code == 200
+        except httpx.HTTPError:
+            return False
+
+    return probe
+
+
 class ProbeWarmup:
     """Polls `probe` in one daemon thread until it is true or the deadline passes.
 

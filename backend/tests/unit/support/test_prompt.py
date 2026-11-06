@@ -99,3 +99,14 @@ def test_complaint_flow_gives_the_team_reply_time_without_claiming_registration(
     prompt = system_prompt(None, TODAY)
     assert "24 horas úteis" in prompt
     assert "Não diga que registrou nada" in prompt
+
+
+def test_a_rhetorical_invite_counts_as_the_one_question() -> None:
+    assert 'Convite como "que tal...?" também conta como pergunta' in system_prompt(None, TODAY)
+    assert "uma pergunta só, no fim" in scope_note(Scope.FORA_DE_ESCOPO)
+
+
+def test_identified_regret_checks_eligibility_before_answering() -> None:
+    prompt = system_prompt("Letícia", TODAY)
+    assert "chame em seguida check_return_eligibility" in prompt
+    assert "não pergunte se pode verificar, verifique" in prompt

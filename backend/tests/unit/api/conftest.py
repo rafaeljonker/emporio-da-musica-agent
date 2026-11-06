@@ -14,15 +14,19 @@ from tests.fakes.fake_agent import FakeAgent
 EMAIL = "demo@emporio.test"
 LOGIN_PHRASE = "correct-horse"
 CREDENTIALS = {"email": EMAIL, "password": LOGIN_PHRASE}
+PROXY_PHRASE = "shh"
 
 
-def make_settings() -> Settings:
+def make_settings(rate_limit_multiplier: int = 1, proxy_secret: str | None = None) -> Settings:
     return Settings(
         _env_file=None,  # pyright: ignore[reportCallIssue]  # pydantic-settings init kwarg
         demo_email=EMAIL,
         demo_password=SecretStr(LOGIN_PHRASE),
         session_secret=SecretStr("s" * 40),
         session_https_only=False,
+        fake_model=True,
+        rate_limit_multiplier=rate_limit_multiplier,
+        proxy_secret=SecretStr(proxy_secret) if proxy_secret else None,
     )
 
 
@@ -38,6 +42,16 @@ def client(agent: FakeAgent) -> Iterator[TestClient]:
         yield test_client
 
 
+def client_with_multiplier(agent: FakeAgent, multiplier: int) -> TestClient:
+    warmup = ReadyWarmup(WarmMode.PROVIDER_API, lambda: None)
+    return TestClient(create_app(agent, warmup, make_settings(multiplier)))
+
+
 def client_with_static(agent: FakeAgent, static_dir: Path) -> TestClient:
     warmup = ReadyWarmup(WarmMode.PROVIDER_API, lambda: None)
     return TestClient(create_app(agent, warmup, make_settings(), static_dir=static_dir))
+
+
+def client_behind_proxy(agent: FakeAgent, proxy_secret: str) -> TestClient:
+    warmup = ReadyWarmup(WarmMode.PROVIDER_API, lambda: None)
+    return TestClient(create_app(agent, warmup, make_settings(proxy_secret=proxy_secret)))

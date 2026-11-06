@@ -1,6 +1,7 @@
 from datetime import date
 
 import pytest
+from pydantic import SecretStr
 
 from emporio.config import (
     ConfigError,
@@ -11,6 +12,7 @@ from emporio.config import (
     load_mcp_settings,
     load_settings,
     load_web_settings,
+    require_web_settings,
 )
 
 _ENV_VARS = (
@@ -19,7 +21,8 @@ _ENV_VARS = (
     "OPENAI_MODEL", "ANTHROPIC_MODEL", "USD_BRL", "DATABASE_URL", "LANGFUSE_PUBLIC_KEY",
     "LANGFUSE_SECRET_KEY", "LANGFUSE_BASE_URL", "LANGFUSE_SALT", "LANGFUSE_TRACING_ENABLED",
     "OTEL_SDK_DISABLED", "LANGFUSE_SAMPLE_RATE", "DEMO_EMAIL", "DEMO_PASSWORD", "SESSION_SECRET",
-    "SESSION_HTTPS_ONLY", "EMPORIO_FAKE_MODEL",
+    "SESSION_HTTPS_ONLY", "EMPORIO_FAKE_MODEL", "DB_POOL_MAX",
+    "RATE_LIMIT_MULTIPLIER",
 )  # fmt: skip
 _FAKE_LANGFUSE = {
     "LANGFUSE_PUBLIC_KEY": "pk-fake",
@@ -166,3 +169,36 @@ def test_fake_model_skips_provider_keys_but_not_langfuse(monkeypatch: pytest.Mon
         monkeypatch.delenv(name)
     with pytest.raises(LangfuseRequired):
         load_web_settings()
+
+
+def test_local_provider_needs_no_key():
+    settings = load_settings(Provider.LOCAL)
+    assert (settings.ollama_base_url, settings.ollama_model) == (
+        "http://localhost:11434/v1",
+        "emporio-gemma",
+    )
+
+
+def test_db_pool_max_defaults_to_4_and_reads_env(monkeypatch: pytest.MonkeyPatch):
+    assert Settings().db_pool_max == 4
+    monkeypatch.setenv("DB_POOL_MAX", "20")
+    assert Settings().db_pool_max == 20
+
+
+def test_db_pool_max_below_one_is_rejected(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("DB_POOL_MAX", "0")
+    with pytest.raises(ValueError, match="db_pool_max"):
+        Settings()
+
+
+def test_rate_multiplier_requires_fake_model():
+    settings = Settings(
+        _env_file=None,  # pyright: ignore[reportCallIssue]  # pydantic-settings init kwarg
+        demo_email="a@b.c",
+        demo_password=SecretStr("x"),
+        session_secret=SecretStr("s" * 40),
+        rate_limit_multiplier=10,
+    )
+    with pytest.raises(WebSettingsRequired, match="RATE_LIMIT_MULTIPLIER > 1 needs EMPORIO_FAKE"):
+        require_web_settings(settings)
+    require_web_settings(settings.model_copy(update={"fake_model": True}))

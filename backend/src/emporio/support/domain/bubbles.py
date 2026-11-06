@@ -5,16 +5,33 @@ MAX_BUBBLES = 3
 MAX_TOTAL_DELAY_MS = 3000
 
 
+CHANNEL_BLOCK = re.compile(r"<\|channel>.*?<channel\|>", re.DOTALL)
+# A block cut before its closing token (generation stopped mid-thought) runs to the end.
+UNCLOSED_CHANNEL = re.compile(r"<\|channel>.*\Z", re.DOTALL)
+CHANNEL_TOKEN = re.compile(r"<\|channel>|<channel\|>")
+# A single closing "." per line, never "..." (WhatsApp messages rarely end in a period).
+FINAL_PERIOD = re.compile(r"(?<!\.)\.[ \t]*$", re.MULTILINE)
+
+
+def strip_channel_markup(text: str) -> str:
+    """Gemma 4 thinking-channel blocks (empty, unclosed or not) and stray tokens, removed."""
+    text = UNCLOSED_CHANNEL.sub("", CHANNEL_BLOCK.sub("", text))
+    return CHANNEL_TOKEN.sub("", text).strip()
+
+
 def raw_bubbles(text: str) -> tuple[str, ...]:
-    parts = (p.strip() for p in re.split(r"\n\s*\n", text))
+    text = strip_channel_markup(text)
+    parts = (FINAL_PERIOD.sub("", p.strip()) for p in re.split(r"\n\s*\n", text))
     return tuple(p for p in parts if p)
 
 
 def split_bubbles(text: str) -> tuple[str, ...]:
-    parts = raw_bubbles(text)
-    if len(parts) <= MAX_BUBBLES:
-        return parts
-    return (*parts[: MAX_BUBBLES - 1], "\n\n".join(parts[MAX_BUBBLES - 1 :]))
+    """At most MAX_BUBBLES, merging the shortest neighbours line by line; no word is dropped."""
+    parts = list(raw_bubbles(text))
+    while len(parts) > MAX_BUBBLES:
+        i = min(range(len(parts) - 1), key=lambda j: len(parts[j]) + len(parts[j + 1]))
+        parts[i : i + 2] = [f"{parts[i]}\n{parts[i + 1]}"]
+    return tuple(parts)
 
 
 def pace_bubbles(bubbles: Sequence[str]) -> tuple[int, ...]:

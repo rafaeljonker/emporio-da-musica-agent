@@ -30,6 +30,8 @@ jobs:
             backend:
               - 'backend/**'
               - 'e2e/**'
+              - 'deploy/**'
+              - 'loadtest/**'
               - '.github/workflows/**'
               - 'data/**'
               - 'Makefile'
@@ -53,11 +55,11 @@ jobs:
       - run: uv sync --locked
       - run: uv run ruff check .
       - run: uv run ruff format --check .
-      - name: ruff (e2e)
+      - name: ruff (e2e deploy loadtest)
         working-directory: .
         run: |
-          uv run --project backend ruff check --config backend/pyproject.toml e2e
-          uv run --project backend ruff format --config backend/pyproject.toml --check e2e
+          uv run --project backend ruff check --config backend/pyproject.toml e2e deploy loadtest
+          uv run --project backend ruff format --config backend/pyproject.toml --check e2e deploy loadtest
       - run: uv run basedpyright
       - run: uv run lint-imports
 

@@ -80,6 +80,9 @@ class CsvCustomerRepository:
     def by_id(self, customer_id: int) -> Customer | None:
         return self._customers.get(customer_id)
 
+    def names(self) -> tuple[str, ...]:
+        return tuple(c.name for c in self._customers.values())
+
 
 class CsvOrderRepository:
     """Read-only orders (with items joined) loaded lazily from the case CSVs."""

@@ -1,13 +1,12 @@
-import { copy } from '@/copy'
-
-/** Rendered inside the persistent StatusRegion (outside the log); only its content toggles. */
-export function TypingIndicator({ typing }: { typing: boolean }) {
-  if (!typing) return null
+/**
+ * The visible dots, under the last bubble inside the log (like WhatsApp). aria-hidden: the log
+ * only ever gains complete bubbles; "digitando" is spoken by the StatusRegion in <main>.
+ */
+export function TypingIndicator() {
   return (
-    <div className="flex items-end gap-2 pb-2">
-      <span className="size-8 shrink-0" aria-hidden />
-      <span className="sr-only">{copy.chat.typing}</span>
-      <span aria-hidden className="flex gap-1 rounded-2xl rounded-bl-md bg-card px-4 py-3">
+    <div aria-hidden className="mt-4 flex items-end gap-2">
+      <span className="size-8 shrink-0" />
+      <span className="flex animate-arrive gap-1 rounded-2xl rounded-bl-md bg-card px-4 py-3">
         <i className="typing-dot" />
         <i className="typing-dot" />
         <i className="typing-dot" />

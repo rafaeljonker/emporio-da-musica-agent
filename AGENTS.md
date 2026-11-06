@@ -12,15 +12,21 @@ Run from the repo root; all targets execute in `backend/`.
 - `make test`: pytest only.
 - `make db`: start Postgres (host port 5434), migrate, ingest policies and products.
 - `make test-pg`: Postgres integration tests on a separate `emporio_test` database; never touches dev data.
-- `make evals [PROVIDER=gemma|gemini|openai|anthropic]`: retrieval eval plus the agent golden cases (real model) on `emporio_test`; not part of `make check`.
+- `make evals [PROVIDER=gemma|gemini|openai|anthropic|local]`: retrieval eval plus the agent golden cases (real model) on `emporio_test`; not part of `make check`.
 - `make chat [ARGS="--as-customer 14 --provider gemini"]`: interactive agent in the terminal (needs a provider key and Langfuse).
 - `make mcp`: the store tools over MCP stdio; `EMPORIO_MCP_CUSTOMER_ID=14` fixes the identity, unset is anonymous. Needs no model key.
 - `make langfuse-up`: local Langfuse (compose `observability` profile) at http://localhost:3000.
 - `make fmt`: ruff format and `ruff check --fix`.
 - `make up [PROVIDER=...]`: check config, DB, Langfuse, build the frontend, serve the web demo at http://localhost:8000. Needs `make web-keys` and `DEMO_EMAIL`/`DEMO_PASSWORD` in `.env`; `EMPORIO_FAKE_MODEL=1` swaps in the scripted model (no provider key).
+- `make up PROVIDER=local`: Gemma 4 on this machine through Ollama. `make local-model` (`emporio local-model`) runs first: it picks the route (native on Apple Silicon, Docker with NVIDIA, Docker CPU) and the tag by memory, prints the download/memory/time warning, pulls the tag and creates `emporio-gemma` from a Modelfile with `num_ctx 16384`. `make dev` and `make evals` do the same with `PROVIDER=local`.
 - `make dev`: the API with `--reload` on :8000 plus Vite (proxying `/api`).
 - `make check-web`: frontend oxlint + Vitest + `tsc -b` + `vite build`.
 - `make e2e [PROVIDER=...]`: Playwright browser flow against a real server; scripted model unless `PROVIDER` is given. Needs Docker; not part of `make check`.
+- `make deploy-llm [LLM_GPU=H100|L40S] [LLM_WEIGHTS=fp8|bf16]`: vLLM Gemma app `emporio-llm-<gpu>-<weights>` on Modal (paid GPU).
+- `make deploy-api [API_PROVIDER=gemini|gemma] [LLM_APP=...] [LOADTEST=1]`: the web API on Modal; defaults to Gemini (the hosted demo), `gemma` calls the GPU app, `LOADTEST=1` deploys the fake-model `emporio-api-loadtest`.
+- `make deploy-proxy`: the Cloudflare Worker in front of `emporio-api` (emporio.fastmind.site).
+- `make loadtest ARGS="--host <url> -u 50 -r 10 -t 2m"`: Locust against a deployed app; only against `emporio-api-loadtest` (fake model). Results: `docs/scaling-and-cost.md`.
+- `make loadtest-down`: stops `emporio-api-loadtest`; run it after every load test (it shares the demo's secrets and database, with 100x rate limits).
 
 ## Architecture rules
 Enforced by `import-linter` (`make imports`).
@@ -31,7 +37,7 @@ Enforced by `import-linter` (`make imports`).
 | `*/application` | own `domain`, other `application` via ports, `shared` |
 | `*/infrastructure` | `application`, `domain` and external libs |
 | `api/` | `support.application`, `support.domain`, `shared` and `config`; never an `infrastructure`, `bootstrap`, `db` or LangChain/psycopg/Langfuse (enforced) |
-| `cli.py` | `bootstrap`, `config`, the `db` errors and `support.domain.channel_identity` (never an `infrastructure` module directly) |
+| `cli.py` | `bootstrap`, `config`, `local_model`, the `db` errors and `support.domain.channel_identity` (never an `infrastructure` module directly) |
 | `web.py` | a composition root like `bootstrap`: `api`, `bootstrap`, `config` and `paths` |
 
 `emporio.db`, `embeddings`, `migrate` are leaf technical modules usable only by infrastructure; The composition roots are `emporio.bootstrap` (the agent: wires use cases, tools, model, tracing) and `emporio.ingest` (the data: PDF and CSV into Postgres).
@@ -62,9 +68,14 @@ Never write keys or real values in any file. Use `.env` (git-ignored); `.env.exa
 - First use of the e5 embedder downloads about 470 MB (fastembed cache); `make db` and `make evals` need it.
 - Langfuse is mandatory: `make chat` and `make evals` fail at startup without its keys, and first run `emporio check-config` so a missing provider key fails in seconds, before Docker starts. The `observability` profile needs about 2.3 GB RAM; the first `make langfuse-up` pulls images (about 7 min).
 - `make db-up` (so `make db`) generates the Langfuse secrets into `.env` when absent; never print or commit them.
-- `LLM_PROVIDER` defaults to gemma, which needs `VLLM_BASE_URL` and `VLLM_API_KEY`; other providers need their own `*_API_KEY`. No silent fallback.
+- `LLM_PROVIDER` defaults to gemma, which needs `VLLM_BASE_URL` and `VLLM_API_KEY`; other providers need their own `*_API_KEY`; `local` needs none (`OLLAMA_BASE_URL`, `OLLAMA_MODEL` have defaults). No silent fallback.
+- `PROVIDER=local` triggers `local-model` for `make up`/`make dev` only when given on the command line (like `LLM_PROVIDER`), and for `make evals` whenever `PROVIDER=local`; `.env`'s `LLM_PROVIDER` never triggers it. Without the Modelfile's `num_ctx`, Ollama silently truncates the prompt and tools. Docker on macOS has no Metal, so Apple Silicon needs the native Ollama app.
 - Web demo: on plain-http localhost set `SESSION_HTTPS_ONLY=false` or the browser drops the session cookie (`make up`, `make dev` and `make e2e` do it). `make e2e` needs Docker and Langfuse running.
 - Web state is per process: rate limits, thread locks and the warm-up status live in memory; run one API process (one container on Modal) until they move to a shared store.
+- Proxy: `make deploy-proxy` deploys the Cloudflare Worker; its secret is set once with `cd deploy/cloudflare && npx wrangler secret put PROXY_SECRET`, and the same value goes in the Modal secret `emporio-proxy` (key `PROXY_SECRET`) that `deploy/modal_api.py` needs for the non-loadtest app.
+- Paid steps: `make deploy-llm`, any request that wakes the GPU app, `make evals PROVIDER=gemma` and `deploy/cold_start.py` spend Modal credit; ask the owner first and stop GPU containers afterwards.
+- Never recreate the Modal secret `emporio-langfuse`: its `LANGFUSE_SALT` keys the trace pseudonyms.
+- The API image sets `HF_HUB_OFFLINE=1` with e5 baked in: a change to the embedder needs a redeploy, never a runtime download.
 - Pre-commit does not typecheck: run `make check` before committing, not only the hooks.
 - `data/` is read-only source material.
 

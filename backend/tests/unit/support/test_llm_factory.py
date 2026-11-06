@@ -2,7 +2,7 @@ import pytest
 from pydantic import SecretStr
 
 from emporio.config import ConfigError, Provider, Settings
-from emporio.support.infrastructure.llm.factory import make_chat_model
+from emporio.support.infrastructure.llm.factory import make_chat_model, make_guard_model
 
 
 @pytest.fixture(autouse=True)
@@ -38,11 +38,37 @@ def test_factory_builds_each_provider_without_network(
     assert model_id in (getattr(model, "model_name", None), getattr(model, "model", None))
 
 
-def test_gemini_thinking_is_minimal():
+def test_gemini_thinking_is_low():
+    # gemini-3.8-flash rejects MINIMAL (400 INVALID_ARGUMENT); LOW is its lowest level.
     model = make_chat_model(Settings(provider=Provider.GEMINI, gemini_api_key=SecretStr("fake")))
+    assert getattr(model, "thinking_level", None) == "low"
+
+
+def test_gemini_guard_runs_on_the_lite_model_with_minimal_thinking():
+    settings = Settings(provider=Provider.GEMINI, gemini_api_key=SecretStr("fake"))
+    model = make_guard_model(settings)
+    assert getattr(model, "model", None) == "gemini-3.1-flash-lite"
     assert getattr(model, "thinking_level", None) == "minimal"
+
+
+def test_gemini_guard_model_is_configurable(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("GEMINI_GUARD_MODEL", "gemini-3.5-flash-lite")
+    settings = Settings(provider=Provider.GEMINI, gemini_api_key=SecretStr("fake"))
+    assert getattr(make_guard_model(settings), "model", None) == "gemini-3.5-flash-lite"
+
+
+def test_other_providers_guard_with_the_chat_model():
+    settings = Settings(provider=Provider.OPENAI, openai_api_key=SecretStr("fake"))
+    assert getattr(make_guard_model(settings), "model_name", None) == "gpt-6-luna"
 
 
 def test_gemma_without_base_url_raises():
     with pytest.raises(ConfigError, match="VLLM_BASE_URL"):
         make_chat_model(Settings(provider=Provider.GEMMA))
+
+
+def test_local_provider_uses_the_ollama_openai_endpoint():
+    model = make_chat_model(Settings(provider=Provider.LOCAL))
+    assert type(model).__name__ == "ChatOpenAI"
+    assert getattr(model, "model_name", None) == "emporio-gemma"
+    assert str(getattr(model, "openai_api_base", "")) == "http://localhost:11434/v1"

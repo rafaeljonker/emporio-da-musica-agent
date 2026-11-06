@@ -1,3 +1,4 @@
+import hmac
 import threading
 import time
 from collections import deque
@@ -6,6 +7,8 @@ from dataclasses import dataclass
 
 from fastapi import HTTPException, Request
 
+from emporio.config import Settings
+
 
 def require_json(request: Request) -> None:
     media_type = request.headers.get("content-type", "").split(";")[0].strip().lower()
@@ -13,12 +16,25 @@ def require_json(request: Request) -> None:
         raise HTTPException(status_code=415, detail="json_required")
 
 
+def client_ip(request: Request, settings: Settings) -> str:
+    """The caller's IP: the proxy's X-Client-IP only when X-Proxy-Auth matches proxy_secret.
+
+    The raw *.modal.run URL is public, so X-Client-IP or X-Forwarded-For alone could be forged.
+    """
+    secret = settings.proxy_secret.get_secret_value() if settings.proxy_secret else ""
+    given = request.headers.get("x-proxy-auth", "")
+    trusted = request.headers.get("x-client-ip", "").strip()
+    if secret and trusted and hmac.compare_digest(given.encode(), secret.encode()):
+        return trusted
+    return request.client.host if request.client else "unknown"
+
+
 class SlidingWindow:
     """Allow at most `limit` hits per `seconds` for each key.
 
     ponytail: in memory per process; behind several containers the limit multiplies, move it
     to a shared store (one Postgres row per key) if that matters. Behind a proxy all clients may
-    share one IP, so the per-IP limit can then act as a global one.
+    share one IP unless client_ip trusts the proxy's header.
     Every call sweeps all keys, so an idle key is dropped; O(keys), fine for a demo.
     """
 

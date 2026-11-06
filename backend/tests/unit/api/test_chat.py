@@ -6,11 +6,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from emporio.api.chat import action_label
-from emporio.api.guards import ThreadLocks
+from emporio.api.guards import SlidingWindow, ThreadLocks
 from emporio.support.application.ports import Reply
 from emporio.support.domain.scope import Scope
 from tests.fakes.fake_agent import FakeAgent, turn_metrics
-from tests.unit.api.conftest import CREDENTIALS
+from tests.unit.api.conftest import CREDENTIALS, client_with_multiplier
 
 METRIC_KEYS = {
     "input_tokens", "output_tokens", "ms_model", "ms_guard", "ms_llm", "ms_tools",
@@ -42,7 +42,9 @@ def two_bubbles(failed: bool = False, **kw: object) -> Reply:
 
 
 def test_chat_event_order_and_payload_keys(client: TestClient, agent: FakeAgent) -> None:
-    agent.reply = two_bubbles(tools=("search_products",), cost_brl=Decimal("0.01234"))
+    agent.reply = two_bubbles(
+        tools=("search_products",), cost_brl=Decimal("0.01234"), provider="gemini"
+    )
     login(client)
     response = send(client)
     assert response.headers["content-type"].startswith("text/event-stream")
@@ -79,6 +81,24 @@ def test_unpriced_metrics_basis_depends_on_provider(
     assert metrics["cost_brl"] is None
     assert metrics["cost_basis"] == basis
     assert metrics["action"] == "sem ferramenta"
+
+
+def test_gemma_turn_cost_is_gpu_seconds_upper_bound(client: TestClient, agent: FakeAgent) -> None:
+    agent.reply = two_bubbles(cost_brl=Decimal("3.95") * 2 / 3600 * Decimal("5.50"))
+    login(client)
+    metrics = events(send(client).text)[3][1]
+    assert isinstance(metrics, dict)
+    assert metrics["cost_brl"] == "0.0121"
+    assert metrics["cost_basis"] == "Teto pelo tempo de GPU desta resposta"
+
+
+def test_local_turn_cost_basis(client: TestClient, agent: FakeAgent) -> None:
+    agent.reply = two_bubbles(provider="local")
+    login(client)
+    metrics = events(send(client).text)[3][1]
+    assert isinstance(metrics, dict)
+    assert metrics["cost_brl"] is None
+    assert metrics["cost_basis"] == "Rodando na sua máquina, sem custo por uso"
 
 
 def test_metrics_action_maps_tool_names() -> None:
@@ -125,6 +145,22 @@ def test_chat_requires_session_and_json(client: TestClient, agent: FakeAgent) ->
 def test_chat_rate_limited_per_session(client: TestClient) -> None:
     login(client)
     assert [send(client).status_code for _ in range(21)][-2:] == [200, 429]
+
+
+def test_chat_overall_limit_scales_with_multiplier(
+    monkeypatch: pytest.MonkeyPatch, agent: FakeAgent
+) -> None:
+    limits: list[int] = []
+
+    class Spy(SlidingWindow):
+        def __init__(self, limit: int, seconds: float) -> None:
+            limits.append(limit)
+            super().__init__(limit, seconds)
+
+    monkeypatch.setattr("emporio.api.chat.SlidingWindow", Spy)
+    with client_with_multiplier(agent, 2):
+        pass
+    assert limits == [40, 400]
 
 
 def test_concurrent_turn_on_same_thread_gets_409(client: TestClient, agent: FakeAgent) -> None:

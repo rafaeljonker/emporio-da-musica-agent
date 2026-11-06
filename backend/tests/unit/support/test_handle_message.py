@@ -1,8 +1,10 @@
 import time
 from decimal import Decimal
+from uuid import uuid4
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.outputs import ChatGeneration, LLMResult
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.errors import GraphRecursionError
 
@@ -12,7 +14,7 @@ from emporio.support.application.ports import TurnMetrics
 from emporio.support.domain.channel_identity import ChannelIdentity
 from emporio.support.domain.scope import Scope
 from emporio.support.infrastructure.agent.graph import AgentGraph, build_graph
-from emporio.support.infrastructure.agent.runner import GraphRunner
+from emporio.support.infrastructure.agent.runner import GraphRunner, TurnProbe
 from emporio.support.infrastructure.agent.tools import build_tools
 from tests.fakes.fake_chat_model import FakeToolCallingModel
 from tests.fakes.recording_tracer import RecordingTracer
@@ -53,7 +55,7 @@ class FakeStore:
 def test_handle_message_returns_bubbles_and_saves_metrics() -> None:
     runner, store = FakeRunner("Temos sim.\n\nQuer ver?"), FakeStore()
     reply = HandleMessage(runner, store)(ANON, "tem violão?")
-    assert reply.bubbles == ("Temos sim.", "Quer ver?")
+    assert reply.bubbles == ("Temos sim", "Quer ver?")
     assert reply.scope is Scope.LOJA
     assert reply.trace_id == "t-1"
     assert reply.tells == ()
@@ -63,6 +65,12 @@ def test_handle_message_returns_bubbles_and_saves_metrics() -> None:
 def test_reply_reports_ai_tells() -> None:
     reply = HandleMessage(FakeRunner("Ótima pergunta!"), FakeStore())(ANON, "oi")
     assert reply.tells
+
+
+def test_tells_are_measured_on_the_delivered_bubbles() -> None:
+    reply = HandleMessage(FakeRunner("Um.\n\nDois.\n\nTrês.\n\nQuer?"), FakeStore())(ANON, "oi")
+    assert len(reply.bubbles) == 3
+    assert reply.tells == ()
 
 
 def test_blank_message_short_circuits() -> None:
@@ -86,6 +94,10 @@ def _usage(text: str, i: int, o: int) -> AIMessage:
     return AIMessage(
         text, usage_metadata={"input_tokens": i, "output_tokens": o, "total_tokens": i + o}
     )
+
+
+def _result(message: AIMessage) -> LLMResult:
+    return LLMResult(generations=[[ChatGeneration(message=message)]])
 
 
 def test_runner_sums_tokens_and_counts_calls_and_tools() -> None:
@@ -123,6 +135,71 @@ def test_runner_prices_turn_with_settings_prices() -> None:
     assert m.cached_tokens == 500_000
     usd = Decimal("0.10") * Decimal("0.5") + Decimal("0.01") * Decimal("0.5") + Decimal("0.50")
     assert m.cost_brl == usd * Decimal("5.50")
+
+
+def _cost_runner(**env: str) -> GraphRunner:
+    graph = build_graph(
+        FakeToolCallingModel(messages=iter([])),
+        build_tools(make_box()),
+        lambda _m: Scope.LOJA,
+        InMemorySaver(),
+    )
+    return GraphRunner(graph, Settings(_env_file=None, **env), RecordingTracer(), no_name)  # pyright: ignore[reportCallIssue]
+
+
+def _timed_probe() -> TurnProbe:
+    probe = TurnProbe()
+    probe.ms_guard, probe.ms_llm = 0.4, 1.6
+    return probe
+
+
+def test_gemini_turn_is_priced() -> None:
+    probe = _timed_probe()
+    probe.input_tokens, probe.output_tokens = 1_000_000, 1_000_000
+    runner = _cost_runner(LLM_PROVIDER="gemini", GEMINI_API_KEY="k")
+    cost = runner._cost_brl("gemini-3.8-flash", probe)  # pyright: ignore[reportPrivateUsage]
+    assert cost == (Decimal("0.75") + Decimal("3.75")) * Decimal("5.50")
+
+
+def test_probe_counts_guard_tokens_apart_from_agent_tokens() -> None:
+    probe, guard, guard_llm, agent_llm = TurnProbe(), uuid4(), uuid4(), uuid4()
+    probe.on_chain_start(None, {}, run_id=guard, name="guard")
+    probe.on_chat_model_start(None, [], run_id=guard_llm, parent_run_id=guard)
+    probe.on_llm_end(_result(_usage("loja", 10, 1)), run_id=guard_llm)
+    probe.on_chain_end({}, run_id=guard)
+    probe.on_chat_model_start(None, [], run_id=agent_llm)
+    probe.on_llm_end(_result(_usage("Temos.", 100, 20)), run_id=agent_llm)
+    assert (probe.input_tokens, probe.output_tokens) == (110, 21)
+    assert (probe.guard_input_tokens, probe.guard_output_tokens) == (10, 1)
+
+
+def test_gemini_guard_tokens_are_priced_at_the_guard_model() -> None:
+    probe = _timed_probe()
+    probe.input_tokens, probe.output_tokens = 2_000_000, 2_000_000
+    probe.guard_input_tokens, probe.guard_output_tokens = 1_000_000, 1_000_000
+    runner = _cost_runner(LLM_PROVIDER="gemini", GEMINI_API_KEY="k")
+    cost = runner._cost_brl("gemini-3.8-flash", probe)  # pyright: ignore[reportPrivateUsage]
+    flash, lite = Decimal("0.75") + Decimal("3.75"), Decimal("0.25") + Decimal("1.50")
+    assert cost == (flash + lite) * Decimal("5.50")
+
+
+def test_other_providers_price_guard_tokens_at_the_chat_model() -> None:
+    probe = _timed_probe()
+    probe.input_tokens, probe.guard_input_tokens = 2_000_000, 1_000_000
+    runner = _cost_runner(LLM_PROVIDER="openai", OPENAI_API_KEY="k")
+    cost = runner._cost_brl("gpt-6-luna", probe)  # pyright: ignore[reportPrivateUsage]
+    assert cost == Decimal("0.10") * 2 * Decimal("5.50")
+
+
+def test_gemma_turn_cost_is_gpu_seconds_upper_bound() -> None:
+    runner = _cost_runner(GPU_USD_PER_HOUR="3.95")
+    cost = runner._cost_brl("google/gemma-4-31B-it", _timed_probe())  # pyright: ignore[reportPrivateUsage]
+    assert cost == Decimal("3.95") * 2 / 3600 * Decimal("5.50")
+
+
+def test_gemma_cost_null_without_gpu_price() -> None:
+    runner = _cost_runner()
+    assert runner._cost_brl("google/gemma-4-31B-it", _timed_probe()) is None  # pyright: ignore[reportPrivateUsage]
 
 
 class _Exploding:
@@ -185,7 +262,7 @@ def test_metrics_save_failure_keeps_the_reply() -> None:
             raise DbDown
 
     reply = HandleMessage(FakeRunner("Temos sim."), Raising())(ANON, "oi")
-    assert reply.bubbles == ("Temos sim.",)
+    assert reply.bubbles == ("Temos sim",)
 
 
 def test_guard_llm_time_is_not_counted_as_ms_llm() -> None:
@@ -234,6 +311,12 @@ def test_runner_failure_sets_failed() -> None:
 def test_empty_answer_sets_failed() -> None:
     runner, _ = _runner(FakeToolCallingModel(messages=iter([AIMessage("")])))
     assert runner.run(ANON, "oi")[2].failed is True
+
+
+def test_unterminated_thought_only_answer_is_a_failed_turn() -> None:
+    model = FakeToolCallingModel(messages=iter([AIMessage("<|channel>thought\nabc")]))
+    text, _, m = _runner(model)[0].run(ANON, "oi")
+    assert (text, m.failed) == (CHAT_ERROR, True)
 
 
 def test_successful_turn_is_not_failed() -> None:

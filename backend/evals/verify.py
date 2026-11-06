@@ -33,8 +33,12 @@ _NOT_DISCONTINUED = (
     r"(?!.*(descontinu|saiu de linha|fora de linha|nao (esta|temos|tem|tenho|ha|trabalhamos)"
     r"|indisponivel|esgotad|nao vende(mos)? mais))"
 )
+# A negation word right before the verb ("nada passou") or anywhere in the gap after "prazo".
+_NEG_BEFORE = r"(?<!nao )(?<!nada )(?<!nunca )(?<!nem )"
+_NO_NEG_GAP = r"(?:(?!\b(nao|nada|nunca|nem)\b).)"
 _NOT_RETURN_NO = (
-    r"(?!.*(fora do prazo|(?<!nao )(passou|venceu|expirou)"
+    rf"(?!.*(fora do prazo|{_NEG_BEFORE}"
+    r"(passou|passaram|venceu|expirou|encerrou|terminou|acabou(?! de))"
     r"|nao (esta|ta) (mais )?(no|dentro do) prazo"
     r"|nao (da|e possivel|consigo|posso)( mais)? (pra |para )?(fazer a )?devol))"
 )
@@ -57,7 +61,7 @@ GROUPS: dict[str, str] = {
         r"nao (vende(\(mos\)|mos)?|trabalhamos com|temos|tem) (\w+ )?"
         r"(encordoamento|acessori|corda|cabo|palheta|pedal|amplificador|case)"
         r"|(?<!nao )(?<!nao temos )(?<!nao tem )(so|apenas|somente) "
-        r"(trabalhamos |vendemos |temos )?(com )?instrumentos"
+        r"(trabalhamos |vendemos |temos )?(com )?(os )?instrumentos"
     ),
     "asks_model": (
         r"qual (modelo|deles|desses|dos)|que modelo|algum modelo|de qual"
@@ -67,14 +71,15 @@ GROUPS: dict[str, str] = {
     "recommends_movie": r"recomend\w* (o|um) filme|assista|assiste|que tal assistir",
     "return_yes": (
         rf"^{_NOT_RETURN_NO}.*(pode devolver|da pra devolver|consegue devolver|dentro do prazo"
-        r"|esta no prazo|tem direito|ainda da)"
+        r"|(?<!nao )(esta|ta) no prazo|tem direito|ainda da)"
     ),
     "return_no": (
         r"fora do prazo|nao (esta|ta) (mais )?(no|dentro do) prazo"
-        r"|prazo\b.{0,40}\b(?<!nao )(passou|acabou|venceu|expirou|encerrou|terminou)"
-        r"|(?<!nao )(passou|acabou|venceu|expirou)\b.{0,15}\bprazo"
+        rf"|prazo\b{_NO_NEG_GAP}{{0,80}}\b(passou|acabou|venceu|expirou|encerrou|terminou)"
+        rf"|{_NEG_BEFORE}(passou|acabou|venceu|expirou)\b.{{0,15}}\bprazo"
+        r"|prazo.{0,120}\bja (passaram|acabaram|venceram|expiraram)\b"
         r"|nao (da|e possivel|consigo|posso)( mais)? (pra |para )?(fazer a )?devol"
-        r"|nao da mais"
+        r"|nao da mais|devolucao\b.{0,40}\bnao (esta|ta) mais disponivel"
     ),
     # An open store never also says it is closed or "not open": "fechado, amanha estamos abertos".
     "store_open": (
@@ -165,6 +170,8 @@ def verify(expect: Expect, bubbles: Sequence[str], tools_used: Sequence[str]) ->
     # earlier question is already an AI tell caught by the detector.
     text = normalize("\n".join(bubbles))
     failures: list[str] = []
+    if any("<|channel>" in b or "<channel|>" in b for b in bubbles):
+        failures.append("model channel markup in the reply")
     missing = [t for t in expect.expect_tools if not set(t.split("|")) & set(tools_used)]
     if missing:
         failures.append(f"tools not called: {', '.join(missing)}")
