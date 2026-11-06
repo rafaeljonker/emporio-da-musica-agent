@@ -20,7 +20,7 @@ from psycopg import Connection
 from psycopg_pool import ConnectionPool
 
 from emporio import bootstrap
-from emporio.bootstrap import build_agent
+from emporio.bootstrap import Agent, build_agent
 from emporio.catalog.application.get_product import GetProduct
 from emporio.catalog.application.list_promotions import ListPromotions
 from emporio.catalog.application.quote_installments import QuoteInstallments
@@ -45,6 +45,7 @@ from emporio.policies.infrastructure.pdf_sections import PdfPolicySource
 from emporio.policies.infrastructure.pg_policy_index import PgPolicyIndex
 from emporio.shared.clock import FixedClock, SystemClock
 from emporio.shared.money import Money
+from emporio.support.application.ports import Reply
 from emporio.support.domain.channel_identity import ChannelIdentity
 from emporio.support.domain.scope import Scope
 from evals.verify import Expect, Facts, Verdict, expand, verify
@@ -218,6 +219,17 @@ def _report(
     return "\n".join(lines) + "\n"
 
 
+def _send(
+    agent: Agent, identity: ChannelIdentity, case: dict[str, object], facts: Facts
+) -> tuple[str, Reply]:
+    """Send the case's message(s) in order on one identity; the last one is what gets verified."""
+    raw = case.get("messages") or [case["message"]]
+    assert isinstance(raw, list)
+    texts = [str(m).format_map(facts) for m in raw]
+    replies = [agent.handle(identity, text) for text in texts]
+    return texts[-1], replies[-1]
+
+
 def _fake_model(*_: object) -> FakeToolCallingModel:
     """Answers every turn with the same generic line and never calls a tool."""
     reply = "Oi, tudo bem?\n\nPosso ajudar com algum instrumento?"
@@ -251,14 +263,7 @@ def test_agent_golden_cases(
             for case in CASES:
                 customer = case.get("customer_id")
                 identity = ChannelIdentity(f"eval-{run_id}-{len(outcomes)}", customer, "s")
-                sent = case.get("messages") or [case["message"]]
-                assert isinstance(sent, list)
-                message = ""
-                for (
-                    raw
-                ) in sent:  # one identity: the thread keeps the history; only the last reply counts
-                    message = str(raw).format_map(facts)
-                    reply = agent.handle(identity, message)
+                message, reply = _send(agent, identity, case, facts)
                 tools, ms, tin, tout, cost = _turn_row(pg_conn, reply.trace_id)
                 verdict = verify(_expect(case, facts), reply.bubbles, tools)
                 outcomes.append(
