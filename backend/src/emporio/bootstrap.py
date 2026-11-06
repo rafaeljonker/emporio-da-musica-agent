@@ -88,7 +88,8 @@ def build_toolbox(
     stack: ExitStack, url: str, settings: Settings
 ) -> tuple[Toolbox, CsvCustomerRepository, ConnectionPool]:
     """Wire the ten tools' dependencies; shared by the agent and the MCP server."""
-    pool = stack.enter_context(make_pool(url, max_size=settings.db_pool_max))
+    size = settings.db_pool_max  # opened at full size: growing under load queued turns
+    pool = stack.enter_context(make_pool(url, min_size=size, max_size=size))
     embedder = E5Embedder()
     catalog = CsvCatalogRepository()
     orders = CsvOrderRepository()
@@ -123,7 +124,7 @@ def build_agent(settings: Settings) -> Agent:
         else:
             model = make_chat_model(settings)
             classify = make_classifier(make_guard_model(settings))
-        saver = make_checkpointer(url)
+        saver = make_checkpointer(url, max_size=settings.db_pool_max)
         stack.enter_context(saver.conn)  # pyright: ignore[reportArgumentType]  # pool is a context manager
         graph = build_graph(model, build_tools(box), classify, saver)
         langfuse = make_langfuse(settings, customers.names())
