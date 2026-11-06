@@ -19,7 +19,7 @@
 - **Every number has a committed source.** Allowed sources: `backend/evals/reports/{gemini,gemma-h100-fp8,gemma-l40s-fp8}.md`, `docs/scaling-and-cost.md`, `docs/model-selection.md`, `docs/research/*`, the spec. `backend/evals/reports/gemma.md` and `fake.md` are git-ignored: never cite them. A number with no committed source does not go in.
 - Hosted demo = Gemini 3.8 Flash (guard on Flash-Lite), owner decision §7.2.5; Gemma 4 31B FP8 on Modal H100 is measured and one flag away (`make deploy-api API_PROVIDER=gemma`). Never claim the demo runs Gemma.
 - Honesty rules from `docs/scaling-and-cost.md` carry over verbatim in substance: cold start ≤ 30 s **not met** (~204 s best H100); Gemini p50 7.30 s **misses** the ≤ 3 s target; the H100 report is pre-fix (4 AI tells); the L40S fail is a verifier false negative (22/22 effective); `PROVIDER=local` not measured; real-model load test skipped.
-- Public-repo hygiene: no personal names in content (commit authorship may stay), no other projects, no job-search context, no vacancy IDs, no local absolute paths, no credentials. Demo credentials go only by e-mail/Form.
+- Public-repo hygiene: no personal names in content (commit authorship may stay), no other projects, no unrelated personal context, no vacancy IDs, no local absolute paths, no credentials. Demo credentials go only by e-mail/Form.
 - Agents never do the owner-only steps (end of this plan), never push the tag, never make the repo public, never touch Modal secrets.
 - Paid steps (any `make deploy-*`, waking the GPU app, `make evals PROVIDER=gemma`) are out of scope for this phase.
 

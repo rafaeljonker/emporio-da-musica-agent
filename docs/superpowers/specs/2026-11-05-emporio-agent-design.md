@@ -12,8 +12,7 @@
 >   - normalized search (plural/accent);
 >   - the evals verifier must accept paraphrases ("9 parcelas" = "9x"; "não está mais disponível").
 
-> Status: spec under discussion (brainstorming). After approval, it moves on to the implementation plan (superpowers:writing-plans).
-> When the repository exists, this spec is copied to `docs/superpowers/specs/2026-11-05-emporio-agent-design.md` and committed.
+> Status: approved and implemented (phases 0–7). Each phase's decisions are recorded in §7.2.1–7.2.5; measured numbers live in `docs/scaling-and-cost.md`.
 
 ## 1. Intent and why
 Artefact sent the written case, the 1st of 5 stages of the **AI Engineer – Full-Stack for Generative AI Applications** process, due **Mon 09/11/2026 23:59**.
