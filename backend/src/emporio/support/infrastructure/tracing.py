@@ -30,16 +30,20 @@ from emporio.support.domain.channel_identity import ChannelIdentity
 logger = logging.getLogger("emporio.support.tracing")
 
 REDACTED = "[REDACTED]"
-# Order matters: formatted CPF, then bare 11 digits (CPF or mobile), then phones, then e-mail.
-# The `(?<![\w-])` and `(?![\w-])` bounds keep ids like `cust-<10 digits>` and hex ids intact.
-# ponytail: any bare 10-11 digit number is redacted, so numeric codes (tracking, long order ids)
+# Formatted CPF, bare 11 digits (CPF or mobile) and e-mail. The `(?<![\w-])` and `(?![\w-])`
+# bounds keep ids like `cust-<10 digits>` and hex ids intact.
+# ponytail: any bare 11 digit number is redacted, so numeric codes (tracking, long order ids)
 # are over-redacted on purpose; narrow the digit patterns if traces lose needed identifiers.
 _PII = re.compile(
     r"(?<![\w-])\d{3}\.\d{3}\.\d{3}-\d{2}(?![\w-])"
     r"|(?<![\w-])\d{11}(?![\w-])"
-    r"|(?<![\w-])(?:\+?55[\s-]?)?(?:\(\d{2}\)|\d{2})[\s-]?9?\d{4}[-\s]?\d{4}(?![\w-])"
     r"|[\w.+-]+@[\w-]+(?:\.[\w-]+)+"
 )
+# A run of 10-13 digits with spaces, dots, dashes or parentheses between them (and an optional
+# +). Whether it is a phone is decided on the digits alone, so "67 9 8432 1098" and
+# "55 (67) 98432-1098" are masked like the number they authenticate as.
+_PHONE_RUN = re.compile(r"(?<![\w-])\+?\(?\d(?:[\s.()-]*\d){9,12}\)?(?![\w-])")
+_BR_PHONE = re.compile(r"(?:55)?[1-9][1-9](?:9\d{8}|[2-9]\d{7})")
 # Span attributes that carry our pseudonymous ids; never rewritten.
 _IDENTIFIER_KEYS = frozenset({"user.id", "session.id", "langfuse.user.id", "langfuse.session.id"})
 
@@ -54,8 +58,13 @@ class TracerFactory(Protocol):
         ...
 
 
+def _phone_or_same(run: re.Match[str]) -> str:
+    digits = "".join(c for c in run.group() if c.isdigit())
+    return REDACTED if _BR_PHONE.fullmatch(digits) else run.group()
+
+
 def redact(text: str) -> str:
-    return _PII.sub(REDACTED, text)
+    return _PHONE_RUN.sub(_phone_or_same, _PII.sub(REDACTED, text))
 
 
 def mask_otel_spans(*, params: MaskOtelSpansParams) -> MaskOtelSpansResult:
