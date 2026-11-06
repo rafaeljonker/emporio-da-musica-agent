@@ -1,6 +1,8 @@
 """The web API (FastAPI + the built frontend) on Modal, with Railway Postgres and Langfuse Cloud.
 
-Deploy with `make deploy-api [LLM_APP=emporio-llm-<gpu>-<weights>] [LOADTEST=1]`. LOADTEST=1
+Deploy with `make deploy-api [API_PROVIDER=gemma|gemini] [LLM_APP=emporio-llm-<gpu>-<weights>]
+[LOADTEST=1]`. API_PROVIDER=gemini talks to the Gemini API (secret `emporio-gemini`, no GPU,
+no warm-up). LOADTEST=1
 deploys `emporio-api-loadtest`: scripted model, raised rate limits, no GPU. From backend/,
 `uv run modal run ../deploy/modal_api.py::ingest` migrates and indexes the data into the
 `emporio-db` database (frontend/dist must exist: `make web-build`).
@@ -28,9 +30,16 @@ LLM_APPS = {
 }
 FASTEMBED_CACHE = "/models/fastembed"
 MINUTES = 60
+# What the hosted demo talks to: the Gemma GPU app (LLM_APP) or the Gemini API.
+API_PROVIDERS = ("gemma", "gemini")
 
 LLM_APP = os.environ.get("EMPORIO_LLM_APP", "emporio-llm-h100-fp8")
 LOADTEST = os.environ.get("EMPORIO_LOADTEST", "")
+API_PROVIDER = os.environ.get("EMPORIO_API_PROVIDER", "gemma")
+if API_PROVIDER not in API_PROVIDERS:
+    msg = f"EMPORIO_API_PROVIDER must be one of {API_PROVIDERS}, got {API_PROVIDER!r}"
+    raise SystemExit(msg)
+GEMMA = API_PROVIDER == "gemma" and not LOADTEST
 if LOADTEST not in ("", "1"):
     msg = f"EMPORIO_LOADTEST must be unset or 1, got {LOADTEST!r}"
     raise SystemExit(msg)
@@ -46,10 +55,11 @@ NO_CACHE = ["**/__pycache__", "**/__pycache__/**"]
 runtime_env = {
     "PYTHONPATH": "/app/backend/src",
     "HF_HUB_OFFLINE": "1",  # e5 is baked below: a runtime download fails loudly instead
-    "LLM_PROVIDER": "gemma",
+    "LLM_PROVIDER": API_PROVIDER,
     "WARM_READY_TTL_SECONDS": str(WARM_READY_TTL_SECONDS),
-    "GPU_USD_PER_HOUR": GPU_PRICES[LLM_GPU],
 }
+if GEMMA:
+    runtime_env["GPU_USD_PER_HOUR"] = GPU_PRICES[LLM_GPU]
 if LOADTEST:
     # RATE_LIMIT_MULTIPLIER boots only together with EMPORIO_FAKE_MODEL=1 (cost guard).
     # DB_POOL_MAX: 100-300 users must measure the API, not a PoolTimeout on the demo's 4.
@@ -78,6 +88,7 @@ image = (
             # The container re-imports this file: it must see the deploy-time choices.
             "EMPORIO_LLM_APP": LLM_APP,
             "EMPORIO_LOADTEST": LOADTEST,
+            "EMPORIO_API_PROVIDER": API_PROVIDER,
         }
     )
     # Only the embedder module, so the e5 layer is rebuilt when it changes and not on every edit.
@@ -104,8 +115,10 @@ web_secrets = [
     modal.Secret.from_name("emporio-langfuse"),
     modal.Secret.from_name("emporio-web"),
 ]
-if not LOADTEST:
+if GEMMA:
     web_secrets.append(modal.Secret.from_name("emporio-vllm"))
+elif API_PROVIDER == "gemini" and not LOADTEST:
+    web_secrets.append(modal.Secret.from_name("emporio-gemini"))
 
 
 @app.function(
@@ -117,7 +130,7 @@ if not LOADTEST:
 @modal.concurrent(max_inputs=100)
 @modal.asgi_app()
 def web() -> object:  # the FastAPI app
-    if not LOADTEST:
+    if GEMMA:
         missing = f"{LLM_APP} has no web URL: run make deploy-llm first"
         try:
             url = modal.Function.from_name(LLM_APP, "serve").get_web_url()

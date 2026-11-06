@@ -174,8 +174,10 @@ deploy-llm:
 # instead: scripted model, raised rate limits, no GPU. Run make deploy-llm first.
 LLM_APP ?= emporio-llm-h100-fp8
 LOADTEST ?=
+# gemma: the GPU app above; gemini: the Gemini API (secret emporio-gemini, no GPU).
+API_PROVIDER ?= gemma
 deploy-api: web-build
-	cd backend && EMPORIO_LLM_APP=$(LLM_APP) EMPORIO_LOADTEST=$(LOADTEST) uv run modal deploy ../deploy/modal_api.py
+	cd backend && EMPORIO_API_PROVIDER=$(API_PROVIDER) EMPORIO_LLM_APP=$(LLM_APP) EMPORIO_LOADTEST=$(LOADTEST) uv run modal deploy ../deploy/modal_api.py
 
 # Locust against a running app: make loadtest ARGS="--host <url> -u 50 -r 10 -t 2m". Needs DEMO_EMAIL and DEMO_PASSWORD.
 loadtest:
