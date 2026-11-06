@@ -1,10 +1,10 @@
 export PATH := $(CURDIR)/backend/.venv/bin:$(PATH)
 
-.PHONY: help setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp deploy-llm web-install web-build check-web up-preflight web-config local-model up dev e2e
+.PHONY: help setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp deploy-llm deploy-api web-install web-build check-web up-preflight web-config local-model up dev e2e
 .DEFAULT_GOAL := help
 
 help:
-	@echo "targets: up dev e2e local-model setup fmt lint typecheck imports test check web-install web-build check-web db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp deploy-llm"
+	@echo "targets: up dev e2e local-model setup fmt lint typecheck imports test check web-install web-build check-web db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp deploy-llm deploy-api"
 
 setup:
 	cd backend && uv sync && uv run pre-commit install --config ../.pre-commit-config.yaml
@@ -169,3 +169,10 @@ LLM_GPU ?= H100
 LLM_WEIGHTS ?= fp8
 deploy-llm:
 	cd backend && EMPORIO_GPU=$(LLM_GPU) EMPORIO_WEIGHTS=$(LLM_WEIGHTS) uv run modal deploy ../deploy/modal_llm.py
+
+# Deploys emporio-api on Modal (CPU; calls LLM_APP's GPU). LOADTEST=1 deploys emporio-api-loadtest
+# instead: scripted model, raised rate limits, no GPU. Run make deploy-llm first.
+LLM_APP ?= emporio-llm-h100-fp8
+LOADTEST ?=
+deploy-api: web-build
+	cd backend && EMPORIO_LLM_APP=$(LLM_APP) EMPORIO_LOADTEST=$(LOADTEST) uv run modal deploy ../deploy/modal_api.py
