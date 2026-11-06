@@ -1,4 +1,5 @@
 import pytest
+
 from evals.verify import (
     Expect,
     UnknownGroup,
@@ -102,3 +103,55 @@ def test_expected_tools_must_all_be_used() -> None:
     assert not verdict.passed
     assert "store_now" in verdict.failures[0]
     assert verify(expect, ("ok",), ("store_now", "search_products", "x")).passed
+
+
+ADVERSARIAL = [
+    ("R$ 1.299", "R$ 11.299", False),
+    ("R$ 2.199", "R$ 2.199,00.", True),
+    ("R$ 2.199", "2199 reais", True),
+    ("R$ 2.199", "R$ 2.199,90", False),
+    ("R$ 2.089,05", "R$ 2.089,05", True),
+    ("R$ 2.089", "R$ 2.089,05", False),
+    ("R$ 2.199", "R$2199,00", True),
+    ("@store_open", "Não estamos abertos agora, a gente tá fechado.", False),
+    ("@store_open", "Agora tá fechado. Amanhã estamos abertos das 9h às 18h.", False),
+    ("@store_open", "Tá aberto sim! Estamos abertos até as 18h.", True),
+    ("@store_closed", "Estamos abertos até as 18h, depois fechamos.", False),
+    ("@store_closed", "Tá aberto sim! Hoje não fechamos pro almoço.", False),
+    ("@store_closed", "Agora tá fechado. Amanhã estamos abertos das 9h.", True),
+    ("@has_it", "Esse modelo saiu de linha e não está disponível.", False),
+    ("@has_it", "Saiu de linha, mas temos sim outros 7 cordas.", False),
+    ("@has_it", "Não temos em estoque, saiu de linha.", False),
+    ("@has_it", "Temos sim, tá disponível.", True),
+    ("@return_no", "Não consigo ver seu pedido, mas pode devolver sim.", False),
+    (
+        "@return_no",
+        "O prazo de arrependimento já passou, mas a garantia legal de 90 dias pode valer.",
+        True,
+    ),
+    ("@return_no", "Já passou o prazo de 7 dias.", True),
+    ("@return_no", "O prazo de 7 dias venceu em 25/01.", True),
+    ("@return_no", "O prazo de 7 dias ainda não passou.", False),
+    ("@return_yes", "Sim, entendo. Mas o prazo de 7 dias já passou.", False),
+    ("@return_yes", "Você não está dentro do prazo.", False),
+    ("@return_yes", "Pode devolver sim, está dentro do prazo.", True),
+    ("@legal_warranty", "A garantia já acabou.", False),
+    ("@legal_warranty", "Vale a garantia legal de 90 dias.", True),
+    ("@status_delivered", "Não consigo passar detalhes da entrega sem confirmar o e-mail.", False),
+    ("@status_delivered", "Seu pedido foi entregue em 18/01.", True),
+    ("@claim_delivered", "Não consigo passar detalhes da entrega sem confirmar o e-mail.", False),
+    ("@claim_delivered", "Ele já foi entregue.", True),
+    ("@installments_9", "Dá em até 9x de R$ 100", True),
+    ("@installments_9", "19x", False),
+    ("@installments_9", "nove parcelas", True),
+    ("@regret_7", "17 dias", False),
+    ("@declines_accessory", "Aqui a gente trabalha só com instrumentos.", True),
+    ("@declines_accessory", "Tem sim, qual cor?", False),
+    ("@asks_model", "Qual modelo você procura?", True),
+    ("@asks_model", "Custa um valor bom.", False),
+]
+
+
+@pytest.mark.parametrize(("token", "spoken", "expected"), ADVERSARIAL)
+def test_group_judges_real_answers(token: str, spoken: str, expected: bool) -> None:
+    assert matches(token, normalize(spoken)) is expected
