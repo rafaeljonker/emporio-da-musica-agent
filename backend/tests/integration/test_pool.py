@@ -33,8 +33,7 @@ def test_concurrent_searches_share_pool(pg_pool: ConnectionPool) -> None:
 
 
 def test_unreachable_db_raises_index_unavailable() -> None:
-    pool = make_pool(UNREACHABLE)
-    pool.timeout = 1
+    pool = make_pool(UNREACHABLE, timeout=1)
     try:
         with pytest.raises(IndexUnavailable):
             PgPolicyIndex(pool, HashEmbedder()).search("troca", 3)
