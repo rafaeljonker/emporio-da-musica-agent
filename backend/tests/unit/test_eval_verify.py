@@ -216,3 +216,25 @@ def test_anonymous_regret_case_requires_the_policy_lookup() -> None:
     cases = tomllib.loads((Path(__file__).parents[2] / "evals/agent_cases.toml").read_text())
     case = next(c for c in cases["case"] if c["name"] == "arrependimento_anonimo")
     assert case["expect_tools"] == ["search_policies"]
+
+
+PHRASINGS = [
+    ("@discontinued", "Esse modelo não está mais no catálogo.", True),
+    ("@discontinued", "Ele tá fora do catálogo? Não tá mais no catálogo, sim.", True),
+    ("@discontinued", "A gente não vende mais esse modelo.", True),
+    ("@discontinued", "Não vendemos mais essa guitarra.", True),
+    ("@discontinued", "Esse modelo está no catálogo.", False),
+    ("@has_it", "A gente não vende mais, mas temos sim outro parecido.", False),
+    ("@store_open", "Estamos funcionando até as 18h.", True),
+    ("@store_open", "Tá funcionando sim, vem aqui.", True),
+    ("@store_open", "A gente tá funcionando normal hoje.", True),
+    ("@store_open", "Hoje não estamos funcionando.", False),
+    ("@store_closed", "Hoje não estamos funcionando.", True),
+]
+
+
+@pytest.mark.parametrize(("token", "spoken", "expected"), PHRASINGS)
+def test_discontinued_and_store_open_judge_more_phrasings(
+    token: str, spoken: str, expected: bool
+) -> None:
+    assert matches(token, normalize(spoken)) is expected
