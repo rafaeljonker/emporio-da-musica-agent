@@ -12,3 +12,6 @@ class RecordingTracer:
     def for_turn(self, identity: ChannelIdentity) -> tuple[list[BaseCallbackHandler], str]:
         self.turns.append(identity)
         return [], f"trace-{len(self.turns)}"
+
+    def turn_metadata(self, identity: ChannelIdentity) -> dict[str, str]:
+        return {}
