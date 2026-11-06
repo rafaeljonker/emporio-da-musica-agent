@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ceil10, firstReplyNote, formatElapsed, isLongWait } from './format'
+import { ceil10, countUp, firstReplyNote, formatElapsed, isLongWait } from './format'
 
 describe('warm-up formatting', () => {
   it('ceil10 rounds up to the next ten', () => {
@@ -24,5 +24,12 @@ describe('warm-up formatting', () => {
     expect(firstReplyNote(2.43)).toBe('uns 2,4 s')
     expect(firstReplyNote(null)).toBe('poucos segundos')
     expect(firstReplyNote(0)).toBe('poucos segundos')
+  })
+
+  it('count-up never decreases across a poll that reports a smaller value', () => {
+    // shown 12 s locally; the next poll says 11 s and was taken just now
+    expect(countUp(11, 0, 12)).toBe(12)
+    expect(countUp(11, 1999, 12)).toBe(12)
+    expect(countUp(11, 2000, 12)).toBe(13)
   })
 })
