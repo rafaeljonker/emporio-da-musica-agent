@@ -1,3 +1,6 @@
+import tomllib
+from pathlib import Path
+
 import pytest
 
 from evals.verify import (
@@ -189,3 +192,27 @@ SECOND_BATCH = [
 @pytest.mark.parametrize(("token", "spoken", "expected"), SECOND_BATCH)
 def test_group_judges_second_batch(token: str, spoken: str, expected: bool) -> None:
     assert matches(token, normalize(spoken)) is expected
+
+
+DECLINES = [
+    ("@declines_accessory", "A gente não vende encordoamento.", True),
+    ("@declines_accessory", "Não vendemos acessórios.", True),
+    ("@declines_accessory", "Aqui a gente não vende cabo.", True),
+    ("@declines_accessory", "Aqui só trabalhamos com instrumentos.", True),
+    ("@declines_accessory", "Só vendemos instrumentos.", True),
+    ("@declines_accessory", "Não vende(mos) palheta.", True),
+    ("@declines_accessory", "Não vendemos por telefone, só presencial.", False),
+    ("@declines_accessory", "Vendemos encordoamento sim.", False),
+    ("@declines_accessory", "Não só trabalhamos com instrumentos, temos acessórios.", False),
+]
+
+
+@pytest.mark.parametrize(("token", "spoken", "expected"), DECLINES)
+def test_declines_accessory_judges_real_answers(token: str, spoken: str, expected: bool) -> None:
+    assert matches(token, normalize(spoken)) is expected
+
+
+def test_anonymous_regret_case_requires_the_policy_lookup() -> None:
+    cases = tomllib.loads((Path(__file__).parents[2] / "evals/agent_cases.toml").read_text())
+    case = next(c for c in cases["case"] if c["name"] == "arrependimento_anonimo")
+    assert case["expect_tools"] == ["search_policies"]
