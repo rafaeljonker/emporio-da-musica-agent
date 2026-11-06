@@ -26,8 +26,8 @@ def test_login_chat_happy_path(page: Page, real_model: bool) -> None:
 
 
 def test_queued_message_sent_once_when_ready(page: Page, start_server: StartServer) -> None:
-    # Its own server: scripted model that warms for ~3 s from the login, GPU copy.
-    url = start_server({"EMPORIO_FAKE_MODEL": "1", "EMPORIO_FAKE_WARM_SECONDS": "3"})
+    # Its own server: scripted model that warms for ~10 s from the login (room to type), GPU copy.
+    url = start_server({"EMPORIO_FAKE_MODEL": "1", "EMPORIO_FAKE_WARM_SECONDS": "10"})
     login(page, url)
     expect(page.get_by_role("heading", name="Afinando o atendimento")).to_be_visible()
     composer = page.get_by_label("Mensagem", exact=True)
