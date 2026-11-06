@@ -60,8 +60,12 @@ GROUPS: dict[str, str] = {
     "declines_accessory": (
         r"nao (vende(\(mos\)|mos)?|trabalhamos com|temos|tem) (\w+ )?"
         r"(encordoamento|acessori|corda|cabo|palheta|pedal|amplificador|case)"
-        r"|(?<!nao )(?<!nao temos )(?<!nao tem )(so|apenas|somente) "
+        # "só instrumentos" counts only when no "não" precedes it in the clause and the
+        # sentence does not go on to concede the accessory ("também vendemos cordas").
+        r"|(?:^|[.!?\n,])(?:(?!\bnao\b)[^.!?\n,])*?\b(so|apenas|somente) "
         r"(trabalhamos |vendemos |temos |foca |focamos )?(com |em |nos |nas )?(os )?instrumentos"
+        r"(?![^.!?\n]*\b(temos|vendemos|tem)( sim)? (\w+ )?"
+        r"(acessori|corda|encordoamento|cabo|palheta|pedal|amplificador|case))"
     ),
     "asks_model": (
         r"qual (modelo|deles|desses|dos)|que modelo|algum modelo|de qual"
