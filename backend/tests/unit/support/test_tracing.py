@@ -123,3 +123,18 @@ def test_fake_tracer_records_one_trace_per_turn() -> None:
     second = runner.run(who, "tchau")[2]
     assert [first.trace_id, second.trace_id] == ["trace-1", "trace-2"]
     assert tracer.turns == [who, who]
+
+
+def test_failed_auth_check_shuts_the_client_down(monkeypatch: pytest.MonkeyPatch) -> None:
+    from types import SimpleNamespace
+
+    from emporio.config import LangfuseUnreachable, Settings
+    from emporio.support.infrastructure import tracing
+
+    shut: list[bool] = []
+    fake = SimpleNamespace(auth_check=lambda: False, shutdown=lambda: shut.append(True))
+    monkeypatch.setattr(tracing, "Langfuse", lambda **kwargs: fake)
+    monkeypatch.setattr(tracing, "require_langfuse_settings", lambda s: None)
+    with pytest.raises(LangfuseUnreachable):
+        tracing.make_langfuse(Settings())
+    assert shut == [True]

@@ -93,3 +93,52 @@ def test_cli_maps_provider_flag(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(cli, "build_agent", lambda s: Agent(FakeHandle(), lambda: None))
     cli.main(["chat", "--provider", "gemini"], read=_typing(), sleep=lambda _: None)
     assert seen == [Provider.GEMINI]
+
+
+def _agent(handle: object, closed: Closed, exists: bool = True) -> Agent:
+    return Agent(handle, closed, lambda _id: exists)  # pyright: ignore[reportArgumentType]
+
+
+class Exploding(FakeHandle):
+    def __call__(self, identity: ChannelIdentity, text: str) -> Reply:
+        if text == "boom":
+            raise RuntimeError
+        return super().__call__(identity, text)
+
+
+def test_cli_turn_exception_keeps_repl_alive(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    handle, closed = Exploding(), Closed()
+    monkeypatch.setattr(cli, "load_settings", lambda provider=None: provider)
+    monkeypatch.setattr(cli, "build_agent", lambda s: _agent(handle, closed))
+    cli.main(["chat"], read=_typing("boom", "oi"), sleep=lambda _: None)
+    captured = capsys.readouterr()
+    assert "erro nesta mensagem" in captured.err
+    assert [text for _, text in handle.calls] == ["oi"]
+    assert closed.done
+
+
+def test_cli_ctrl_c_at_prompt_exits_cleanly(monkeypatch: pytest.MonkeyPatch) -> None:
+    closed = Closed()
+    monkeypatch.setattr(cli, "load_settings", lambda provider=None: provider)
+    monkeypatch.setattr(cli, "build_agent", lambda s: _agent(FakeHandle(), closed))
+
+    def interrupt(prompt: str) -> str:
+        raise KeyboardInterrupt
+
+    cli.main(["chat"], read=interrupt, sleep=lambda _: None)
+    assert closed.done
+
+
+def test_cli_unknown_customer_exits_2(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    closed = Closed()
+    monkeypatch.setattr(cli, "load_settings", lambda provider=None: provider)
+    monkeypatch.setattr(cli, "build_agent", lambda s: _agent(FakeHandle(), closed, exists=False))
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["chat", "--as-customer", "999"], read=_typing(), sleep=lambda _: None)
+    assert exc.value.code == 2
+    assert "cliente 999 não encontrado" in capsys.readouterr().err
+    assert closed.done
