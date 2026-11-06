@@ -1,5 +1,7 @@
+import logging
 from collections.abc import Sequence
 
+import pytest
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import (
     AIMessage,
@@ -10,18 +12,26 @@ from langchain_core.messages import (
     ToolMessage,
 )
 from langchain_core.runnables import Runnable, RunnableConfig, RunnableLambda
+from langchain_core.tools import tool
 from langgraph.checkpoint.memory import InMemorySaver
 from pydantic import Field
 
 from emporio.support.domain.scope import Scope
 from emporio.support.infrastructure.agent.context import TurnContext
-from emporio.support.infrastructure.agent.graph import ABUSE_REPLY, AgentGraph, build_graph
+from emporio.support.infrastructure.agent.graph import (
+    ABUSE_REPLY,
+    AgentGraph,
+    build_graph,
+)
 from emporio.support.infrastructure.agent.guard import Label, make_classifier
 from emporio.support.infrastructure.agent.prompt import scope_note
 from emporio.support.infrastructure.agent.tools import ORDER_NOT_FOUND, build_tools
 from tests.fakes.fake_chat_model import FakeToolCallingModel
 from tests.unit.support.test_tools import make_box
 
+TOOL_FAILURE_TEXT = (
+    "Não consegui consultar isso agora; ofereça passar o e-mail e o WhatsApp da loja."
+)
 CONFIG = RunnableConfig(configurable={"thread_id": "t"})
 
 
@@ -212,3 +222,28 @@ def test_second_turn_prompt_includes_previous_answer() -> None:
     _ask(graph, "e o preço?")
     texts = [m.text for m in model.seen[-1] if isinstance(m, AIMessage)]
     assert texts == ["resposta A"]
+
+
+@tool("boom")
+def _boom() -> str:
+    """Always fails."""
+    raise RuntimeError
+
+
+def test_unexpected_tool_exception_becomes_a_tool_message(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    model = FakeToolCallingModel(
+        messages=iter([_call("boom"), AIMessage("Não consegui."), AIMessage("De novo.")])
+    )
+    graph = build_graph(model, [_boom], lambda _m: Scope.LOJA, InMemorySaver())
+    with caplog.at_level(logging.ERROR, logger="emporio.support.tools"):
+        first = _ask(graph, "1")
+    assert any(isinstance(m, ToolMessage) and m.content == TOOL_FAILURE_TEXT for m in first)
+    assert first[-1].content == "Não consegui."
+    assert any(r.exc_info for r in caplog.records)
+    _ask(graph, "2")
+    sent = model.seen[-1]
+    calls = {c["id"] for m in sent if isinstance(m, AIMessage) for c in m.tool_calls}
+    answered = {m.tool_call_id for m in sent if isinstance(m, ToolMessage)}
+    assert calls <= answered
