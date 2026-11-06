@@ -98,8 +98,8 @@ def real_model() -> bool:
     return os.environ.get("EMPORIO_FAKE_MODEL") != "1"
 
 
-def login(page: Page) -> None:
-    page.goto("/")
+def login(page: Page, url: str = "/") -> None:
+    page.goto(url)
     page.get_by_label("E-mail").fill(DEMO_EMAIL)
     page.get_by_label("Senha").fill(DEMO_PASSWORD)
     page.get_by_role("button", name="Entrar").click()
