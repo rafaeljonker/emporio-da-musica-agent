@@ -11,7 +11,7 @@ from collections.abc import Callable, Iterator
 
 import httpx
 import pytest
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Browser, Page, StorageState, expect
 
 from emporio.paths import REPO_ROOT
 
@@ -104,3 +104,27 @@ def login(page: Page, url: str = "/") -> None:
     page.get_by_label("Senha").fill(DEMO_PASSWORD)
     page.get_by_role("button", name="Entrar").click()
     expect(page.get_by_role("heading", name="Assistente da Empório")).to_be_visible()
+
+
+@pytest.fixture(scope="session")
+def signed_in_state(browser: Browser, server: str) -> StorageState:
+    """One login through the form for the whole run (the API allows 5 logins/min per IP).
+
+    The tests that start from it share one session id, so one anonymous thread, until a switch.
+    """
+    context = browser.new_context(base_url=server)
+    login(context.new_page())
+    state = context.storage_state()
+    context.close()
+    return state
+
+
+@pytest.fixture
+def signed_in_page(browser: Browser, server: str, signed_in_state: StorageState) -> Iterator[Page]:
+    """A fresh context already signed in, for tests that do not exercise the login form."""
+    context = browser.new_context(base_url=server, storage_state=signed_in_state)
+    page = context.new_page()
+    page.goto("/")
+    expect(page.get_by_role("heading", name="Assistente da Empório")).to_be_visible()
+    yield page
+    context.close()

@@ -49,7 +49,8 @@ def test_queued_message_sent_once_when_ready(page: Page, start_server: StartServ
     expect(page.get_by_role("heading", name="Afinando o atendimento")).to_have_count(0)
 
 
-# The session server allows 5 logins per minute per IP (auth.py): keep its tests at 5 logins.
+# The API allows 5 logins per minute per IP (auth.py). Only the tests about the login form
+# log in through it; the rest start from `signed_in_page` (one login for the whole run).
 def test_wrong_password_shows_error(page: Page) -> None:
     page.goto("/")
     email = page.get_by_label("E-mail")
@@ -65,8 +66,8 @@ def test_wrong_password_shows_error(page: Page) -> None:
     expect(page.get_by_role("heading", name="Assistente da Empório")).to_have_count(0)
 
 
-def test_switch_customer_appends_divider(page: Page, real_model: bool) -> None:
-    login(page)
+def test_switch_customer_appends_divider(signed_in_page: Page, real_model: bool) -> None:
+    page = signed_in_page
     composer = page.get_by_label("Mensagem", exact=True)
     log = page.get_by_role("log")
     agent = log.locator("p", has_text="Assistente: ")
@@ -93,22 +94,22 @@ def test_switch_customer_appends_divider(page: Page, real_model: bool) -> None:
     expect(agent).to_have_count(first_reply)
 
     # The server rotated the session; what the browser can see is a fresh turn answering below
-    # the divider (the scripted model echoes only the new message).
+    # the divider (the scripted model echoes only the new message, in two bubbles).
     composer.fill("Tudo bem?")
     composer.press("Enter")
-    expect(agent).to_have_count(first_reply + 1, timeout=AGENT_TIMEOUT_MS)  # at least one more
+    expect(agent.nth(first_reply)).to_be_visible(timeout=AGENT_TIMEOUT_MS)
+    expect(typing).to_have_count(0, timeout=AGENT_TIMEOUT_MS)
     if not real_model:
-        expect(agent.last).to_have_text(
-            "Assistente: Você escreveu: Tudo bem?", timeout=AGENT_TIMEOUT_MS
-        )
+        expect(agent).to_have_count(first_reply + 2)
+        expect(agent.last).to_have_text("Assistente: Você escreveu: Tudo bem?")
     after_divider = divider.locator("xpath=following::p[contains(., 'Você: Tudo bem?')]")
     expect(after_divider).to_have_count(1)
 
 
-def test_failed_turn_offers_resend(page: Page, real_model: bool) -> None:
+def test_failed_turn_offers_resend(signed_in_page: Page, real_model: bool) -> None:
     if real_model:
         pytest.skip("[falha] is a scripted-model marker")
-    login(page)
+    page = signed_in_page
     composer = page.get_by_label("Mensagem", exact=True)
     log = page.get_by_role("log")
     error_line = log.get_by_text("Perdi o fio da conversa aqui.")
@@ -142,8 +143,8 @@ def test_failed_turn_offers_resend(page: Page, real_model: bool) -> None:
     expect(log.locator("p", has_text="Você: Oi")).to_have_count(1)
 
 
-def test_logout_returns_to_login(page: Page) -> None:
-    login(page)
+def test_logout_returns_to_login(signed_in_page: Page) -> None:
+    page = signed_in_page
     page.get_by_role("button", name="Sair").click()
     login_title = page.get_by_role("heading", name="Entra aí pra conversar com a Empório")
     expect(login_title).to_be_visible()
