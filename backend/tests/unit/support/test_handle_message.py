@@ -203,3 +203,39 @@ def test_guard_llm_time_is_not_counted_as_ms_llm() -> None:
     assert m.llm_calls == 2
     assert m.ms_guard >= 50
     assert m.ms_llm < m.ms_guard
+
+
+def test_reply_carries_metrics() -> None:
+    reply = HandleMessage(FakeRunner("Temos sim."), FakeStore())(ANON, "oi")
+    assert reply.metrics == _metrics()
+    assert reply.failed is False
+
+
+def test_blank_message_is_failed() -> None:
+    reply = HandleMessage(FakeRunner("x"), FakeStore())(ANON, " ")
+    assert (reply.failed, reply.metrics) == (True, None)
+
+
+class FakeRunnerOf:
+    def __init__(self, metrics: TurnMetrics) -> None:
+        self.metrics = metrics
+
+    def run(self, identity: ChannelIdentity, text: str) -> tuple[str, Scope, TurnMetrics]:
+        return CHAT_ERROR, Scope.LOJA, self.metrics
+
+
+def test_runner_failure_sets_failed() -> None:
+    graph: AgentGraph = _Exploding(RuntimeError("boom"))  # pyright: ignore[reportAssignmentType]  # stub graph
+    _, _, m = GraphRunner(graph, SETTINGS, RecordingTracer(), no_name).run(ANON, "oi")
+    assert m.failed is True
+    assert HandleMessage(FakeRunnerOf(m), FakeStore())(ANON, "oi").failed is True
+
+
+def test_empty_answer_sets_failed() -> None:
+    runner, _ = _runner(FakeToolCallingModel(messages=iter([AIMessage("")])))
+    assert runner.run(ANON, "oi")[2].failed is True
+
+
+def test_successful_turn_is_not_failed() -> None:
+    runner, _ = _runner(FakeToolCallingModel(messages=iter([AIMessage("Oi.")])))
+    assert runner.run(ANON, "oi")[2].failed is False
