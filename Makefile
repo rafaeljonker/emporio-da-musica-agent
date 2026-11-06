@@ -1,10 +1,10 @@
 export PATH := $(CURDIR)/backend/.venv/bin:$(PATH)
 
-.PHONY: help setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals
+.PHONY: help setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys langfuse-db langfuse-up
 .DEFAULT_GOAL := help
 
 help:
-	@echo "targets: setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals"
+	@echo "targets: setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys langfuse-up"
 
 setup:
 	cd backend && uv sync && uv run pre-commit install --config ../.pre-commit-config.yaml
@@ -55,3 +55,27 @@ test-pg: db-up db-test
 
 evals: db-up db-test
 	cd backend && DATABASE_URL=$(TEST_DATABASE_URL) uv run pytest -q -m eval -s
+
+# Writes the Langfuse secrets into .env only when absent; values are never printed.
+langfuse-keys:
+	@touch .env
+	@if [ -s .env ] && [ -n "$$(tail -c1 .env)" ]; then echo >> .env; fi
+	@put() { grep -q "^$$1=" .env || printf '%s=%s\n' "$$1" "$$2" >> .env; }; \
+	hex() { openssl rand -hex "$$1"; }; \
+	pk="pk-lf-$$(hex 16)"; sk="sk-lf-$$(hex 16)"; \
+	put SALT "$$(hex 16)"; put ENCRYPTION_KEY "$$(hex 32)"; put NEXTAUTH_SECRET "$$(hex 32)"; \
+	put CLICKHOUSE_PASSWORD "$$(hex 16)"; put MINIO_ROOT_PASSWORD "$$(hex 16)"; put REDIS_AUTH "$$(hex 16)"; \
+	put LANGFUSE_INIT_ORG_ID emporio; put LANGFUSE_INIT_ORG_NAME Emporio; \
+	put LANGFUSE_INIT_PROJECT_ID emporio-agent; put LANGFUSE_INIT_PROJECT_NAME emporio-agent; \
+	put LANGFUSE_INIT_PROJECT_PUBLIC_KEY "$$pk"; put LANGFUSE_INIT_PROJECT_SECRET_KEY "$$sk"; \
+	put LANGFUSE_INIT_USER_EMAIL admin@emporio.local; put LANGFUSE_INIT_USER_NAME admin; \
+	put LANGFUSE_INIT_USER_PASSWORD "$$(hex 12)"; \
+	put LANGFUSE_PUBLIC_KEY "$$pk"; put LANGFUSE_SECRET_KEY "$$sk"; \
+	put LANGFUSE_BASE_URL http://localhost:3000; put LANGFUSE_SALT "$$(hex 16)"
+
+# Langfuse shares our Postgres container but gets its own database.
+langfuse-db: db-up
+	docker compose exec -T db psql -U emporio -d emporio -tc "SELECT 1 FROM pg_database WHERE datname='langfuse'" | grep -q 1 || docker compose exec -T db createdb -U emporio langfuse
+
+langfuse-up: langfuse-keys langfuse-db
+	docker compose --profile observability up -d --wait
