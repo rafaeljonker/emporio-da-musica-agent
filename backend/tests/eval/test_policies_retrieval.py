@@ -1,8 +1,8 @@
 import tomllib
 from pathlib import Path
 
-import psycopg
 import pytest
+from psycopg_pool import ConnectionPool
 
 from emporio.embeddings import E5Embedder
 from emporio.policies.application.ingest_policies import IngestPolicies
@@ -26,12 +26,12 @@ def _hit_rates(index: PgPolicyIndex) -> dict[int, float]:
     return {k: sum(r is not None and r <= k for r in ranks) / len(ranks) for k in (1, 3, 5)}
 
 
-def test_hybrid_retrieval_hit_at_5(pg_conn: psycopg.Connection) -> None:
+def test_hybrid_retrieval_hit_at_5(pg_pool: ConnectionPool) -> None:
     embedder = E5Embedder()
-    index = PgPolicyIndex(pg_conn, embedder)
+    index = PgPolicyIndex(pg_pool, embedder)
     IngestPolicies(PdfPolicySource(), index)()
     rows = {
-        mode: _hit_rates(PgPolicyIndex(pg_conn, embedder, hybrid=mode == "hybrid"))
+        mode: _hit_rates(PgPolicyIndex(pg_pool, embedder, hybrid=mode == "hybrid"))
         for mode in ("vector", "hybrid")
     }
     print(f"\n| mode | hit@1 | hit@3 | hit@5 |  ({len(CASES)} questions)\n|---|---|---|---|")

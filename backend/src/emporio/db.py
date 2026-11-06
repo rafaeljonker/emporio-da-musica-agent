@@ -2,6 +2,7 @@ import os
 
 import psycopg
 from pgvector.psycopg import register_vector
+from psycopg_pool import ConnectionPool
 
 from emporio.shared.errors import DomainError
 
@@ -11,6 +12,13 @@ class DatabaseNotConfigured(DomainError):
 
     def __init__(self) -> None:
         super().__init__("DATABASE_URL is not set; run `make db` or see .env.example")
+
+
+class IndexUnavailable(DomainError):
+    """The database behind a search index cannot be reached."""
+
+    def __init__(self) -> None:
+        super().__init__("search index unavailable: database unreachable")
 
 
 def database_url() -> str:
@@ -32,3 +40,16 @@ def connect(url: str | None = None) -> psycopg.Connection:
     conn = psycopg.connect(url or database_url())
     register_vector_if_available(conn)
     return conn
+
+
+def make_pool(url: str | None = None, *, min_size: int = 1, max_size: int = 4) -> ConnectionPool:
+    """Shared autocommit pool for read adapters; callers close it."""
+    return ConnectionPool(
+        url or database_url(),
+        min_size=min_size,
+        max_size=max_size,
+        kwargs={"autocommit": True},
+        configure=register_vector_if_available,
+        check=ConnectionPool.check_connection,
+        open=True,
+    )

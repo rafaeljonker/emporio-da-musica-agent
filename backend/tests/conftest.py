@@ -3,8 +3,9 @@ from collections.abc import Iterator
 
 import psycopg
 import pytest
+from psycopg_pool import ConnectionPool
 
-from emporio.db import connect
+from emporio.db import connect, make_pool
 from emporio.migrate import apply_migrations
 from tests.pg_guard import pg_skip_reason
 
@@ -21,3 +22,11 @@ def pg_conn() -> Iterator[psycopg.Connection]:
     conn.execute("TRUNCATE policy_chunks, product_embeddings")
     conn.commit()
     conn.close()
+
+
+@pytest.fixture
+def pg_pool(pg_conn: psycopg.Connection) -> Iterator[ConnectionPool]:
+    """Pool over the guarded `_test` database; `pg_conn` already migrated and cleans up."""
+    pool = make_pool()
+    yield pool
+    pool.close()
