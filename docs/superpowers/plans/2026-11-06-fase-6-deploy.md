@@ -330,7 +330,7 @@ For each config, the run is the same:
   - **§7.14:** `PROVIDER=local` as built, and the line-481 fix "(any of these modes)" from verdict PR-6 row 15.
 
   Update `AGENTS.md` (commands `deploy-llm`, `deploy-api`, `loadtest`, `PROVIDER=local`; gotchas: paid steps, never recreate `emporio-langfuse`, `HF_HUB_OFFLINE` in the image).
-- [ ] **Step 2:** `make check`, `make check-web`, `make test-pg` and `make e2e` all green. Run `gitleaks` over the branch, then `git grep -nE 'modal\.run|/Users/'`, which must be empty.
+- [ ] **Step 2:** `make check`, `make check-web`, `make test-pg` and `make e2e` all green. Run `gitleaks` over the branch, then `git grep -nE 'https://[a-z0-9-]+--[a-z0-9-]+\.modal\.run|/(Users|home)/[a-z]'`, which must be empty (no workspace URL or local path; the plain words in this plan do not match).
 - [ ] **Step 3:** `git push -u origin feat/deploy` **only when the owner says so**. Then `gh pr create`, with an English body (the measured tables, the cut items, the owner actions taken) ending in `🤖 Generated with [Claude Code](https://claude.com/claude-code)`.
 - [ ] **Step 4:** run the project's `reviewing-changes` skill (`.claude/skills/reviewing-changes/`) on the PR, and apply the FIX-NOW items as new commits.
 - [ ] **Step 5:** owner checkpoint before merging. Bring:
