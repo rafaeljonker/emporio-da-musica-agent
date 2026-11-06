@@ -148,7 +148,7 @@ def test_new_customer_gets_fresh_thread() -> None:
     runner, graph = _runner(model, saver)
     runner.run(ChannelIdentity("web", 14, "s"), "meu pedido?")
     runner.run(ChannelIdentity("web", 3, "s"), "e o meu?")
-    state = graph.get_state({"configurable": {"thread_id": "web:customer:3"}})
+    state = graph.get_state({"configurable": {"thread_id": "web:customer:3:s"}})
     texts = [m.text for m in state.values["messages"]]
     assert texts == ["e o meu?", "Oi, Bia."]
     assert all(isinstance(m, HumanMessage | AIMessage) for m in state.values["messages"])

@@ -82,11 +82,18 @@ def test_turn_metadata_sets_session_and_pseudonymous_user() -> None:
     factory = LangfuseTracerFactory(client, "salt", "pk")
     meta = factory.turn_metadata(ChannelIdentity("web", 7, "s"))
     assert meta == {
-        "langfuse_session_id": f"web:{pseudonym('salt', 7)}",
+        "langfuse_session_id": f"web:{pseudonym('salt', 7)}:s",
         "langfuse_user_id": pseudonym("salt", 7),
-        "thread_id": f"web:{pseudonym('salt', 7)}",
+        "thread_id": f"web:{pseudonym('salt', 7)}:s",
     }
     assert ":customer:" not in meta["langfuse_session_id"]
+
+
+def test_langfuse_session_scoped_and_pseudonymous() -> None:
+    factory = LangfuseTracerFactory(_offline_client(), "salt", "pk")
+    session = factory.turn_metadata(ChannelIdentity("web", 14, "abc"))["langfuse_session_id"]
+    assert session.endswith(":abc")
+    assert "14" not in session
 
 
 def test_anonymous_session_id_keeps_the_anon_thread_shape() -> None:
