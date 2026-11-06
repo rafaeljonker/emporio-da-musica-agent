@@ -145,6 +145,8 @@ ADVERSARIAL = [
     ("@return_yes", "Sim, entendo. Mas o prazo de 7 dias já passou.", False),
     ("@return_yes", "Você não está dentro do prazo.", False),
     ("@return_yes", "Pode devolver sim, está dentro do prazo.", True),
+    ("@return_yes", "Vi que o pedido foi entregue dia 17 e você ainda tá no prazo.", True),
+    ("@return_yes", "Você não tá mais no prazo.", False),
     ("@legal_warranty", "A garantia já acabou.", False),
     ("@legal_warranty", "Vale a garantia legal de 90 dias.", True),
     ("@status_delivered", "Não consigo passar detalhes da entrega sem confirmar o e-mail.", False),
