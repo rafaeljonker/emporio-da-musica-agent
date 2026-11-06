@@ -110,3 +110,10 @@ def test_identified_regret_checks_eligibility_before_answering() -> None:
     prompt = system_prompt("Letícia", TODAY)
     assert "chame em seguida check_return_eligibility" in prompt
     assert "não pergunte se pode verificar, verifique" in prompt
+
+
+def test_specs_and_store_rules_come_only_from_tool_results() -> None:
+    prompt = system_prompt(None, TODAY)
+    assert "Especificação do produto" in prompt
+    assert "só diga do jeito que veio da ferramenta" in prompt
+    assert "nunca complete nem generalize" in prompt
