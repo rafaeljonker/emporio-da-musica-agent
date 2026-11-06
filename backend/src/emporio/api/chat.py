@@ -81,12 +81,13 @@ def build_chat_router(agent: ChatAgent) -> APIRouter:
             raise HTTPException(status_code=429, detail="too_many_messages")
         identity = ChannelIdentity("web", session.customer_id, session.sid)
         thread_id = identity.thread_id()
-        if not locks.try_acquire(thread_id):
+        token = locks.try_acquire(thread_id)
+        if token is None:
             raise HTTPException(status_code=409, detail="turn_in_progress")
         try:
             yield identity
         finally:
-            locks.release(thread_id)
+            locks.release(thread_id, token)
 
     @router.post("", response_class=EventSourceResponse, dependencies=[Depends(require_json)])
     def chat(

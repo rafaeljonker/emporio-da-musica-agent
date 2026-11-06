@@ -58,18 +58,21 @@ class ThreadLocks:
         self._held: dict[str, float] = {}
         self._lock = threading.Lock()
 
-    def try_acquire(self, thread_id: str) -> bool:
+    def try_acquire(self, thread_id: str) -> float | None:
+        """Return the owner token (the acquire time), or None if the thread is busy."""
         now = self._clock()
         with self._lock:
             since = self._held.get(thread_id)
             if since is not None and now - since < self._stale_after:
-                return False
+                return None
             self._held[thread_id] = now
-            return True
+            return now
 
-    def release(self, thread_id: str) -> None:
+    def release(self, thread_id: str, token: float) -> None:
+        """Free the lock only if `token` still owns it (a reclaimed owner must not free it)."""
         with self._lock:
-            self._held.pop(thread_id, None)
+            if self._held.get(thread_id) == token:
+                del self._held[thread_id]
 
 
 @dataclass(frozen=True)
