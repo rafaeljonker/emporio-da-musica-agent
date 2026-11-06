@@ -81,6 +81,8 @@ class ChatIn(BaseModel):
 def build_chat_router(agent: ChatAgent) -> APIRouter:
     router = APIRouter(prefix="/api/chat")
     per_session = SlidingWindow(20, 600)
+    # ponytail: per process; one shared GPU budget, move to a shared store with several containers
+    overall = SlidingWindow(200, 600)
     locks = ThreadLocks()
 
     def turn_slot(
@@ -88,7 +90,7 @@ def build_chat_router(agent: ChatAgent) -> APIRouter:
     ) -> Iterator[ChannelIdentity]:
         # A yield dependency also runs when body validation fails or the client drops
         # before the stream starts, so the lock cannot leak.
-        if not per_session.allow(session.sid):
+        if not (per_session.allow(session.sid) and overall.allow("*")):
             raise HTTPException(status_code=429, detail="too_many_messages")
         identity = ChannelIdentity("web", session.customer_id, session.sid)
         thread_id = identity.thread_id()

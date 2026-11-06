@@ -170,7 +170,7 @@ The agent's tools are a thin layer in `support/` that calls the use cases. A rul
 - **R5 (client-side pacing):** the server computes `delay_ms` and never sleeps; the client waits and appends (7.3.1).
 - **R4 (CSRF):** bodiless POSTs are exempt from the JSON-only guard; everything with a body returns 415 unless `application/json`.
 - **Per-thread lock:** one turn at a time per thread, in process; a held lock older than 300 s is reclaimed, and release is owner-token checked so a reclaimed owner cannot free the new holder. It lives in a request-scoped yield dependency, so it is released after the stream body ends, also on a client disconnect or a body-validation failure. The rate limit is counted before the lock check (R6; a double-click burns quota faster, accepted at demo scale).
-- **Rate limits:** login 5 per minute per IP and 30 per minute overall; chat 20 per 600 s per `sid` (a GPU cost guard). In-memory sliding windows, per process.
+- **Rate limits:** login 5 per minute per IP and 30 per minute overall; chat 20 per 600 s per `sid` plus 200 per 600 s overall (a GPU cost guard; the overall window stops a client that rotates `sid` through `PUT /api/identity`); identity switches 10 per minute per login. In-memory sliding windows, per process.
 - **Warm-up:** one GPU stage, `server_starting`; a per-attempt deadline of 600 s ends in `failed`; a retry (`POST /api/warm`) keeps `started_at` so the clock does not reset; a Modal 303 or a timeout counts as "still starting". A `ready` older than `WARM_READY_TTL_SECONDS` (default 300 s; phase 6 sets it to Modal's scaledown window) is probed again by the next `start()` (login or `POST /api/warm`): a new attempt with a fresh `started_at`, back through `server_starting`; `GET /api/warm/status` never re-arms. `reply_p50_seconds` is the median `ms_total` of the last 50 turns of the same provider, computed outside the lock, and a failing query yields `null`. `GET /api/warm/expected` is public and starts nothing (it feeds the login note). State is per process (a one-row table is the upgrade for several containers).
 - **R9 done:** unanswered `tool_calls` are dropped at trim time, so a process death between the agent and tools nodes no longer dead-ends a thread.
 - **Scripted runs:** `EMPORIO_FAKE_MODEL=1` swaps in the scripted model (reported as provider `fake`, R2: `fake` is not in the `Provider` type); `EMPORIO_FAKE_WARM_SECONDS` and `EMPORIO_FAKE_WARM_MODE` fake the warm-up for e2e and screenshots. `make e2e` starts its own server per warm-up scenario (R1).
@@ -223,11 +223,11 @@ All routes are JSON except the chat stream. Errors are `{"detail": "<code>"}`. R
 | `POST /api/auth/logout` | none | none | `204`; clears the session | none |
 | `GET /api/auth/me` | session | none | `200 {"customer_id": int or null, "warm": WarmStatus}` | 401 |
 | `GET /api/customers` | session | none | `200 [{"id": int, "name": str, "city": str}]`; no phone or e-mail | 401 |
-| `PUT /api/identity` | session | `{"customer_id": int or null}` | `200 {"customer_id": int or null}`; rotates `sid` | 401, 404 `unknown_customer`, 415, 422 |
+| `PUT /api/identity` | session | `{"customer_id": int or null}` (a demo customer id) | `200 {"customer_id": int or null}`; rotates `sid` | 401, 404 `unknown_customer` (any id outside the demo list), 415, 422, 429 `too_many_switches` |
 | `POST /api/warm` | session | none | `200 WarmStatus`; starts the warm-up, or restarts it after `failed` (keeps `started_at`) | 401 |
 | `GET /api/warm/status` | session | none | `200 WarmStatus` | 401 |
 | `GET /api/warm/expected` | none | none | `200 {"mode": WarmMode, "expected_seconds": int}`; starts nothing | none |
-| `POST /api/chat` | session | `{"text": str}` | `200` `text/event-stream` (events below) | 401, 409 `turn_in_progress`, 415, 422, 429 `too_many_messages` |
+| `POST /api/chat` | session | `{"text": str}` | `200` `text/event-stream` (events below) | 401, 409 `turn_in_progress`, 415, 422, 429 `too_many_messages` (per `sid` or overall) |
 
 - **`customer_id`** is a strict integer from 1 to 2147483647, or `null` for anonymous (a JSON string or float is a 422). `/api/customers` lists the curated demo customers, not the whole CSV.
 - **`text`** is trimmed and must be 1 to 1000 characters; extra keys are a 422. Identity never comes from the body, only from the session.

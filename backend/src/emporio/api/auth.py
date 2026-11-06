@@ -39,7 +39,13 @@ def build_auth_router(settings: Settings, warmup: Warmup) -> APIRouter:
         ):
             raise HTTPException(status_code=401, detail="invalid_credentials")
         request.session.clear()
-        request.session.update({"sid": secrets.token_urlsafe(16), "customer_id": None})
+        request.session.update(
+            {
+                "sid": secrets.token_urlsafe(16),
+                "lid": secrets.token_urlsafe(16),
+                "customer_id": None,
+            }
+        )
         return {"warm": warmup.start().to_json()}
 
     @router.post("/logout", status_code=204)
