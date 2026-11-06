@@ -28,7 +28,7 @@ def create_app(
         finally:
             agent.close()
 
-    app = FastAPI(lifespan=lifespan)
+    app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     # ponytail: stateless signed cookie, so logout cannot revoke a copied cookie. Starlette re-sets
     # the cookie only when the session changes, so max_age runs from login or the last customer
     # switch (it does not slide); upgrade = server-side sid denylist or an absolute issued_at check.
