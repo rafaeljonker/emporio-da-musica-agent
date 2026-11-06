@@ -406,7 +406,7 @@ emporio-da-musica-agent/
 - AGENTS.md under 200 lines: commands, conventions, gotchas, without describing folders.
 
 ### 7.8 README (structure, mapped to the statement)
-1. **Overview in 5 lines**, with a GIF of the conversation and the demo link (credentials sent outside the repo).
+1. **Overview in 5 lines**, with a PNG screenshot of the conversation and the demo link (credentials sent outside the repo).
 2. **How to run:**
    - prerequisites (uv, Node, Make);
    - `.env` from `.env.example`;
