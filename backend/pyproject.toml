@@ -6,10 +6,20 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastembed>=0.9.1",
+    "fastmcp>=4.1.6",
+    "langchain>=1.4.9",
+    "langchain-anthropic>=1.7.10",
+    "langchain-core>=1.7.6",
+    "langchain-google-genai>=4.4.3",
+    "langchain-openai>=1.7.4",
+    "langfuse>=5.2.0",
+    "langgraph>=1.2.20",
+    "langgraph-checkpoint-postgres>=3.2.0",
     "pdfplumber>=0.11.10",
     "pgvector>=0.5.1",
     "psycopg-pool>=3.3.3",
     "psycopg[binary]>=3.3.8",
+    "pydantic-settings>=2.16.2",
     "tzdata>=2026.6",
 ]
 
@@ -94,7 +104,8 @@ source_modules = [
 forbidden_modules = [
     "fastapi", "langchain", "langchain_core", "langgraph", "sqlalchemy", "psycopg",
     "duckdb", "httpx", "openai", "anthropic", "google",
-    "pydantic", "pandas", "requests", "rapidfuzz",
+    "pydantic", "pydantic_settings", "langchain_openai", "langchain_google_genai",
+    "langchain_anthropic", "langfuse", "fastmcp", "pandas", "requests", "rapidfuzz",
     "numpy", "fastembed", "pdfplumber", "pgvector", "psycopg_pool",
     "csv", "os", "pathlib", "sqlite3", "socket", "subprocess", "urllib", "http", "shutil",
     "tempfile", "glob", "io", "ssl", "smtplib", "asyncio", "threading", "logging",
@@ -110,7 +121,8 @@ source_modules = [
 forbidden_modules = [
     "fastapi", "langchain", "langchain_core", "langgraph", "sqlalchemy", "psycopg",
     "duckdb", "httpx", "openai", "anthropic", "google",
-    "pydantic", "pandas", "requests", "rapidfuzz",
+    "pydantic", "pydantic_settings", "langchain_openai", "langchain_google_genai",
+    "langchain_anthropic", "langfuse", "fastmcp", "pandas", "requests", "rapidfuzz",
     "numpy", "fastembed", "pdfplumber", "pgvector", "psycopg_pool",
 ]
 
@@ -204,7 +216,7 @@ source_modules = [
     "emporio.policies.application", "emporio.support.application",
 ]
 forbidden_modules = [
-    "emporio.paths", "emporio.db", "emporio.migrate", "emporio.embeddings", "emporio.ingest",
+    "emporio.config", "emporio.paths", "emporio.db", "emporio.migrate", "emporio.embeddings", "emporio.ingest",
 ]
 
 [[tool.importlinter.contracts]]
