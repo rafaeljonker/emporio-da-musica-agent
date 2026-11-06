@@ -26,8 +26,8 @@ Enforced by `import-linter` (`make imports`).
 | `*/domain` | only `shared` and stdlib. No LangChain, SQL, FastAPI or IO |
 | `*/application` | own `domain`, other `application` via ports, `shared` |
 | `*/infrastructure` | `application`, `domain` and external libs |
-| `api/` | `support.application` and `config` (never another domain's `infrastructure`, only via the factory) |
-| `cli.py` | `bootstrap`, `config`, the `db` errors and `support.domain.channel_identity` (never an `infrastructure` module directly) |
+| `api/` | `support.application`, `support.domain`, `shared` and `config`; never an `infrastructure`, `bootstrap`, `db` or LangChain/psycopg/Langfuse (enforced) |
+| `cli.py`, `web.py` | `bootstrap`, `config`, the `db` errors and `support.domain.channel_identity` (never an `infrastructure` module directly) |
 
 `emporio.db`, `embeddings`, `migrate` are leaf technical modules usable only by infrastructure; The composition roots are `emporio.bootstrap` (the agent: wires use cases, tools, model, tracing) and `emporio.ingest` (the data: PDF and CSV into Postgres).
 

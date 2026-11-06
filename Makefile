@@ -1,10 +1,10 @@
 export PATH := $(CURDIR)/backend/.venv/bin:$(PATH)
 
-.PHONY: help setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys langfuse-db langfuse-up chat-config evals-config chat mcp
+.PHONY: help setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp
 .DEFAULT_GOAL := help
 
 help:
-	@echo "targets: setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys langfuse-db langfuse-up chat-config evals-config chat mcp"
+	@echo "targets: setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp"
 
 setup:
 	cd backend && uv sync && uv run pre-commit install --config ../.pre-commit-config.yaml
@@ -79,6 +79,13 @@ langfuse-keys:
 	put LANGFUSE_INIT_USER_PASSWORD "$$(hex 12)"; \
 	put LANGFUSE_PUBLIC_KEY "$$pk"; put LANGFUSE_SECRET_KEY "$$sk"; \
 	put LANGFUSE_BASE_URL http://localhost:3000; put LANGFUSE_SALT "$$(hex 16)"
+	@chmod 600 .env
+
+# Writes SESSION_SECRET into .env only when absent; the value is never printed.
+web-keys:
+	@touch .env
+	@if [ -s .env ] && [ -n "$$(tail -c1 .env)" ]; then echo >> .env; fi
+	@grep -q "^SESSION_SECRET=" .env || printf 'SESSION_SECRET=%s\n' "$$(openssl rand -hex 32)" >> .env
 	@chmod 600 .env
 
 # Langfuse shares our Postgres container but gets its own database.
