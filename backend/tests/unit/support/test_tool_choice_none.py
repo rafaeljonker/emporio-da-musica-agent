@@ -1,3 +1,5 @@
+# Provider internals (private request builders, loosely typed constructors) are probed on purpose.
+# pyright: reportArgumentType=false, reportCallIssue=false, reportPrivateUsage=false
 from collections.abc import Callable
 
 import pytest
@@ -43,7 +45,7 @@ def _anthropic_choice(model: BaseChatModel, kwargs: dict[str, object]) -> object
 def _gemini_choice(model: BaseChatModel, kwargs: dict[str, object]) -> object:
     assert isinstance(model, ChatGoogleGenerativeAI)
     request = model._prepare_request([HumanMessage("hi")], **kwargs)
-    mode = request["tool_config"].function_calling_config.mode
+    mode = request["config"].tool_config.function_calling_config.mode
     return str(mode).rsplit(".", 1)[-1]
 
 

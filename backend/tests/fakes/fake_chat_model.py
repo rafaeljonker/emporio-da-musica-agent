@@ -6,19 +6,24 @@ from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import BaseMessage
 from langchain_core.outputs import ChatResult
 from langchain_core.runnables import Runnable
-from langchain_core.tools import BaseTool
 from pydantic import Field
+
+type Choice = str | dict[str, str] | None
 
 
 class FakeToolCallingModel(GenericFakeChatModel):
     """Scripted model that records what it was sent. Build one per test."""
 
     seen: list[list[BaseMessage]] = Field(default_factory=list)
-    tool_choice: str | None = None
-    seen_choice: list[str | None] = Field(default_factory=list)
+    tool_choice: Choice = None
+    seen_choice: list[Choice] = Field(default_factory=list)
 
     def bind_tools(
-        self, tools: Sequence[BaseTool], *, tool_choice: str | None = None, **kwargs: object
+        self,
+        tools: Sequence[object],
+        *,
+        tool_choice: Choice = None,
+        **kwargs: object,
     ) -> Runnable:  # type: ignore[override]  # base has a wider signature
         # Shallow copy: shares the script iterator and the `seen` lists, keeps the choice.
         return self.model_copy(update={"tool_choice": tool_choice})

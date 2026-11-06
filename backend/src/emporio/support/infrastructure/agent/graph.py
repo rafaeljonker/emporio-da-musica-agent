@@ -7,6 +7,7 @@ works on a copy and never touches the current turn; the checkpointed state keeps
 
 from collections.abc import Callable, Sequence
 
+from langchain_anthropic import ChatAnthropic
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import (
     AIMessage,
@@ -16,6 +17,7 @@ from langchain_core.messages import (
     trim_messages,
 )
 from langchain_core.messages.utils import count_tokens_approximately
+from langchain_core.runnables import Runnable
 from langchain_core.tools import BaseTool
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, MessagesState, StateGraph
@@ -43,6 +45,16 @@ class AgentState(MessagesState):
 type AgentGraph = CompiledStateGraph[AgentState, TurnContext, MessagesState, AgentState]
 
 
+def bind_without_tool_calls(model: BaseChatModel, tools: Sequence[BaseTool]) -> Runnable:
+    """Keep the tools defined (history may hold tool calls) but forbid new calls.
+
+    Anthropic spells it `{"type": "none"}`; OpenAI and Gemini take `"none"`.
+    """
+    choice = {"type": "none"} if isinstance(model, ChatAnthropic) else "none"
+    # Base signature types tool_choice as str; providers accept a dict as well.
+    return model.bind_tools(tools, tool_choice=choice)  # pyright: ignore[reportArgumentType]
+
+
 def build_graph(
     model: BaseChatModel,
     tools: Sequence[BaseTool],
@@ -52,6 +64,7 @@ def build_graph(
     max_history_tokens: int = 3000,
 ) -> AgentGraph:
     with_tools = model.bind_tools(tools)
+    without_calls = bind_without_tool_calls(model, tools)
 
     def guard(state: AgentState) -> dict[str, Scope]:
         return {"scope": classify(state["messages"])}
@@ -63,7 +76,7 @@ def build_graph(
         ctx = runtime.context
         scope = state["scope"]
         messages = state["messages"]
-        current = max(i for i, m in enumerate(messages) if isinstance(m, HumanMessage))
+        current = max((i for i, m in enumerate(messages) if isinstance(m, HumanMessage)), default=0)
         turn = messages[current:]
         rounds = sum(isinstance(m, AIMessage) and bool(m.tool_calls) for m in turn)
         capped = rounds >= MAX_TOOL_ROUNDS
@@ -82,7 +95,7 @@ def build_graph(
         )
         head = system_prompt(ctx.customer_name, ctx.today)
         prompt = [SystemMessage("\n\n".join([head, *notes])), *history, *turn]
-        runner = with_tools if scope is Scope.LOJA and not capped else model
+        runner = with_tools if scope is Scope.LOJA and not capped else without_calls
         return {"messages": [runner.invoke(prompt)]}
 
     def route_scope(state: AgentState) -> str:
