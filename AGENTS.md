@@ -13,6 +13,9 @@ Run from the repo root; all targets execute in `backend/`.
 - `make db`: start Postgres (host port 5434), migrate, ingest policies and products.
 - `make test-pg`: Postgres integration tests on a separate `emporio_test` database; never touches dev data.
 - `make evals [PROVIDER=gemma|gemini|openai|anthropic]`: retrieval eval plus the agent golden cases (real model) on `emporio_test`; not part of `make check`.
+- `make chat [ARGS="--as-customer 14 --provider gemini"]`: interactive agent in the terminal (needs a provider key and Langfuse).
+- `make mcp`: the store tools over MCP stdio; `EMPORIO_MCP_CUSTOMER_ID=14` fixes the identity, unset is anonymous. Needs no model key.
+- `make langfuse-up`: local Langfuse (compose `observability` profile) at http://localhost:3000.
 - `make fmt`: ruff format and `ruff check --fix`.
 
 ## Architecture rules
@@ -51,6 +54,9 @@ Never write keys or real values in any file. Use `.env` (git-ignored); `.env.exa
 - Files in `data/` have spaces and accents in their names; never hardcode them, use `emporio.paths`.
 - `DATABASE_URL` is the only DB setting. `make db`, `make test-pg` and `make evals` set their own URL; `make test`/`make check` ignore any exported `DATABASE_URL`; Postgres tests only run against a database whose name ends in `_test`.
 - First use of the e5 embedder downloads about 470 MB (fastembed cache); `make db` and `make evals` need it.
+- Langfuse is mandatory: `make chat` and `make evals` fail at startup without its keys. The `observability` profile needs about 2.3 GB RAM; the first `make langfuse-up` pulls images (about 7 min).
+- `make db-up` (so `make db`) generates the Langfuse secrets into `.env` when absent; never print or commit them.
+- `LLM_PROVIDER` defaults to gemma, which needs `VLLM_BASE_URL` and `VLLM_API_KEY`; other providers need their own `*_API_KEY`. No silent fallback.
 - `data/` is read-only source material.
 
 ## Code style
