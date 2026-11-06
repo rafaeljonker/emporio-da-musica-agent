@@ -4,7 +4,7 @@ import sys
 
 from emporio.catalog.infrastructure.csv_catalog_repository import CsvCatalogRepository
 from emporio.catalog.infrastructure.pg_product_index import PgProductIndex
-from emporio.db import DatabaseNotConfigured, connect, database_url
+from emporio.db import DatabaseNotConfigured, connect, database_url, make_pool
 from emporio.embeddings import E5Embedder
 from emporio.migrate import apply_migrations
 from emporio.policies.application.ingest_policies import IngestPolicies
@@ -22,9 +22,10 @@ def main() -> None:
     catalog = CsvCatalogRepository()
     with connect(url) as conn:
         apply_migrations(conn)
-        policies = IngestPolicies(PdfPolicySource(), PgPolicyIndex(conn, embedder))()
+    with make_pool(url) as pool:
+        policies = IngestPolicies(PdfPolicySource(), PgPolicyIndex(pool, embedder))()
         products = catalog.products()
-        PgProductIndex(conn, embedder).replace_all(
+        PgProductIndex(pool, embedder).replace_all(
             products, {c.id: c.name for c in catalog.categories()}
         )
     print(f"policies: {policies}, products: {len(products)}")

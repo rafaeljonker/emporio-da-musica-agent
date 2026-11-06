@@ -2,7 +2,9 @@ from collections.abc import Sequence
 
 import psycopg
 from pgvector import Vector
+from psycopg_pool import ConnectionPool, PoolTimeout
 
+from emporio.db import IndexUnavailable
 from emporio.embeddings import TextEmbedder
 from emporio.policies.domain.policy_chunk import PolicyChunk, PolicyHit
 
@@ -49,28 +51,35 @@ LIMIT %(k)s
 
 class PgPolicyIndex:
     def __init__(
-        self, conn: psycopg.Connection, embedder: TextEmbedder, *, hybrid: bool = True
+        self, pool: ConnectionPool, embedder: TextEmbedder, *, hybrid: bool = True
     ) -> None:
-        self._conn = conn
+        self._pool = pool
         self._embedder = embedder
         self._hybrid = hybrid
 
     def search(self, question: str, k: int) -> Sequence[PolicyHit]:
         params = {"q": Vector(self._embedder.embed_query(question)), "text": question, "k": k}
         sql = _HYBRID if self._hybrid else _VECTOR_ONLY
-        with self._conn.transaction():
-            rows = self._conn.execute(sql, params).fetchall()
+        try:
+            with self._pool.connection() as conn:
+                rows = conn.execute(sql, params).fetchall()
+        except (psycopg.OperationalError, PoolTimeout) as err:
+            raise IndexUnavailable from err
         return [PolicyHit(PolicyChunk(r[0], r[1], r[2], r[3]), float(r[4])) for r in rows]
 
     def replace_all(self, chunks: Sequence[PolicyChunk]) -> None:
         vectors = self._embedder.embed_passages([c.embedding_text for c in chunks])
-        with self._conn.transaction(), self._conn.cursor() as cur:
-            cur.execute("DELETE FROM policy_chunks")
-            cur.executemany(
-                "INSERT INTO policy_chunks (section_id, title, parent_title, body, embedding)"
-                " VALUES (%s, %s, %s, %s, %s)",
-                [
-                    (c.section_id, c.title, c.parent_title, c.body, Vector(v))
-                    for c, v in zip(chunks, vectors, strict=True)
-                ],
-            )
+        rows = [
+            (c.section_id, c.title, c.parent_title, c.body, Vector(v))
+            for c, v in zip(chunks, vectors, strict=True)
+        ]
+        try:
+            with self._pool.connection() as conn, conn.transaction(), conn.cursor() as cur:
+                cur.execute("DELETE FROM policy_chunks")
+                cur.executemany(
+                    "INSERT INTO policy_chunks (section_id, title, parent_title, body, embedding)"
+                    " VALUES (%s, %s, %s, %s, %s)",
+                    rows,
+                )
+        except (psycopg.OperationalError, PoolTimeout) as err:
+            raise IndexUnavailable from err

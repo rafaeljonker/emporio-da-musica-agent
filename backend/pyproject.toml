@@ -6,12 +6,25 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastembed>=0.9.1",
+    "fastmcp>=4.1.6",
+    "langchain>=1.4.9",
+    "langchain-anthropic>=1.7.10",
+    "langchain-core>=1.7.6",
+    "langchain-google-genai>=4.4.3",
+    "langchain-openai>=1.7.4",
+    "langfuse>=5.2.0",
+    "langgraph>=1.2.20",
+    "langgraph-checkpoint-postgres>=3.2.0",
     "pdfplumber>=0.11.10",
     "pgvector>=0.5.1",
     "psycopg-pool>=3.3.3",
     "psycopg[binary]>=3.3.8",
+    "pydantic-settings>=2.16.2",
     "tzdata>=2026.6",
 ]
+
+[project.scripts]
+emporio = "emporio.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.12.3,<0.13.0"]
@@ -42,7 +55,7 @@ known-first-party = ["emporio"]
 
 [tool.basedpyright]
 typeCheckingMode = "standard"
-include = ["src", "tests"]
+include = ["src", "tests", "evals"]
 strict = ["src/emporio/*/domain", "src/emporio/*/application", "src/emporio/shared"]
 
 [tool.pytest.ini_options]
@@ -94,7 +107,8 @@ source_modules = [
 forbidden_modules = [
     "fastapi", "langchain", "langchain_core", "langgraph", "sqlalchemy", "psycopg",
     "duckdb", "httpx", "openai", "anthropic", "google",
-    "pydantic", "pandas", "requests", "rapidfuzz",
+    "pydantic", "pydantic_settings", "langchain_openai", "langchain_google_genai",
+    "langchain_anthropic", "langfuse", "fastmcp", "pandas", "requests", "rapidfuzz",
     "numpy", "fastembed", "pdfplumber", "pgvector", "psycopg_pool",
     "csv", "os", "pathlib", "sqlite3", "socket", "subprocess", "urllib", "http", "shutil",
     "tempfile", "glob", "io", "ssl", "smtplib", "asyncio", "threading", "logging",
@@ -110,7 +124,8 @@ source_modules = [
 forbidden_modules = [
     "fastapi", "langchain", "langchain_core", "langgraph", "sqlalchemy", "psycopg",
     "duckdb", "httpx", "openai", "anthropic", "google",
-    "pydantic", "pandas", "requests", "rapidfuzz",
+    "pydantic", "pydantic_settings", "langchain_openai", "langchain_google_genai",
+    "langchain_anthropic", "langfuse", "fastmcp", "pandas", "requests", "rapidfuzz",
     "numpy", "fastembed", "pdfplumber", "pgvector", "psycopg_pool",
 ]
 
@@ -204,7 +219,8 @@ source_modules = [
     "emporio.policies.application", "emporio.support.application",
 ]
 forbidden_modules = [
-    "emporio.paths", "emporio.db", "emporio.migrate", "emporio.embeddings", "emporio.ingest",
+    "emporio.config", "emporio.paths", "emporio.db", "emporio.migrate", "emporio.embeddings", "emporio.ingest",
+    "emporio.bootstrap", "emporio.cli",
 ]
 
 [[tool.importlinter.contracts]]
@@ -251,4 +267,28 @@ forbidden_modules = [
     "emporio.catalog.domain", "emporio.catalog.application",
     "emporio.orders.domain", "emporio.orders.application",
     "emporio.policies.domain", "emporio.policies.application",
+]
+# Ruling R1: only the tool serializers and tools read other contexts' types.
+ignore_imports = [
+    "emporio.support.infrastructure.agent.serializers -> emporio.catalog.domain.*",
+    "emporio.support.infrastructure.agent.serializers -> emporio.orders.domain.*",
+    "emporio.support.infrastructure.agent.serializers -> emporio.policies.domain.*",
+    "emporio.support.infrastructure.agent.serializers -> emporio.policies.application.store_now",
+    "emporio.support.infrastructure.agent.tools -> emporio.catalog.application.get_product",
+    "emporio.support.infrastructure.agent.tools -> emporio.catalog.application.list_promotions",
+    "emporio.support.infrastructure.agent.tools -> emporio.catalog.application.ports",
+    "emporio.support.infrastructure.agent.tools -> emporio.catalog.application.quote_installments",
+    "emporio.support.infrastructure.agent.tools -> emporio.catalog.application.recommend_products",
+    "emporio.support.infrastructure.agent.tools -> emporio.catalog.application.search_products",
+    "emporio.support.infrastructure.agent.tools -> emporio.catalog.domain.errors",
+    "emporio.support.infrastructure.agent.tools -> emporio.catalog.domain.installments",
+    "emporio.support.infrastructure.agent.tools -> emporio.catalog.domain.pricing",
+    "emporio.support.infrastructure.agent.tools -> emporio.catalog.domain.search",
+    "emporio.support.infrastructure.agent.tools -> emporio.orders.application.check_return_eligibility",
+    "emporio.support.infrastructure.agent.tools -> emporio.orders.application.get_order_status",
+    "emporio.support.infrastructure.agent.tools -> emporio.orders.application.list_customer_orders",
+    "emporio.support.infrastructure.agent.tools -> emporio.orders.domain.errors",
+    "emporio.support.infrastructure.agent.tools -> emporio.orders.domain.identity",
+    "emporio.support.infrastructure.agent.tools -> emporio.policies.application.search_policies",
+    "emporio.support.infrastructure.agent.tools -> emporio.policies.application.store_now",
 ]

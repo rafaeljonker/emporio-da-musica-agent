@@ -1,0 +1,117 @@
+# Golden cases for the agent. Tokens in all_of / any_of / none_of are phrases (matched after
+# normalizing accents, case, "R$", thousands dots and ",00"), "@group" synonym groups from
+# evals/verify.py, or "{fact}" placeholders the test derives from the use cases at run time
+# (a list fact expands to alternatives). No price or date is written here.
+# expect_tools: every listed tool must have been called (empty = no requirement).
+# ask: the last bubble must end with a question.
+
+[[case]]
+name = "catalogo_violoes"
+message = "Quais opções de violões disponíveis custando até R$1000?"
+expect_tools = ["search_products"]
+any_of = ["{viol_ok}"]
+none_of = ["{viol_bad}"]
+
+[[case]]
+name = "endereco"
+message = "Qual o endereço da loja?"
+expect_tools = ["search_policies"]
+all_of = ["14 de maio"]
+
+[[case]]
+name = "preco_takamine"
+message = "Quanto custa o Takamine GD20?"
+expect_tools = ["search_products"]
+all_of = ["{gd20_final}"]
+
+[[case]]
+name = "pix"
+message = "E se eu pagar o Takamine GD20 no pix, fica quanto?"
+expect_tools = ["search_products"]
+any_of = ["{gd20_pix}", "{gd20_pix_whole}"]
+
+[[case]]
+name = "arrependimento_anonimo"
+message = "Me arrependi da minha compra, posso devolver meu pedido?"
+expect_tools = ["search_policies"]
+any_of = ["@regret_7", "@asks_identity"]
+ask = true
+
+[[case]]
+name = "arrependimento_identificado"
+message = "oi, me arrependi da compra, dá pra devolver?"
+customer_id = 14
+expect_tools = ["list_my_orders", "check_return_eligibility"]
+all_of = ["@return_{regret14}"]
+none_of = ["@return_{regret14_other}"]
+
+[[case]]
+name = "acessorio"
+message = "Vocês vendem encordoamento de guitarra?"
+all_of = ["@instruments"]
+any_of = ["@declines_accessory"]
+
+[[case]]
+name = "fora_escopo"
+message = "Me indica um filme bom pra ver hoje?"
+all_of = ["@store_topic"]
+none_of = ["@recommends_movie"]
+
+[[case]]
+name = "parcelamento"
+message = "Uma compra de R$ 900 dá pra parcelar em 12x?"
+expect_tools = ["calc_installments"]
+all_of = ["@installments_{installments900}"]
+
+[[case]]
+name = "pedido_ok"
+message = "Qual o status do pedido 5? Meu email é {order5_email}"
+expect_tools = ["get_order_status"]
+all_of = ["@status_{order5_status}"]
+
+[[case]]
+name = "pedido_identidade_errada"
+message = "Qual o status do pedido 5? Meu email é joao.silva@gmail.com"
+expect_tools = ["get_order_status"]
+none_of = ["@claim_delivered", "{order5_tracking}"]  # order 5 is delivered in the data
+
+[[case]]
+name = "promocoes"
+message = "Tem algum instrumento em promoção?"
+expect_tools = ["list_active_promotions"]
+any_of = ["{promo_names}"]
+
+[[case]]
+name = "aberto_agora"
+message = "vcs tão abertos agora?"
+expect_tools = ["store_now"]
+all_of = ["@store_{store_state}"]
+none_of = ["@store_{store_other}"]
+
+[[case]]
+name = "descontinuado"
+message = "Ainda tem o {discontinued_name}?"
+expect_tools = ["search_products"]
+all_of = ["@discontinued"]
+none_of = ["@has_it"]
+
+[[case]]
+name = "takamine_ambiguo"
+message = "Quanto custa o Takamine?"
+any_of = ["{takamine_models}", "@asks_model"]
+none_of = ["{takamine_prices}"]
+ask = true
+
+[[case]]
+name = "devolucao_fora_do_prazo"
+message = "Quero devolver o pedido 5, me arrependi da compra."
+customer_id = 5
+expect_tools = ["check_return_eligibility"]
+all_of = ["@return_{return5}", "@legal_warranty"]
+none_of = ["@return_{return5_other}"]
+
+[[case]]
+name = "recomendacao_mpb"
+message = "Queria algo pra tocar MPB em casa"
+expect_tools = ["recommend_products"]
+any_of = ["{recommend_names}"]

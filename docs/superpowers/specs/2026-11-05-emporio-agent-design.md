@@ -66,10 +66,12 @@ They evaluate **"lógica, clareza e iniciativa"** (logic, clarity and initiative
     - `--provider openai` + `OPENAI_API_KEY`;
     - `--provider anthropic` + `ANTHROPIC_API_KEY`.
     - **Rules:** without a flag, it uses Gemma. A flag without a key raises a clear error at startup. There is no silent switch; if Gemma is down, the error explains how to use an alternative provider.
-    - **Implementation:** a `ChatModelProvider` port in the `support` domain, with 4 thin adapters (vLLM-OpenAI-compatible, Gemini, OpenAI and Anthropic) via `langchain` (`init_chat_model`). It is an interface with a real reason, because it has 4 implementations.
+    - **Implementation (phase 4 controller call):** one `make_chat_model` factory in `support/infrastructure/llm/factory.py` over `init_chat_model`, instead of a port with 4 adapter classes; the 4 providers differ only in model name, key and base URL, so a class per provider would be ceremony.
+    - **Flag and key rule:** `LLM_PROVIDER` / `--provider` picks the provider. Gemma needs `VLLM_BASE_URL` and `VLLM_API_KEY` (both required, no `EMPTY` fallback); the others need their own `*_API_KEY`. A missing value fails at startup naming the variable and the alternatives.
+    - **Langfuse is mandatory:** every agent turn is traced; startup fails clearly when the keys are missing, tracing is disabled or `auth_check` fails (section 7.12).
     - **Evals:** `make evals PROVIDER=...` runs the same suite on any provider, and the README carries the spike's comparison table plus the ones that get run.
-    - **Default models per provider:** they are a design decision and stay configurable by variable, for example the latest Flash on Gemini and the current mini/Haiku model on OpenAI/Anthropic. Anthropic has no embeddings, which reinforces local embeddings.
-  - **Provider-agnostic code:** `ChatOpenAI` with the vLLM `base_url`, or `init_chat_model`.
+    - **Default models per provider:** `google/gemma-4-31B-it` (vLLM), `gemini-3.8-flash` (spike winner), `gpt-6-luna` and `claude-haiku-5-5`, each overridable by env (`GEMMA_MODEL`, `GEMINI_MODEL`, `OPENAI_MODEL`, `ANTHROPIC_MODEL`). Anthropic has no embeddings, which reinforces local embeddings.
+  - **Provider-agnostic code:** `init_chat_model`; Gemma goes through the OpenAI-compatible client with the vLLM `base_url`.
 - **Embeddings (design decision):** a small multilingual model running on CPU inside Python itself (e.g. `intfloat/multilingual-e5-small`, 384 dimensions), with no key or GPU, both at ingestion and at query time. The vectors go to Postgres/pgvector.
 - **GPU sizing (mandatory):**
   - **The initial configuration** (H200, 131k context, BF16) is oversized for conversations of about 3k tokens.
@@ -149,6 +151,17 @@ The agent's tools are a thin layer in `support/` that calls the use cases. A rul
 - **Database:** plain SQL migrations (`backend/migrations/NNN_*.sql`) with a small runner that commits each file; pgvector is registered on the connection after migrating, so a fresh database (the first Railway deploy) works. Local compose uses host port 5434; Postgres tests run on a separate `emporio_test` database.
 - **Contact data:** the agent quotes WhatsApp (67) 3341-4444 (cover and 1.2). Section 7 lists (67) 3321-4500 and 1.2 spells the e-mail with an accent; both are recorded as data quirks.
 
+### 7.2.3 Phase 4 rulings
+- **Factory, not adapters:** `make_chat_model` over `init_chat_model` (section 5); the guard and the agent use the same model.
+- **Guard on every turn** (owner decision): a separate call returning one of `loja | acessorio | fora_de_escopo | abuso`. `abuso` gets a fixed reply with no agent call; a classifier failure routes to `loja` (the agent still has its own scope rules).
+- **Identity** reaches tools only through `ToolRuntime[TurnContext]`, never as a model argument. The thread id is derived from the channel identity (`{channel}:customer:<id>` or `{channel}:anon:<session>`); only the Langfuse session id is pseudonymized (`{channel}:cust-<hmac>`, R8).
+- **R5:** order items are `{product_id, name, quantity}`, so the agent can follow up on a product.
+- **R6:** the prompt date line is "Data de referência de pedidos e trocas" (`STORE_TODAY`); opening hours, weekday and "now" come only from `store_now`, so there are not two "todays".
+- **R7:** MCP domain errors return the same pt-BR text as the agent tools (not `ToolError`); MCP clients see a text result instead of `isError`.
+- **R8:** the Langfuse `session_id` is the pseudonymized thread id (HMAC of the customer id), so the raw customer id never leaves; `turn_metrics` keeps the raw thread id locally and the trace link goes through `turn_metrics.trace_id`.
+- **R9 (deferred):** dropping unanswered `tool_calls` at trim time is phase 5; a process death between the agent and tools node would 400 that thread until trimmed.
+- **Deferred to phases 5/6:** SSE streaming; a per-thread lock (a CLI session is single-user); a warm-up hook; the trace link in the UI via `/api/public/v2/observations`; baking the e5 model into the image; a stable `LANGFUSE_SALT` in deploy secrets.
+
 ### 7.3 Architecture
 ```
 React (Vite+TS, GSP design system) ──POST /chat (SSE)──► FastAPI (Python)
@@ -158,10 +171,12 @@ React (Vite+TS, GSP design system) ──POST /chat (SSE)──► FastAPI (Pyth
                                                            └ history/metrics → Postgres
     python -m emporio.ingest: PDF → 25 section chunks → e5 embeddings (CPU) → pgvector (+ product embeddings)
 ```
-- **Graph:** `guard` (Gemma, structured output: loja | acessório | fora_de_escopo | abuso) → `agent` (Gemma + tools, ReAct; tool rules from the spike's prompt v2) → answer.
-- **Memory:** LangGraph `thread_id` with a Postgres checkpointer (`langgraph-checkpoint-postgres`), with the history trimmed to the last N messages.
+- **Graph:** `guard` (same model, structured output; routes `loja | acessorio | fora_de_escopo | abuso`) → `agent` (model + tools, ReAct; tool rules from the spike's prompt v2) → answer. The guard runs on every turn; `abuso` returns a fixed reply, a classifier failure routes to `loja`.
+  - **Tool loop:** capped at 5 iterations; hitting the cap (or any graph recursion error) returns a contact-the-team reply. Any exception inside a tool becomes a short tool text, so no `tool_call` is left dangling.
+  - **No-tool turns** (`acessorio`, `fora_de_escopo`) keep the tools bound with `tool_choice` set to none (Anthropic: `{"type": "none"}`), because Anthropic rejects history that contains tool calls when no tools are defined.
+- **Memory:** LangGraph `thread_id`, derived from the channel identity, with a Postgres checkpointer (`langgraph-checkpoint-postgres`). The history is trimmed by token budget: it keeps the current turn and as much prior history (including the agent's previous answers) as fits the token budget.
 - **Channel port:** `support` exposes `handle_message(channel_identity, text)`, independent of the channel.
-  - **Implementations:** web (FastAPI SSE) and CLI. A WhatsApp webhook adapter comes in only if time is left, with tests only.
+  - **Implementations:** CLI (phase 4), MCP over stdio (phase 4, section 7.12) and web (FastAPI SSE, phase 5). A WhatsApp webhook adapter comes in only if time is left, with tests only.
   - **`channel_identity`:** represents what the channel reports, such as the number on WhatsApp.
   - **On the web:** the "conversar como…" selector picks a customer from the CSV.
   - **On the CLI:** `--as-customer <id>`.
@@ -169,12 +184,13 @@ React (Vite+TS, GSP design system) ──POST /chat (SSE)──► FastAPI (Pyth
   - **With `channel_identity`:** the agent lists and queries **only** that customer's orders, and "me arrependi" works without asking for the order number.
   - **Anonymous:** it asks for the order number and the e-mail or phone, and only shows it if both match.
   - **Never** exposes another customer's data. This is tested.
-- **Tools:**
+- **Tools (ten; identity comes only from `ToolRuntime`/`TurnContext`):**
   - `search_products`: accent/plural-normalized token match with `difflib` typo tolerance ("violuao" finds "violão"), category and price-range filters; results are graded Exact/Candidates and ambiguity becomes a question to the customer;
   - `recommend_products` (phase 3): semantic search over product descriptions (e5 + pgvector) for open needs ("algo pra tocar MPB em casa"); returns Candidates only, never an exact match, and prices still come from the catalog;
   - `get_product`;
   - `list_active_promotions`;
   - `calc_installments`: deterministic;
+  - `list_my_orders` (phase 4): the identified customer's orders, no argument; anonymous gets a pt-BR text asking for order number plus e-mail or phone;
   - `get_order_status`: with identity verification;
   - `check_return_eligibility`;
   - `store_now`: open now + next opening, on the real clock;
@@ -187,11 +203,13 @@ React (Vite+TS, GSP design system) ──POST /chat (SSE)──► FastAPI (Pyth
   - short messages, one question at a time;
   - no markdown, em dash or stock phrases;
   - uses the customer's name when known;
-  - 1–3 short bubbles per reply, question last.
-- **"AI tell" detector:** a tested function and an evals step that fails an answer with an em dash, markdown, a blacklisted phrase or above the maximum length. The voice becomes measured, not just promised.
+  - 1–3 short bubbles per reply, question last; bubbles are split on blank lines (`support/domain/bubbles.py`).
+  - persona: "assistente da Empório" (no invented human name); no promises of human handoff, the agent gives the e-mail or WhatsApp instead; the contacts in the prompt override the manual's variants.
+  - the prompt's date line is "Data de referência de pedidos e trocas"; opening hours come from `store_now` (R6).
+- **"AI tell" detector:** a tested function and an evals step that fails an answer with an em dash, markdown, a blacklisted phrase or above the maximum length. The voice becomes measured, not just promised: `support/domain/ai_tells.py` gates the evals, which need 0 tells.
 
 ### 7.5 Scale and cost
-- **Metrics per turn**, stored in Postgres: input and output tokens per model, latency per stage (guard, LLM, tools, vector search) and cost in R$. The frontend shows a discreet panel.
+- **Metrics per turn**, stored in the Postgres `turn_metrics` table (`migrations/004_turn_metrics.sql`), filled by a `TurnProbe` callback: input, cached-input and output tokens, latency per stage (guard, LLM, tools) and cost in R$. Cost uses the cached-input price and is an estimate from list prices; the Gemma (GPU-seconds) cost lands in phase 6. The trace id is stored on the row. The frontend shows a discreet panel (phase 5).
 - **Optimizations:**
   - short guard (few tokens, no reasoning);
   - vLLM prefix caching (fixed prompt preprocessed on the GPU), bubble streaming and reasoning off for simple answers;
@@ -211,7 +229,7 @@ React (Vite+TS, GSP design system) ──POST /chat (SSE)──► FastAPI (Pyth
   - installments;
   - PIX;
   - two phone numbers in the PDF (documented assumption).
-- **`evals/`:** about 15 golden cases running the real graph (expected tool + expected fact + voice detector), with a `.md` report of the hit rate. It includes the 4 scenarios from the statement, ambiguous Takamine, order without identity, accessory, out of scope, "tá aberto agora?" and withdrawal inside and outside the window.
+- **`evals/`:** 17 golden cases (`backend/evals/agent_cases.toml`) running the real graph (expected tool + expected fact + voice detector). `evals/verify.py` is a paraphrase-tolerant regex verifier with a documented ceiling (regex cannot judge every paraphrase), so each report also carries the full transcripts for human audit. Gate: hit rate ≥ 0.90 and 0 AI tells; `make evals PROVIDER=...` writes `backend/evals/reports/<provider>.md`. Status: the harness is verified offline with a scripted model; the real-provider run has not happened yet, it is pending a provider key. The cases include the 4 scenarios from the statement, ambiguous Takamine, order without identity, accessory, out of scope, "tá aberto agora?" and withdrawal inside and outside the window.
 - **CI on GitHub Actions:** `ruff`, `mypy` or `pyright`, `pytest` (deterministic only) and the frontend build.
 
 ### 7.7 Layered architecture and folder organization
@@ -226,7 +244,7 @@ flowchart LR
   G -->|tools| C[catalog use cases] --> R1[(CSV via stdlib csv)]
   G -->|tools| O[orders use cases] --> R1
   G -->|tools| P[policies.search] --> V[(Postgres + pgvector)]
-  G -->|LLM port| L{{Gemma 4 31B · vLLM · Modal GPU<br/>or Gemini/OpenAI/Anthropic via flag}}
+  G -->|chat model| L{{Gemma 4 31B · vLLM · Modal GPU<br/>or Gemini/OpenAI/Anthropic via flag}}
   H -->|history + metrics| PG[(Postgres)]
   H -->|bubbles via SSE| U
 ```
@@ -270,24 +288,26 @@ emporio-da-musica-agent/
 │   │   │   └── infrastructure/    # pdf_sections.py · pg_policy_index.py · holidays.py
 │   │   ├── support/
 │   │   │   ├── domain/            # channel_identity.py · bubbles.py · ai_tells.py · scope.py
-│   │   │   ├── application/       # handle_message.py (channel port) · ports.py (ChatModelProvider, ConversationStore)
+│   │   │   ├── application/       # handle_message.py (channel port) · ports.py (turn runner, metrics store)
 │   │   │   └── infrastructure/
-│   │   │       ├── agent/         # graph.py (LangGraph) · tools.py (thin layer over the use cases) · prompts/ (persona, rules, voice guide)
-│   │   │       ├── llm/           # vllm.py · gemini.py · openai.py · anthropic.py · factory.py (flag+key rule)
-│   │   │       └── postgres_store.py · metrics.py
+│   │   │       ├── agent/         # graph.py · guard.py · runner.py · tools.py · context.py · serializers.py · prompt.py · prompts/{persona,voice,tools,guard}.md
+│   │   │       ├── llm/factory.py # make_chat_model (flag+key rule)
+│   │   │       ├── mcp/server.py  # FastMCP stdio
+│   │   │       └── checkpointer.py · metrics_store.py · tracing.py
 │   │   ├── api/                   # app.py: /auth/login · /warm · /warm/status · /chat (SSE) · /customers
-│   │   ├── cli.py                 # `emporio chat --as-customer 14 --provider gemini`
-│   │   ├── config.py              # pydantic-settings
+│   │   ├── cli.py                 # `emporio chat --as-customer 14 --provider gemini` · `emporio mcp`
+│   │   ├── config.py              # pydantic-settings, provider and Langfuse validation
+│   │   ├── bootstrap.py           # composition root of the agent (build_agent)
 │   │   ├── embeddings.py · db.py · migrate.py   # shared technical modules (infrastructure only)
 │   │   └── ingest.py              # composition root: python -m emporio.ingest
 │   ├── tests/
 │   │   ├── unit/{catalog,orders,policies,support,shared}/   # pure rules, no LLM/IO
 │   │   ├── integration/           # adapters (CSV, Postgres/pgvector via docker compose, provider factory)
 │   │   └── contract/              # tools: schema and lean JSON output
-│   ├── evals/                     # policies_retrieval.toml (phase 3) · agent cases, run, judge, reports (phase 4)
+│   ├── evals/                     # policies_retrieval.toml (phase 3) · agent_cases.toml + verify.py + reports/ (phase 4)
 │   └── load/                      # locustfile.py (simulated and real LLM)
-├── docker-compose.yml             # local Postgres + pgvector (host port 5434)
-├── backend/migrations/            # plain SQL files, applied by emporio.migrate
+├── docker-compose.yml             # local Postgres + pgvector (host port 5434); `observability` profile: Langfuse
+├── backend/migrations/            # plain SQL files (001-004: ... turn_metrics), applied by emporio.migrate
 ├── frontend/                      # Vite + React + TS, by feature: auth/ · warmup/ · chat/ · design-system/
 │   └── .design/                   # GSP artifacts (strategy, identity, tokens, critique)
 ├── e2e/                           # Playwright: login → warm-up → conversation → bubbles
@@ -301,7 +321,8 @@ emporio-da-musica-agent/
 | `*/domain` | only `shared` and stdlib. No LangChain, SQL, FastAPI or IO |
 | `*/application` | the domain's own `domain`, other `application` via port, `shared` |
 | `*/infrastructure` | `application`, `domain` and external libs |
-| `api/`, `cli.py` | `support.application` and `config` (never another domain's `infrastructure` directly, only via the factory) |
+| `api/` | `support.application` and `config` (never another domain's `infrastructure` directly, only via the factory) |
+| `cli.py` | `bootstrap`, `config`, the `db` errors and `support.domain.channel_identity` |
 
 **SOLID in practice, without ceremony:**
 - **S:** one use case per file.
@@ -370,12 +391,12 @@ emporio-da-musica-agent/
 ### 7.12 Alignment with the agent ecosystem (research of 05/11)
 These enter the project (FastAPI + Pydantic remains the web base):
 1. **MCP server for the store's tools:**
-   - **Where:** `support/infrastructure/mcp/server.py` with FastMCP. It exposes the catalog, orders and policies use cases as MCP tools.
-   - **Consumption:** the LangGraph agent uses these tools via `langchain-mcp-adapters`. The `tools.py` layer stays thin over the same contract.
-   - **In the README:** the same tools serve any MCP client (Claude Desktop, another agent), and there is a contract test.
-   - **Identity:** it is injected by the server, never comes from the model's argument. This prevents the LLM from forging the `customer_id`.
+   - **Where:** `support/infrastructure/mcp/server.py` with FastMCP over stdio (`make mcp`, needs no model key). It exposes the ten tools.
+   - **Consumption (phase 4 owner decision):** the agent calls the plain tool functions in-process (no MCP hop); FastMCP wraps the same functions for external clients, and a contract test asserts the schemas match. Domain errors return the same pt-BR texts as the agent tools (R7).
+   - **In the README:** the same tools serve any MCP client (Claude Desktop, another agent).
+   - **Identity:** fixed at server launch by `EMPORIO_MCP_CUSTOMER_ID` (unset means anonymous), never an argument. This prevents the LLM from forging the `customer_id`.
 2. **Observability with Langfuse:** tracing of each turn (guard, agent, tools, latency, tokens, cost), with the `trace_id` linked to the message in Postgres.
-   - **Configuration:** optional by variable. Without the keys, tracing is turned off without an error.
+   - **Configuration (owner decision, phase 4):** mandatory. Every agent turn is traced; startup fails with a clear error when the Langfuse variables are missing or tracing is disabled. Self-hosted locally via the compose `observability` profile (own `langfuse` database on our Postgres, keys generated into `.env` by `make langfuse-keys`, no signup); Langfuse Cloud Hobby (EU) for the Modal demo. The session id is pseudonymized (R8) and masking runs on inputs and outputs before export. Tests inject a fake tracer.
    - **In the README:** screenshots of a trace.
 3. **Engineering hygiene to the ecosystem standard:**
    - `uv`, `ruff` (lint + format) and `pyright`;
@@ -425,10 +446,10 @@ These enter the project (FastAPI + Pydantic remains the web base):
 | **3. Policy RAG** | chunking by section, e5 embeddings on CPU, schema and migrations, pgvector (HNSW index), ingestion, local docker compose | pgvector (indexes, cosine distance), psycopg 3 or SQLAlchemy, LangGraph's Postgres checkpointer, Railway Postgres (pgvector, public TCP proxy + SSL), multilingual-e5 (query/passage prefixes), PDF extraction | Fri 06/11 |
 | **4. Agent** | MCP server for the tools, LangGraph graph (guard → agent ⇄ tools), provider port (Gemma/vLLM, Gemini, OpenAI, Anthropic), voice + bubbles + detector, evals | FastMCP and langchain-mcp-adapters, LangGraph (current API), vLLM + Gemma 4 tool parser, init_chat_model of the 4 providers, structured output | Sat 07/11 |
 | **5. API + Frontend** | FastAPI (demo login, `/warm` and `/warm/status`, `/chat` SSE), React with design system (login → warm-up screen → chat with bubbles and "digitando…"), `make up` and `make e2e` (Playwright) | SSE in FastAPI, simple secure auth, SSE in React (EventSource/fetch stream), Playwright | Sat 07/11 night / Sun 08/11 |
-| **6. GPU, deploy and scale** | Gemma FP8/16k on L40S × H100 (cost × latency × evals), measured and optimized cold start (snapshot, cache), API deploy on Modal, Langfuse, load test | Modal (GPU memory snapshots, web endpoints, secrets), vLLM FP8 for Gemma 4, Langfuse SDK, Locust | Sun 08/11 |
+| **6. GPU, deploy and scale** | Gemma FP8/16k on L40S × H100 (cost × latency × evals), measured and optimized cold start (snapshot, cache), API deploy on Modal, Langfuse, load test | Modal (GPU memory snapshots, web endpoints, secrets), vLLM FP8 for Gemma 4, Langfuse Cloud for the demo, Locust | Sun 08/11 |
 | **7. Delivery** | complete README, ADRs, `model-selection.md`, `scaling-and-cost.md`, 3 to 5 real examples, clean clone, tag `v1.0-entrega`, submission via the Form and by replying to the e-mail | README and ADR best practices | Mon 09/11 by ~20h |
 
-**Cut if running late, in this order:** load with a real LLM, metrics panel in the frontend, Langfuse, GPU memory snapshot. The core (phases 0, 2, 3, 4, 5 + deploy + README + examples) is not cut.
+**Cut if running late, in this order:** load with a real LLM, metrics panel in the frontend, GPU memory snapshot. Langfuse is not cut (owner decision). The core (phases 0, 2, 3, 4, 5 + deploy + README + examples) is not cut.
 
 ## 8. Left to whoever builds it
 Lib versions; internal names; Locust or k6; fine chunking inside each section; exact format of the metrics panel; internal structure of the tests.

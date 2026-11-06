@@ -17,7 +17,11 @@ class Money:
     amount: Decimal
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "amount", self.amount.quantize(_CENT, rounding=ROUND_HALF_UP))
+        try:
+            amount = self.amount.quantize(_CENT, rounding=ROUND_HALF_UP)
+        except InvalidOperation as exc:  # too many digits for the context precision
+            raise InvalidMoney(str(self.amount)) from exc
+        object.__setattr__(self, "amount", amount)
 
     @classmethod
     def from_str(cls, value: str) -> Self:
@@ -37,6 +41,11 @@ class Money:
             raise InvalidMoney(parts)
         return type(self)(self.amount / parts)
 
+    def format_brl(self) -> str:
+        """Voice format: "R$ 2.199" for whole values, "R$ 2.089,05" with cents."""
+        text = format_brl(self)
+        return text.removesuffix(",00")
+
     def __add__(self, other: Self) -> Self:
         return type(self)(self.amount + other.amount)
 
@@ -48,5 +57,6 @@ class Money:
 
 
 def format_brl(money: Money) -> str:
+    """Always shows cents; `Money.format_brl()` is the voice variant."""
     us = f"{money.amount:,.2f}"  # 1,967.18
     return "R$ " + us.replace(",", "_").replace(".", ",").replace("_", ".")
