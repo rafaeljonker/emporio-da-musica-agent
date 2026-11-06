@@ -174,8 +174,8 @@ deploy-llm:
 # instead: scripted model, raised rate limits, no GPU. Run make deploy-llm first.
 LLM_APP ?= emporio-llm-h100-fp8
 LOADTEST ?=
-# gemma: the GPU app above; gemini: the Gemini API (secret emporio-gemini, no GPU).
-API_PROVIDER ?= gemma
+# The hosted demo runs on Gemini (owner, 2026-11-06); API_PROVIDER=gemma uses the GPU app above.
+API_PROVIDER ?= gemini
 deploy-api: web-build
 	cd backend && EMPORIO_API_PROVIDER=$(API_PROVIDER) EMPORIO_LLM_APP=$(LLM_APP) EMPORIO_LOADTEST=$(LOADTEST) uv run modal deploy ../deploy/modal_api.py
 
