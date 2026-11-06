@@ -19,7 +19,7 @@ _ENV_VARS = (
     "OPENAI_MODEL", "ANTHROPIC_MODEL", "USD_BRL", "DATABASE_URL", "LANGFUSE_PUBLIC_KEY",
     "LANGFUSE_SECRET_KEY", "LANGFUSE_BASE_URL", "LANGFUSE_SALT", "LANGFUSE_TRACING_ENABLED",
     "OTEL_SDK_DISABLED", "LANGFUSE_SAMPLE_RATE", "DEMO_EMAIL", "DEMO_PASSWORD", "SESSION_SECRET",
-    "SESSION_HTTPS_ONLY", "EMPORIO_FAKE_MODEL",
+    "SESSION_HTTPS_ONLY", "EMPORIO_FAKE_MODEL", "DB_POOL_MAX",
 )  # fmt: skip
 _FAKE_LANGFUSE = {
     "LANGFUSE_PUBLIC_KEY": "pk-fake",
@@ -174,3 +174,15 @@ def test_local_provider_needs_no_key():
         "http://localhost:11434/v1",
         "emporio-gemma",
     )
+
+
+def test_db_pool_max_defaults_to_4_and_reads_env(monkeypatch: pytest.MonkeyPatch):
+    assert Settings().db_pool_max == 4
+    monkeypatch.setenv("DB_POOL_MAX", "20")
+    assert Settings().db_pool_max == 20
+
+
+def test_db_pool_max_below_one_is_rejected(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("DB_POOL_MAX", "0")
+    with pytest.raises(ValueError, match="db_pool_max"):
+        Settings()

@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from types import SimpleNamespace
 
 import pytest
@@ -24,6 +24,20 @@ def _conn() -> Iterator[object]:
     yield object()
 
 
+def test_toolbox_pool_size_comes_from_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    sizes: list[object] = []
+
+    def make_pool(url: str, **kwargs: object) -> FakePool:
+        sizes.append(kwargs.get("max_size"))
+        return FakePool()
+
+    monkeypatch.setattr(bootstrap, "make_pool", make_pool)
+    monkeypatch.setattr(bootstrap, "E5Embedder", lambda: object())
+    with ExitStack() as stack:
+        bootstrap.build_toolbox(stack, "postgresql://unused", Settings(db_pool_max=20))
+    assert sizes == [20]
+
+
 def test_failed_langfuse_check_closes_what_was_opened(monkeypatch: pytest.MonkeyPatch) -> None:
     pool = FakePool()
     monkeypatch.setenv("DATABASE_URL", "postgresql://unused")
@@ -31,7 +45,7 @@ def test_failed_langfuse_check_closes_what_was_opened(monkeypatch: pytest.Monkey
         "connect": lambda url: _conn(),
         "apply_migrations": lambda conn: [],
         "setup_checkpointer": lambda url: None,
-        "make_pool": lambda url: pool,
+        "make_pool": lambda url, **_: pool,
         "E5Embedder": lambda: object(),
         "PgProductIndex": lambda pool, embedder: object(),
         "PgPolicyIndex": lambda pool, embedder: object(),
@@ -66,7 +80,7 @@ def test_fake_model_wires_scripted_model_and_store_scope(monkeypatch: pytest.Mon
         "connect": lambda url: _conn(),
         "apply_migrations": lambda conn: [],
         "setup_checkpointer": lambda url: None,
-        "make_pool": lambda url: FakePool(),
+        "make_pool": lambda url, **_: FakePool(),
         "E5Embedder": lambda: object(),
         "PgProductIndex": lambda pool, embedder: object(),
         "PgPolicyIndex": lambda pool, embedder: object(),
