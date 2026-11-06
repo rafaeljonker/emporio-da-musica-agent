@@ -210,6 +210,34 @@ def test_group_judges_second_batch(token: str, spoken: str, expected: bool) -> N
     assert matches(token, normalize(spoken)) is expected
 
 
+# Review probes (PR #7): a negated "passou" is not a closed window, and a reply that says the
+# window closed never also counts as "can return".
+NEGATION_AND_CONTRAST = [
+    (
+        "@return_no",
+        "o prazo de 7 dias começou na entrega e a loja já aprovou, nada passou",
+        False,
+    ),
+    ("@return_no", "O prazo de 7 dias, nunca passou.", False),
+    ("@return_no", "O prazo de 7 dias nem de longe passou.", False),
+    ("@return_no", "O prazo ainda não passou, pode devolver.", False),
+    ("@return_yes", "O prazo ainda não passou, pode devolver.", True),
+    ("@return_no", "Pode devolver sim, mas o prazo já encerrou.", True),
+    ("@return_yes", "Pode devolver sim, mas o prazo já encerrou.", False),
+    ("@return_yes", "Pode devolver sim, mas o prazo acabou.", False),
+    ("@return_yes", "Pode devolver sim, mas o prazo terminou em 25/01.", False),
+    ("@return_yes", "Tem direito à troca, mas os 7 dias já passaram.", False),
+    ("@return_yes", "Seu pedido acabou de ser entregue, pode devolver sim.", True),
+]
+
+
+@pytest.mark.parametrize(("token", "spoken", "expected"), NEGATION_AND_CONTRAST)
+def test_return_groups_respect_negation_and_contrast(
+    token: str, spoken: str, expected: bool
+) -> None:
+    assert matches(token, normalize(spoken)) is expected
+
+
 DECLINES = [
     ("@declines_accessory", "A gente não vende encordoamento.", True),
     ("@declines_accessory", "Não vendemos acessórios.", True),
