@@ -34,7 +34,7 @@ web-build: web-install
 	cd frontend && npm run build
 
 # oxlint + Vitest + tsc -b and vite build (npm run build runs both).
-check-web:
+check-web: web-install
 	cd frontend && npm run lint && npm test && npm run build
 
 # Dev-only local URL (matches docker-compose.yml); callers may override DATABASE_URL (e.g. Railway).
