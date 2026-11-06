@@ -164,7 +164,7 @@ def verify(expect: Expect, bubbles: Sequence[str], tools_used: Sequence[str]) ->
     # earlier question is already an AI tell caught by the detector.
     text = normalize("\n".join(bubbles))
     failures: list[str] = []
-    missing = [t for t in expect.expect_tools if t not in tools_used]
+    missing = [t for t in expect.expect_tools if not set(t.split("|")) & set(tools_used)]
     if missing:
         failures.append(f"tools not called: {', '.join(missing)}")
     failures += [f"missing: {t}" for t in expect.all_of if not matches(t, text)]
