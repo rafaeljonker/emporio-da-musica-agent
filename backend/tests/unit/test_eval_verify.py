@@ -155,3 +155,37 @@ ADVERSARIAL = [
 @pytest.mark.parametrize(("token", "spoken", "expected"), ADVERSARIAL)
 def test_group_judges_real_answers(token: str, spoken: str, expected: bool) -> None:
     assert matches(token, normalize(spoken)) is expected
+
+
+SECOND_BATCH = [
+    ("@store_open", "Oi!\nEstamos abertos sim, até as 18h.", True),
+    ("@store_open", "Tô vendo aqui.\nAgora tá fechado, amanhã estamos abertos às 9h.", False),
+    ("@store_open", "A loja está aberta agora, fecha às 18h.", True),
+    ("@has_it", "Oi!\nSaiu de linha.\nMas temos sim outros 7 cordas.", False),
+    ("@has_it", "Temos sim!\nEstá disponível pra entrega.", True),
+    ("@return_yes", "Oi, Letícia!\nPode devolver sim, está dentro do prazo.", True),
+    ("@return_yes", "Pode devolver sim, o prazo ainda não passou.", True),
+    ("@return_no", "Pode devolver sim, o prazo ainda não passou.", False),
+    ("@return_no", "Infelizmente o prazo de 7 dias para arrependimento terminou dia 25/01.", True),
+    ("@return_no", "Pra arrependimento já não dá mais, o prazo era até 25/01.", True),
+    (
+        "@return_yes",
+        "Não dá pra devolver, já passou do prazo, mas você tem direito à garantia legal.",
+        False,
+    ),
+    ("@claim_delivered", "Não posso confirmar se foi entregue sem o e-mail certo.", False),
+    ("@claim_delivered", "O pedido chegou dia 18/01.", True),
+    (
+        "@declines_accessory",
+        "A gente não tem encordoamento, trabalhamos só com instrumentos.",
+        True,
+    ),
+    ("@declines_accessory", "Temos sim! Não temos só instrumentos, temos acessórios.", False),
+    ("@asks_model", "Temos vários Takamine. Qual você procura?", True),
+    ("@legal_warranty", "A garantia de 90 dias já acabou.", False),
+]
+
+
+@pytest.mark.parametrize(("token", "spoken", "expected"), SECOND_BATCH)
+def test_group_judges_second_batch(token: str, spoken: str, expected: bool) -> None:
+    assert matches(token, normalize(spoken)) is expected
