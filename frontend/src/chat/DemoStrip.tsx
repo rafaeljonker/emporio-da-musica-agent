@@ -25,7 +25,9 @@ function Item({ value, name, note }: { value: string; name: string; note: string
     >
       <span className="flex flex-col items-start">
         <span>{name}</span>
+        {/* The comma keeps name and note apart in the option's accessible name; hidden with the note in the trigger. */}
         <span data-note className="text-sm font-normal text-muted-foreground">
+          <span className="sr-only">, </span>
           {note}
         </span>
       </span>
