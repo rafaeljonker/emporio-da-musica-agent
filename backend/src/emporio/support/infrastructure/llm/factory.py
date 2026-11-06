@@ -1,13 +1,14 @@
 from langchain.chat_models import init_chat_model
 from langchain_core.language_models.chat_models import BaseChatModel
 
-from emporio.config import Provider, Settings
+from emporio.config import Provider, Settings, require_provider_settings
 
 _TEMPERATURE = 0.3
 
 
 def make_chat_model(settings: Settings) -> BaseChatModel:
     """Build the chat model for the configured provider; no network call happens here."""
+    require_provider_settings(settings)
     match settings.provider:
         case Provider.GEMMA:
             return init_chat_model(

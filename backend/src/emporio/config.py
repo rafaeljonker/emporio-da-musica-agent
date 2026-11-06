@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     anthropic_model: str = "claude-haiku-5-5"
 
     vllm_base_url: str | None = None
-    vllm_api_key: SecretStr = SecretStr("EMPTY")
+    vllm_api_key: SecretStr | None = None
     gemini_api_key: SecretStr | None = None
     openai_api_key: SecretStr | None = None
     anthropic_api_key: SecretStr | None = None
@@ -69,29 +69,44 @@ class Settings(BaseSettings):
     )
 
 
-_REQUIRED_VARIABLE = {
-    Provider.GEMMA: "VLLM_BASE_URL",
-    Provider.GEMINI: "GEMINI_API_KEY",
-    Provider.OPENAI: "OPENAI_API_KEY",
-    Provider.ANTHROPIC: "ANTHROPIC_API_KEY",
+_REQUIRED_VARIABLES = {
+    Provider.GEMMA: ("VLLM_BASE_URL", "VLLM_API_KEY"),
+    Provider.GEMINI: ("GEMINI_API_KEY",),
+    Provider.OPENAI: ("OPENAI_API_KEY",),
+    Provider.ANTHROPIC: ("ANTHROPIC_API_KEY",),
 }
 
 
-def _is_set(settings: Settings, provider: Provider) -> bool:
-    field = _REQUIRED_VARIABLE[provider].lower()
-    return getattr(settings, field) is not None
+def _is_set(settings: Settings, variable: str) -> bool:
+    value = getattr(settings, variable.lower())
+    if isinstance(value, SecretStr):
+        value = value.get_secret_value()
+    return value is not None and bool(value.strip())
+
+
+def require_provider_settings(settings: Settings) -> None:
+    """Raise MissingSetting naming the first unset variable of the selected provider."""
+    provider = settings.provider
+    for variable in _REQUIRED_VARIABLES[provider]:
+        if not _is_set(settings, variable):
+            others = ", ".join(
+                f"{p.value} ({' + '.join(_REQUIRED_VARIABLES[p])})"
+                for p in Provider
+                if p is not provider
+            )
+            raise MissingSetting(variable, provider, others)
 
 
 def load_settings(provider: Provider | None = None) -> Settings:
     try:
         settings = Settings()
     except ValidationError as error:
-        raise InvalidSettings(str(error)) from error
+        details = "; ".join(
+            f"{'.'.join(str(part) for part in item['loc'])}: {item['msg']}"
+            for item in error.errors()
+        )
+        raise InvalidSettings(details) from error
     if provider is not None:
         settings = settings.model_copy(update={"provider": provider})
-    if not _is_set(settings, settings.provider):
-        others = ", ".join(
-            f"{p.value} ({_REQUIRED_VARIABLE[p]})" for p in Provider if p is not settings.provider
-        )
-        raise MissingSetting(_REQUIRED_VARIABLE[settings.provider], settings.provider, others)
+    require_provider_settings(settings)
     return settings
