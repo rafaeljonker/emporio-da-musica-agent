@@ -117,3 +117,16 @@ def test_specs_and_store_rules_come_only_from_tool_results() -> None:
     assert "Especificação do produto" in prompt
     assert "só diga do jeito que veio da ferramenta" in prompt
     assert "nunca complete nem generalize" in prompt
+
+
+def test_grounding_keeps_the_sound_translation_and_points_to_the_team() -> None:
+    prompt = system_prompt(None, TODAY)
+    assert "Traduzir a especificação em som, como pede a voz, continua valendo" in prompt
+    assert "passe o contato da equipe pra confirmar" in prompt
+    assert "ofereça verificar" not in prompt
+
+
+def test_a_partial_search_is_never_presented_as_the_catalog_range() -> None:
+    prompt = system_prompt(None, TODAY)
+    assert "a busca traz só alguns produtos" in prompt
+    assert 'nunca apresente como a faixa do catálogo ("a partir de", "até")' in prompt
