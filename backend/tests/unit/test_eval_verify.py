@@ -250,6 +250,18 @@ DECLINES = [
     ("@declines_accessory", "Não vendemos por telefone, só presencial.", False),
     ("@declines_accessory", "Vendemos encordoamento sim.", False),
     ("@declines_accessory", "Não só trabalhamos com instrumentos, temos acessórios.", False),
+    # Review probes (PR #8): a negated or conceded "só instrumentos" is not a refusal.
+    (
+        "@declines_accessory",
+        "Não focamos só em instrumentos, também vendemos cordas",
+        False,
+    ),
+    ("@declines_accessory", "Não é só instrumentos, temos acessórios", False),
+    (
+        "@declines_accessory",
+        "Aqui a gente só foca em instrumentos, mas tem cordas sim",
+        False,
+    ),
 ]
 
 
