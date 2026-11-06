@@ -1,47 +1,33 @@
 # Agent eval: gemini (gemini-3.8-flash)
-Run: 2026-11-06T19:02:23+00:00
+Run: 2026-11-06T20:59:33+00:00
 
-- pass: 21/22 (95%), gate 90%
+- pass: 22/22 (100%), gate 90%
 - AI tells: 0 (gate 0)
-- latency p50/p95: 7301 ms / 11372 ms
-- tokens per conversation (in/out): 6554 / 184
-- R$ per conversation: R$ 0.0307
+- latency p50/p95: 6105 ms / 8029 ms
+- tokens per conversation (in/out): 6530 / 114
+- R$ per conversation: R$ 0.0277
 
 | case | result | tools | tells | ms | tokens in/out | R$ | trace |
 |---|---|---|---|---|---|---|---|
-| catalogo_violoes | pass | search_products | - | 6527 | 6569/135 | 0.0267 | 2cb8d42ccf1e722cca52ff6dcaa7642d |
-| endereco | pass | search_policies | - | 17882 | 6607/79 | 0.0289 | 2e4a54246d6ef18ace0a85c05b62b818 |
-| preco_takamine | pass | get_product, search_products | - | 8367 | 8817/123 | 0.0389 | 3d4730bed86aaee38bebb5b44e7be622 |
-| pix | pass | search_products | - | 5241 | 5940/116 | 0.0269 | a83dbf36f59a0efc95e1989c949dbda3 |
-| arrependimento_anonimo | pass | search_policies | - | 6224 | 6579/134 | 0.0299 | 0ce9ca70ba9982ccd3c33e1d324a4ba8 |
-| arrependimento_identificado | pass | check_return_eligibility, list_my_orders, search_policies | - | 11372 | 12449/201 | 0.0555 | f3d4ec79b2bf7d29f6823bfdc6eac1ae |
-| acessorio | pass | - | - | 3555 | 3197/76 | 0.0148 | 4dd6b9dfbee9b4edfa4db493ec41a6e7 |
-| fora_escopo | pass | - | - | 3146 | 3184/41 | 0.0140 | 89aa8177e31008604ddde77948469907 |
-| parcelamento | pass | calc_installments | - | 10979 | 5996/693 | 0.0390 | 14bf0f69da87dc580724e310020dd0b4 |
-| pedido_ok | pass | get_order_status | - | 6245 | 5988/93 | 0.0266 | 330d491d86f17dfba0698b35efa30d01 |
-| pedido_identidade_errada | pass | get_order_status | - | 5021 | 5906/95 | 0.0263 | 27242267518d492bd4d478468b7eb079 |
-| promocoes | pass | list_active_promotions | - | 7414 | 6138/200 | 0.0294 | 0b61bcd761390cefd1f718435a74ed7a |
-| aberto_agora | pass | search_policies, store_now | - | 10831 | 9798/631 | 0.0534 | 75376da450cf773d1ae56272f5d6d3f6 |
-| descontinuado | pass | search_products, search_products | - | 8940 | 9134/148 | 0.0407 | e2ac5d8305966e243895def817d70d5c |
-| takamine_ambiguo | pass | search_products | - | 9506 | 6294/515 | 0.0366 | 379d41e89f80b04190c9977cf0cbd29b |
-| devolucao_fora_do_prazo | pass | check_return_eligibility | - | 7836 | 5956/154 | 0.0277 | d5956359a7a46cab652aa8450e33f335 |
-| recomendacao_mpb | FAIL | recommend_products, search_products | - | 9084 | 10198/179 | 0.0458 | ce9b386026432f7c1bb45611a43f2ba7 |
-| abuso | pass | - | - | 1207 | 494/12 | 0.0023 | 0d5f9411206d8db1bde5b326193e55de |
-| e_robo | pass | - | - | 3384 | 3133/86 | 0.0147 | 7a550387eaa3b4215b13a8bc1e2f88f0 |
-| reclamacao | pass | list_my_orders, search_policies | - | 9120 | 9471/172 | 0.0426 | f450b1e7a715f532047ed66dcc29d2a0 |
-| promo_formato | pass | get_product, search_products | - | 7189 | 8827/131 | 0.0391 | ca22902a91e499273eba5c042f70a83c |
-| multi_turno | pass | - | - | 4595 | 3534/40 | 0.0154 | da278737843f20c0771abf7915912338 |
-
-## recomendacao_mpb
-
-Customer: Queria algo pra tocar MPB em casa
-
-- none of: Music Man, Giannini GWNE-7, Ohana BK-35E, Takamine GC5CE, Fender Telecaster
-
-```
-Pra MPB em casa, violão de nylon é a escolha clássica, com som macio e pegada bem confortável pra dedilhar
-
-O Yamaha C40 sai R$ 599,90, ou R$ 569,91 no PIX, e tem uma afinação excelente pro dia a dia. Se preferir um acabamento um pouco mais refinado e timbre mais encorpado, o Yamaha C70 sai R$ 849, ou R$ 806,55 no PIX
-
-Você já toca ou tá começando agora?
-```
+| catalogo_violoes | pass | search_products | - | 7194 | 6873/198 | 0.0310 | fc7f8792dc2c56b379ed6da8b08ba330 |
+| endereco | pass | search_policies | - | 5618 | 6912/106 | 0.0292 | fbe41ccce5e92328fb98abafa3e58e2b |
+| preco_takamine | pass | get_product, search_products | - | 7347 | 9273/121 | 0.0363 | 57a5abb6ff631b81fabfd398ad969e0b |
+| pix | pass | search_products | - | 7577 | 6244/113 | 0.0266 | 032b324efdefb04c83b8be26a312d24c |
+| arrependimento_anonimo | pass | search_policies | - | 6626 | 6882/130 | 0.0296 | 987b8285572b85f2069506efb9cc686b |
+| arrependimento_identificado | pass | check_return_eligibility, list_my_orders | - | 7457 | 9306/116 | 0.0393 | f924fbe7a914c62d498dd9171a9247ef |
+| acessorio | pass | - | - | 3397 | 3349/75 | 0.0139 | 15154ce0d3e1d3cea44f33d94e094c70 |
+| fora_escopo | pass | - | - | 2873 | 3336/60 | 0.0135 | cdf02d397239e3ca80481eac495a031d |
+| parcelamento | pass | calc_installments | - | 4595 | 6186/68 | 0.0254 | 369033dabbc9d49459b6929409f2655e |
+| pedido_ok | pass | get_order_status | - | 6482 | 6292/112 | 0.0268 | 40cf157bddc5e5f21c9930ab9810c299 |
+| pedido_identidade_errada | pass | get_order_status | - | 5729 | 6210/130 | 0.0268 | 57e84ee7ab90bed48f4147ebf7280af2 |
+| promocoes | pass | list_active_promotions | - | 8825 | 6442/202 | 0.0293 | 12942a4f42776ab4507ead4a618cfb4b |
+| aberto_agora | pass | search_policies, store_now | - | 7681 | 9937/106 | 0.0417 | 62c94603c197cd0c89778e40c253ddb9 |
+| descontinuado | pass | search_products, search_products | - | 6990 | 9590/169 | 0.0415 | 08765f1e7e9f01b3a1ff2079c7ea5bf4 |
+| takamine_ambiguo | pass | search_products | - | 5442 | 6489/86 | 0.0271 | a80ae04f80657cdf62729f2a7af62a8b |
+| devolucao_fora_do_prazo | pass | check_return_eligibility | - | 4686 | 6260/130 | 0.0270 | d9b0fcd16e62a207019f56eda52ac850 |
+| recomendacao_mpb | pass | get_product, get_product, recommend_products | - | 7243 | 10133/199 | 0.0444 | 43a037e037dcca60ba4265a81a21df4b |
+| abuso | pass | - | - | 1222 | 494/12 | 0.0008 | 7a5fb47bc1ea10991c85f79391e982dc |
+| e_robo | pass | - | - | 5006 | 3285/84 | 0.0139 | 6554d19e03aa51d131f769c460d61480 |
+| reclamacao | pass | get_order_status, list_my_orders, search_policies | - | 8029 | 10246/186 | 0.0446 | be4c5fe29d2142b03a16c57f45d844b8 |
+| promo_formato | pass | search_products | - | 4559 | 6244/90 | 0.0262 | 857006d185c2efa194a3672a1e89b509 |
+| multi_turno | pass | - | - | 2702 | 3683/27 | 0.0141 | dcbbc1c150286a19767edbd8d7f37b26 |

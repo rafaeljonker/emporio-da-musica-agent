@@ -12,8 +12,7 @@
 >   - normalized search (plural/accent);
 >   - the evals verifier must accept paraphrases ("9 parcelas" = "9x"; "não está mais disponível").
 
-> Status: spec under discussion (brainstorming). After approval, it moves on to the implementation plan (superpowers:writing-plans).
-> When the repository exists, this spec is copied to `docs/superpowers/specs/2026-11-05-emporio-agent-design.md` and committed.
+> Status: approved and implemented (phases 0–7). Each phase's decisions are recorded in §7.2.1–7.2.5; measured numbers live in `docs/scaling-and-cost.md`.
 
 ## 1. Intent and why
 Artefact sent the written case, the 1st of 5 stages of the **AI Engineer – Full-Stack for Generative AI Applications** process, due **Mon 09/11/2026 23:59**.
@@ -78,7 +77,7 @@ They evaluate **"lógica, clareza e iniciativa"** (logic, clarity and initiative
   - **What will be measured:** Gemma 4 31B in **FP8**, with `--max-model-len 16384`, on **L40S** and on **H100**.
   - **Selection criteria:** the cheapest GPU that keeps 14/14 on the spike evals, median latency ≤ 3 s and adequate concurrency.
   - **In the README:** the table of cost per hour × latency × hits.
-  - **Measured in phase 6** (full tables in `docs/scaling-and-cost.md`): H100 FP8 ($3.95/h) p50 2.05 s / p95 4.11 s, 21/22, 4 AI tells (run before the voice and channel-markup fixes, not re-run); L40S FP8 ($1.95/h) p50 4.93 s / p95 9.98 s, 21/22 (22/22 effective after a verifier fix), 0 tells (both Gemma reports are pre-fix runs: they predate the final verifier and bubble code); Gemini 3.8 Flash p50 7.30 s / p95 11.37 s, 21/22, 0 tells, R$ 0.0307 per eval case. Gemma default: H100 FP8 (`RedHatAI/gemma-4-31B-it-FP8-dynamic`), the only one under the 3 s median. The BF16 baseline on H100 was skipped for budget, so FP8 is compared only against the spike's BF16 14/14.
+  - **Measured in phase 6** (full tables in `docs/scaling-and-cost.md`): H100 FP8 ($3.95/h) p50 2.05 s / p95 4.11 s, 21/22, 4 AI tells (run before the voice and channel-markup fixes, not re-run); L40S FP8 ($1.95/h) p50 4.93 s / p95 9.98 s, 21/22 (22/22 effective after a verifier fix), 0 tells (both Gemma reports are pre-fix runs: they predate the final verifier and bubble code); Gemini 3.8 Flash p50 5.93 s / p95 14.54 s, 20/22, 0 tells, R$ 0.0310 per eval case (final run). Gemma default: H100 FP8 (`RedHatAI/gemma-4-31B-it-FP8-dynamic`), the only one under the 3 s median. The BF16 baseline on H100 was skipped for budget, so FP8 is compared only against the spike's BF16 14/14.
 - **Cold start (mandatory to optimize).** Today it is 175 s.
   - **First:** measure the time breakdown (container, weight loading, compilation and CUDA graphs).
   - **Then, measure each optimization applied:**
@@ -407,7 +406,7 @@ emporio-da-musica-agent/
 - AGENTS.md under 200 lines: commands, conventions, gotchas, without describing folders.
 
 ### 7.8 README (structure, mapped to the statement)
-1. **Overview in 5 lines**, with a GIF of the conversation and the demo link (credentials sent outside the repo).
+1. **Overview in 5 lines**, with a PNG screenshot of the conversation and the demo link (credentials sent outside the repo).
 2. **How to run:**
    - prerequisites (uv, Node, Make);
    - `.env` from `.env.example`;

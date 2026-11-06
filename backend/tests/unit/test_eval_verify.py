@@ -159,6 +159,8 @@ ADVERSARIAL = [
     ("@regret_7", "17 dias", False),
     ("@declines_accessory", "Aqui a gente trabalha só com instrumentos.", True),
     ("@declines_accessory", "Aqui a gente trabalha só com os instrumentos mesmo", True),
+    ("@declines_accessory", "Aqui na Empório a gente foca só nos instrumentos mesmo", True),
+    ("@declines_accessory", "A gente foca em violões, mas tem cordas também", False),
     (
         "@return_no",
         "O prazo de arrependimento do pedido 5 era de 7 dias corridos e venceu em 25/01/2026",
@@ -248,6 +250,18 @@ DECLINES = [
     ("@declines_accessory", "Não vendemos por telefone, só presencial.", False),
     ("@declines_accessory", "Vendemos encordoamento sim.", False),
     ("@declines_accessory", "Não só trabalhamos com instrumentos, temos acessórios.", False),
+    # Review probes (PR #8): a negated or conceded "só instrumentos" is not a refusal.
+    (
+        "@declines_accessory",
+        "Não focamos só em instrumentos, também vendemos cordas",
+        False,
+    ),
+    ("@declines_accessory", "Não é só instrumentos, temos acessórios", False),
+    (
+        "@declines_accessory",
+        "Aqui a gente só foca em instrumentos, mas tem cordas sim",
+        False,
+    ),
 ]
 
 
