@@ -40,3 +40,9 @@ def test_llm_weights_cover_every_weights_key():
     assert isinstance(names, tuple)
     assert isinstance(weights, dict)
     assert set(names) == set(weights)
+
+
+def test_api_providers_are_gemma_and_gemini():
+    # The hosted demo runs Gemma on the GPU app or Gemini through its API (no GPU, no warm-up).
+    providers = _constant("modal_api.py", "API_PROVIDERS")
+    assert providers == ("gemma", "gemini")
