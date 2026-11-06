@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 from uuid import uuid4
@@ -291,3 +292,28 @@ def test_mask_never_rewrites_identifier_keys() -> None:
     patch = result.span_patches[key]
     assert patch is not None
     assert patch.set_attributes == {"input": REDACTED}
+
+
+ACCENTED = ("Letícia Gonçalves", "Patrícia Araújo")
+
+
+def test_mask_redacts_json_escaped_and_accent_stripped_names() -> None:
+    pattern = name_pattern(ACCENTED)
+    exported = json.dumps({"content": "oi Letícia Gonçalves e Patrícia Araújo"})
+    assert "\\u" in exported
+    masked = redact(exported, pattern)
+    for part in ("let", "gon", "patr", "ara"):
+        assert part not in masked.casefold()
+    assert redact("oi leticia, goncalves", pattern) == f"oi {REDACTED}, {REDACTED}"
+
+
+def test_mask_redacts_surnames_but_not_particles() -> None:
+    pattern = name_pattern(NAMES)
+    assert redact("Sra. Ferreira", pattern) == f"Sra. {REDACTED}"
+    assert redact("o Mendes da Silva", pattern) == f"o {REDACTED} da {REDACTED}"
+    assert redact("de da do", pattern) == "de da do"
+
+
+def test_mask_full_name_across_any_whitespace() -> None:
+    pattern = name_pattern(NAMES)
+    assert redact("Ana  Carolina\nFerreira", pattern) == REDACTED

@@ -6,6 +6,7 @@ import pytest
 
 from emporio import bootstrap
 from emporio.config import LangfuseUnreachable, Provider, Settings
+from emporio.orders.infrastructure.csv_order_repository import CsvCustomerRepository
 
 
 class FakePool:
@@ -59,6 +60,7 @@ def test_fake_model_wires_scripted_model_and_store_scope(monkeypatch: pytest.Mon
     from emporio.support.infrastructure.llm.scripted import ScriptedChatModel
 
     built: list[tuple[object, ...]] = []
+    seen_names: list[object] = []
     monkeypatch.setenv("DATABASE_URL", "postgresql://unused")
     patches = {
         "connect": lambda url: _conn(),
@@ -73,7 +75,7 @@ def test_fake_model_wires_scripted_model_and_store_scope(monkeypatch: pytest.Mon
         "make_checkpointer": lambda url: SimpleNamespace(conn=FakePool()),
         "build_tools": lambda box: [],
         "build_graph": lambda *args: built.append(args),
-        "make_langfuse": lambda settings, names: object(),
+        "make_langfuse": lambda settings, names: seen_names.append(names),
         "LangfuseTracerFactory": lambda *args: object(),
     }
     for name, fake in patches.items():
@@ -82,5 +84,6 @@ def test_fake_model_wires_scripted_model_and_store_scope(monkeypatch: pytest.Mon
     agent.close()
     model, _, classify, _ = built[0]
     assert isinstance(model, ScriptedChatModel)
+    assert seen_names == [CsvCustomerRepository().names()]
     assert callable(classify)
     assert classify([HumanMessage("vai se ferrar")]) is Scope.LOJA
