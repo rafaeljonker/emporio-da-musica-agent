@@ -53,9 +53,9 @@ Never write keys or real values in any file. Use `.env` (git-ignored); `.env.exa
 
 ## Gotchas
 - Files in `data/` have spaces and accents in their names; never hardcode them, use `emporio.paths`.
-- `DATABASE_URL` is the only DB setting. `make db`, `make test-pg` and `make evals` set their own URL; `make test`/`make check` ignore any exported `DATABASE_URL`; Postgres tests only run against a database whose name ends in `_test`.
+- `DATABASE_URL` is the only DB setting. `make db`, `make test-pg`, `make evals`, `make chat` and `make mcp` set their own URL; `make test`/`make check` ignore any exported `DATABASE_URL`; Postgres tests only run against a database whose name ends in `_test`.
 - First use of the e5 embedder downloads about 470 MB (fastembed cache); `make db` and `make evals` need it.
-- Langfuse is mandatory: `make chat` and `make evals` fail at startup without its keys. The `observability` profile needs about 2.3 GB RAM; the first `make langfuse-up` pulls images (about 7 min).
+- Langfuse is mandatory: `make chat` and `make evals` fail at startup without its keys, and first run `emporio check-config` so a missing provider key fails in seconds, before Docker starts. The `observability` profile needs about 2.3 GB RAM; the first `make langfuse-up` pulls images (about 7 min).
 - `make db-up` (so `make db`) generates the Langfuse secrets into `.env` when absent; never print or commit them.
 - `LLM_PROVIDER` defaults to gemma, which needs `VLLM_BASE_URL` and `VLLM_API_KEY`; other providers need their own `*_API_KEY`. No silent fallback.
 - `data/` is read-only source material.

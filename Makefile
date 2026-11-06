@@ -1,10 +1,10 @@
 export PATH := $(CURDIR)/backend/.venv/bin:$(PATH)
 
-.PHONY: help setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys langfuse-db langfuse-up chat mcp
+.PHONY: help setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys langfuse-db langfuse-up chat-config evals-config chat mcp
 .DEFAULT_GOAL := help
 
 help:
-	@echo "targets: setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys langfuse-db langfuse-up chat mcp"
+	@echo "targets: setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys langfuse-db langfuse-up chat-config evals-config chat mcp"
 
 setup:
 	cd backend && uv sync && uv run pre-commit install --config ../.pre-commit-config.yaml
@@ -56,7 +56,11 @@ test-pg: db-up db-test
 # PROVIDER picks the model (gemma|gemini|openai|anthropic) and names backend/evals/reports/<provider>.md.
 # EVAL_FAKE_MODEL=1 swaps in a scripted model to check the harness only (the gate then fails).
 PROVIDER ?= gemma
-evals: db-test langfuse-up
+# Fails in seconds on a missing provider key, before Docker, the database or Langfuse start.
+evals-config:
+	cd backend && LLM_PROVIDER=$(PROVIDER) uv run emporio check-config
+
+evals: evals-config db-test langfuse-up
 	cd backend && LLM_PROVIDER=$(PROVIDER) DATABASE_URL=$(TEST_DATABASE_URL) uv run pytest -q -m eval -s
 
 # Writes the Langfuse secrets into .env only when absent; values are never printed.
@@ -75,6 +79,7 @@ langfuse-keys:
 	put LANGFUSE_INIT_USER_PASSWORD "$$(hex 12)"; \
 	put LANGFUSE_PUBLIC_KEY "$$pk"; put LANGFUSE_SECRET_KEY "$$sk"; \
 	put LANGFUSE_BASE_URL http://localhost:3000; put LANGFUSE_SALT "$$(hex 16)"
+	@chmod 600 .env
 
 # Langfuse shares our Postgres container but gets its own database.
 langfuse-db: db-up
@@ -84,9 +89,13 @@ langfuse-up: langfuse-keys langfuse-db
 	docker compose --profile observability up -d --wait
 
 # ARGS example: make chat ARGS="--as-customer 14 --provider gemini"
-chat: db langfuse-up
-	cd backend && uv run emporio chat $(ARGS)
+chat-config:
+	cd backend && uv run emporio check-config $(ARGS)
+
+# Always the local database, like make db: an exported DATABASE_URL (e.g. Railway) is ignored.
+chat: chat-config db langfuse-up
+	cd backend && DATABASE_URL=$(LOCAL_DATABASE_URL) uv run emporio chat $(ARGS)
 
 # MCP over stdio; EMPORIO_MCP_CUSTOMER_ID=14 fixes the identity (unset = anonymous).
 mcp: db
-	cd backend && uv run emporio mcp
+	cd backend && DATABASE_URL=$(LOCAL_DATABASE_URL) uv run emporio mcp

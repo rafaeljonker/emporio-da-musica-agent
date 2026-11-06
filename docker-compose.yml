@@ -21,7 +21,7 @@ services:
 
   langfuse-web:
     profiles: [observability]
-    image: docker.langfuse.com/langfuse/langfuse:4
+    image: docker.langfuse.com/langfuse/langfuse:4.76.0@sha256:59abb54faacf45b63d09f4076d45683dae26a6661974d497836543d350b16575
     restart: unless-stopped
     depends_on: &langfuse-depends-on
       db:
@@ -82,7 +82,7 @@ services:
 
   langfuse-worker:
     profiles: [observability]
-    image: docker.langfuse.com/langfuse/langfuse-worker:4
+    image: docker.langfuse.com/langfuse/langfuse-worker:4.76.0@sha256:27e8b49d619a013bca38ed9b0853456e19f5667a23e8e26e3a10d4e28485f49c
     restart: unless-stopped
     depends_on: *langfuse-depends-on
     environment: *langfuse-env
