@@ -48,3 +48,15 @@ def test_clean_reply_has_no_tells() -> None:
 )
 def test_legit_text_is_not_a_tell(text: str) -> None:
     assert ai_tells(text) == ()
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Veja https://x.com/p?id=3 agora.\n\nQual cor?",
+        "#12345 saiu hoje.",
+        "Código abc__def confirmado.",
+    ],
+)
+def test_edge_cases_are_not_tells(text: str) -> None:
+    assert ai_tells(text) == ()
