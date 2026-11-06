@@ -2,7 +2,7 @@ import secrets
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
 from emporio.api.guards import Session, require_json, require_session
 from emporio.support.application.ports import ChatAgent
@@ -10,7 +10,7 @@ from emporio.support.application.ports import ChatAgent
 
 class IdentityIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    customer_id: int | None
+    customer_id: Annotated[StrictInt, Field(ge=1, le=2_147_483_647)] | None
 
 
 def build_identity_router(agent: ChatAgent) -> APIRouter:
