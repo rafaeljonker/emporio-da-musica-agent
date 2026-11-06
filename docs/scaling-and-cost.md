@@ -13,12 +13,12 @@ Gemma 4 31B on vLLM 0.33.0 (`deploy/modal_llm.py`): FP8 weights `RedHatAI/gemma-
 | H200 (spike baseline) | BF16 | 4.54 | 175 s (cache state not recorded) | 2.2 s median, 3.9 s max | 14/14 effective, on the 14-case spike suite | 0 |
 | H100 | FP8 | 3.95 | 381.7 s / 273.1 s (multimodal on); ~204 s observed later with multimodal off | 2.05 s / 4.11 s | 21/22 | 4 |
 | L40S | FP8 | 1.95 | 310.8 s / 214.9 s (multimodal off) | 4.93 s / 9.98 s | 21/22 (22/22 effective) | 0 |
-| Gemini 3.8 Flash (API) | n/a | per token | none for the model; the CPU API container's own cold start was 19 s on a first hit | 5.93 s / 14.54 s | 20/22 | 0 |
+| Gemini 3.8 Flash (API) | n/a | per token | none for the model; the CPU API container's own cold start was 19 s on a first hit | 6.11 s / 8.03 s | 22/22 | 0 |
 
 How to read the rows, honestly:
 - **The H100 run is from before the voice and markup fixes.** Its 4 AI tells were 3 `too_many_bubbles` and 1 `multiple_questions`, and most replies started with the raw Gemma thinking-channel marker (`<|channel>thought<channel|>`), visible to the customer. Its one fail (`arrependimento_identificado`) was a real miss: the model did not call `check_return_eligibility`. The fixes that followed (bubbles capped at three, one question per turn, regret checks eligibility first, `--reasoning-parser gemma4` plus a code-level strip of the channel markup) were never re-evaluated on the H100, because the hosted demo moved to Gemini before that run. The H100 row's quality numbers are therefore a lower bound; its latency numbers stand.
 - **The L40S run is after those fixes.** Its one fail (`devolucao_fora_do_prazo`) was a verifier false negative: the model wrote the plural "prazos ... já passaram", which the regex verifier did not accept. The verifier was fixed afterwards, so the effective score is 22/22. It was not re-run.
-- **The Gemini run** is the final one, on the delivered code, with the Flash-Lite guard. Two fails: `recomendacao_mpb` recommended nylon guitars that are not in the case's expected list (a real miss), and `devolucao_fora_do_prazo` explained the expired window correctly in a phrasing the regex verifier did not accept (a verifier false negative).
+- **The Gemini run** is the final one, on the delivered code, with the Flash-Lite guard: 22/22. It is a single run. The run before it (same model, before the partial-search prompt rule and the last verifier fix) passed 20/22: `recomendacao_mpb` recommended valid nylon guitars from the catalog that were not the recommend tool's picks (a divergence from the recommender, not a wrong fact), and `devolucao_fora_do_prazo` explained the expired window correctly in a phrasing the regex verifier did not accept.
 - **The spike baseline** used a different suite (14 cases) and an older vLLM, so it is a reference point, not a like-for-like comparison. The BF16 baseline on H100 was skipped for budget (owner decision), so FP8 vs BF16 on the same GPU and suite was never measured.
 - **Tokens/s** were not recorded for either GPU run.
 - **Both committed Gemma reports are pre-fix runs.** `backend/evals/reports/gemma-h100-fp8.md` and `gemma-l40s-fp8.md` predate the final verifier and bubble code (the L40S transcripts still end sentences with a period); only `gemini.md` ran on the final code. Rerun `make evals PROVIDER=gemma` before citing them as proof of the fixes on Gemma.
@@ -59,9 +59,9 @@ What would meet 30 s, in order of expected payoff (none of it measured):
 
 ## 3. Why the hosted demo runs Gemini
 
-Owner decision (2026-11-06): the hosted demo at https://emporio.fastmind.site runs `gemini-3.8-flash` (guard on Flash-Lite). Two reasons: no GPU cold start for an evaluator (about 3.5 min on H100), and the Modal credit ($8, no card) would not cover many evaluator sessions on a GPU (section 4). Gemini passed 20 of the same 22 cases with 0 AI tells.
+Owner decision (2026-11-06): the hosted demo at https://emporio.fastmind.site runs `gemini-3.8-flash` (guard on Flash-Lite). Two reasons: no GPU cold start for an evaluator (about 3.5 min on H100), and the Modal credit ($8, no card) would not cover many evaluator sessions on a GPU (section 4). Gemini passed all 22 of the same cases with 0 AI tells.
 
-It **misses the spec's ≤ 3 s reply target**: p50 5.93 s, p95 14.54 s (the guard adds a second, sequential model call per turn). It was chosen anyway: an evaluator who meets a 3.5 min GPU cold start or a drained credit sees no reply at all, while a 6 s reply still works; the H100 is the option that meets 3 s once the GPU is warm.
+It **misses the spec's ≤ 3 s reply target**: p50 6.11 s, p95 8.03 s (the guard adds a second, sequential model call per turn). It was chosen anyway: an evaluator who meets a 3.5 min GPU cold start or a drained credit sees no reply at all, while a 6 s reply still works; the H100 is the option that meets 3 s once the GPU is warm.
 
 Gemma stays one flag away, with no code change:
 
@@ -117,7 +117,7 @@ The real-model load test (10–20 users on the H100) was skipped for budget (own
 ## 5. Cost per conversation
 
 ### Gemini (measured)
-The final Gemini eval run reports **R$ 0.0310 per eval case** (about $0.0056; 7,338 input and 118 output tokens on average), with the guard's tokens priced at the Flash-Lite rate. Both rates are the list price valid until 2026-12-31 (from 2027-01-01 it doubles). A live turn on the hosted demo showed R$ 0.0255. Most eval cases are a single customer message, so a 4-turn conversation is about **R$ 0.12 ($0.023)** (estimate: 4 × the per-case cost; later turns carry more history, so this leans low).
+The final Gemini eval run reports **R$ 0.0277 per eval case** (about $0.0050; 6,530 input and 114 output tokens on average), with the guard's tokens priced at the Flash-Lite rate. Both rates are the list price valid until 2026-12-31 (from 2027-01-01 it doubles). A live turn on the hosted demo showed R$ 0.0255. Most eval cases are a single customer message, so a 4-turn conversation is about **R$ 0.11 ($0.020)** (estimate: 4 × the per-case cost; later turns carry more history, so this leans low).
 
 ### Gemma (upper bound vs real session)
 The metrics panel prices a Gemma turn as **GPU seconds × the GPU's hourly price** (`cost_basis` "Teto pelo tempo de GPU desta resposta"): an upper bound that assumes the GPU serves only this turn (concurrency 1).
@@ -130,14 +130,14 @@ Assumptions: 4 turns per conversation; Gemini at the measured per-case cost; Hai
 
 | Monthly conversations | Gemini 3.8 Flash (2026 price) | Gemini 3.8 Flash (2027 price) | Haiku 5.5 / GPT-6 Luna (list) | H100, store hours (`min_containers=1`) | H100, 24/7 | L40S, store hours / 24/7 |
 |---|---|---|---|---|---|---|
-| 1k | ~$23 | ~$45 | ~$3 | ~$837 | ~$2,884 | ~$414 / ~$1,424 |
-| 10k | ~$225 | ~$451 | ~$32 | ~$837 | ~$2,884 | ~$414 / ~$1,424 |
-| 100k | ~$2,255 | ~$4,509 | ~$317 | ~$837 | ~$2,884 | ~$414 / ~$1,424 |
+| 1k | ~$20 | ~$40 | ~$3 | ~$837 | ~$2,884 | ~$414 / ~$1,424 |
+| 10k | ~$201 | ~$403 | ~$28 | ~$837 | ~$2,884 | ~$414 / ~$1,424 |
+| 100k | ~$2,015 | ~$4,029 | ~$284 | ~$837 | ~$2,884 | ~$414 / ~$1,424 |
 
 The GPU columns are flat (paid by the hour), and a store-hours GPU answers nobody outside store hours. Scale-to-zero sits below those figures at low traffic but adds a ~3.5 min cold start whenever the GPU is off.
 
 ### Conclusion
-At 1k conversations a month an API model is one to two orders of magnitude cheaper than a dedicated GPU, and at 10k Gemini Flash is still about 4 times cheaper than a store-hours H100. With the measured Gemini token counts the break-even against a store-hours H100 is about 37k conversations/month (about 19k at the 2027 price), and about 128k against a 24/7 H100 (estimates); the cheapest API tiers stay below the GPU even at 100k. So self-hosting Gemma is not justified by cost at these volumes. It is justified by voice (the most human voice in the model selection) and control (data stays on our GPU, no per-token dependency or provider quota), and it is one flag away when that matters more than cost.
+At 1k conversations a month an API model is one to two orders of magnitude cheaper than a dedicated GPU, and at 10k Gemini Flash is still about 4 times cheaper than a store-hours H100. With the measured Gemini token counts the break-even against a store-hours H100 is about 42k conversations/month (about 21k at the 2027 price), and about 143k against a 24/7 H100 (estimates); the cheapest API tiers stay below the GPU even at 100k. So self-hosting Gemma is not justified by cost at these volumes. It is justified by voice (the most human voice in the model selection) and control (data stays on our GPU, no per-token dependency or provider quota), and it is one flag away when that matters more than cost.
 
 ## 6. Langfuse Cloud budget
 
