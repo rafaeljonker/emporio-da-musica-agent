@@ -154,7 +154,7 @@ The agent's tools are a thin layer in `support/` that calls the use cases. A rul
 ### 7.2.3 Phase 4 rulings
 - **Factory, not adapters:** `make_chat_model` over `init_chat_model` (section 5); the guard and the agent use the same model.
 - **Guard on every turn** (owner decision): a separate call returning one of `loja | acessorio | fora_de_escopo | abuso`. `abuso` gets a fixed reply with no agent call; a classifier failure routes to `loja` (the agent still has its own scope rules).
-- **Identity** reaches tools only through `ToolRuntime[TurnContext]`, never as a model argument. The thread id is derived from the channel identity (`{channel}:cust-<id>` or `{channel}:anon:<session>`).
+- **Identity** reaches tools only through `ToolRuntime[TurnContext]`, never as a model argument. The thread id is derived from the channel identity (`{channel}:customer:<id>` or `{channel}:anon:<session>`); only the Langfuse session id is pseudonymized (`{channel}:cust-<hmac>`, R8).
 - **R5:** order items are `{product_id, name, quantity}`, so the agent can follow up on a product.
 - **R6:** the prompt date line is "Data de referência de pedidos e trocas" (`STORE_TODAY`); opening hours, weekday and "now" come only from `store_now`, so there are not two "todays".
 - **R7:** MCP domain errors return the same pt-BR text as the agent tools (not `ToolError`); MCP clients see a text result instead of `isError`.
@@ -174,7 +174,7 @@ React (Vite+TS, GSP design system) ──POST /chat (SSE)──► FastAPI (Pyth
 - **Graph:** `guard` (same model, structured output; routes `loja | acessorio | fora_de_escopo | abuso`) → `agent` (model + tools, ReAct; tool rules from the spike's prompt v2) → answer. The guard runs on every turn; `abuso` returns a fixed reply, a classifier failure routes to `loja`.
   - **Tool loop:** capped at 5 iterations; hitting the cap (or any graph recursion error) returns a contact-the-team reply. Any exception inside a tool becomes a short tool text, so no `tool_call` is left dangling.
   - **No-tool turns** (`acessorio`, `fora_de_escopo`) keep the tools bound with `tool_choice` set to none (Anthropic: `{"type": "none"}`), because Anthropic rejects history that contains tool calls when no tools are defined.
-- **Memory:** LangGraph `thread_id`, derived from the channel identity, with a Postgres checkpointer (`langgraph-checkpoint-postgres`). The history is trimmed to the last N messages while always keeping the current turn and the previous answers.
+- **Memory:** LangGraph `thread_id`, derived from the channel identity, with a Postgres checkpointer (`langgraph-checkpoint-postgres`). The history is trimmed by token budget: it keeps the current turn and as much prior history (including the agent's previous answers) as fits the token budget.
 - **Channel port:** `support` exposes `handle_message(channel_identity, text)`, independent of the channel.
   - **Implementations:** CLI (phase 4), MCP over stdio (phase 4, section 7.12) and web (FastAPI SSE, phase 5). A WhatsApp webhook adapter comes in only if time is left, with tests only.
   - **`channel_identity`:** represents what the channel reports, such as the number on WhatsApp.
@@ -321,7 +321,8 @@ emporio-da-musica-agent/
 | `*/domain` | only `shared` and stdlib. No LangChain, SQL, FastAPI or IO |
 | `*/application` | the domain's own `domain`, other `application` via port, `shared` |
 | `*/infrastructure` | `application`, `domain` and external libs |
-| `api/`, `cli.py` | `support.application` and `config` (never another domain's `infrastructure` directly, only via the factory) |
+| `api/` | `support.application` and `config` (never another domain's `infrastructure` directly, only via the factory) |
+| `cli.py` | `bootstrap`, `config`, the `db` errors and `support.domain.channel_identity` |
 
 **SOLID in practice, without ceremony:**
 - **S:** one use case per file.
