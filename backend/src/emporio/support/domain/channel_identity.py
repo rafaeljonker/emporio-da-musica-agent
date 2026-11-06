@@ -10,4 +10,4 @@ class ChannelIdentity:
     def thread_id(self) -> str:
         if self.customer_id is None:
             return f"{self.channel}:anon:{self.session}"
-        return f"{self.channel}:customer:{self.customer_id}"
+        return f"{self.channel}:customer:{self.customer_id}:{self.session}"

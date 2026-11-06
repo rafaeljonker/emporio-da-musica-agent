@@ -1,4 +1,7 @@
-"""`emporio chat`: a terminal REPL over the agent."""
+"""`emporio chat`: a terminal REPL over the agent.
+
+Each run gets a fresh session id, so the thread (and the customer's memory) lasts one run.
+"""
 
 import argparse
 import logging

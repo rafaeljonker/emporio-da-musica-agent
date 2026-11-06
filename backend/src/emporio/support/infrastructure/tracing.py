@@ -107,7 +107,9 @@ class LangfuseTracerFactory:
         who = pseudonym(self._salt, identity.customer_id)
         # The raw customer id must not reach Langfuse; anonymous thread ids carry none.
         session = (
-            identity.thread_id() if identity.customer_id is None else f"{identity.channel}:{who}"
+            identity.thread_id()
+            if identity.customer_id is None
+            else f"{identity.channel}:{who}:{identity.session}"
         )
         # LangGraph copies configurable.thread_id into the run metadata unless the caller sets
         # `thread_id` there itself; set it to the safe session so the raw id never exports.
