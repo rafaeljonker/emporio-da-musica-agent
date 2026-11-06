@@ -94,6 +94,7 @@ def base_url(server: str) -> str:
 
 @pytest.fixture(scope="session")
 def real_model() -> bool:
+    # Derived from EMPORIO_FAKE_MODEL, which `make e2e` sets: run the suite through make.
     return os.environ.get("EMPORIO_FAKE_MODEL") != "1"
 
 

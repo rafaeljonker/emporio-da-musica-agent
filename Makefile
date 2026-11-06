@@ -14,6 +14,7 @@ fmt:
 
 lint:
 	cd backend && uv run ruff check . && uv run ruff format --check .
+	ruff check --config backend/pyproject.toml e2e && ruff format --config backend/pyproject.toml --check e2e
 
 typecheck:
 	cd backend && uv run basedpyright
@@ -119,6 +120,7 @@ mcp: db
 
 up-preflight:
 	@command -v docker >/dev/null || { echo "docker is required"; exit 1; }
+	@docker info >/dev/null 2>&1 || { echo "the Docker daemon is not answering: start Docker Desktop and retry"; exit 1; }
 	@command -v uv >/dev/null || { echo "uv is required"; exit 1; }
 	@command -v node >/dev/null && [ "$$(node -p 'process.versions.node.split(".")[0]')" -ge 20 ] || { echo "node >= 20 is required"; exit 1; }
 	@echo "make up: 1) check config  2) database (Postgres :5434, migrate, ingest)"
