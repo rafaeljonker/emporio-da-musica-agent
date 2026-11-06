@@ -18,6 +18,12 @@ describe('queued message', () => {
     expect(undo(q)).toBe('Oi\nQuanto tá o C40?')
   })
 
+  it('refuses a line that would push the joined text past 1000 chars', () => {
+    const q = enqueue(null, 'a'.repeat(600))
+    expect(enqueue(q, 'b'.repeat(400))).toBeNull()
+    expect(undo(enqueue(q, 'b'.repeat(399))!)).toHaveLength(1000)
+  })
+
   it('queued message survives reload via sessionStorage', () => {
     save(enqueue(null, 'Oi'))
     expect(sessionStorage.getItem('emporio.queued')).not.toBeNull()
