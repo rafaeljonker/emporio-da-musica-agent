@@ -11,7 +11,7 @@ Every agent tool takes a strict Pydantic model: `extra="forbid"`, money as a JSO
 ## Consequences
 
 - Malformed calls fail loudly and the model usually fixes them on the next step.
-- The Gemini eval run was made with these schemas ([scaling and cost](../scaling-and-cost.md), section 1).
+- The final Gemini eval run ([report](../../backend/evals/reports/gemini.md)) ran on code that already had these schemas (commit `58a4253`).
 - A provider that cannot produce clean numbers needs prompt work instead of looser validation.
 
 ## Alternatives
