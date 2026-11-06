@@ -1,4 +1,7 @@
-"""`emporio chat`: a terminal REPL over the agent."""
+"""`emporio chat`: a terminal REPL over the agent.
+
+Each run gets a fresh session id, so the thread (and the customer's memory) lasts one run.
+"""
 
 import argparse
 import logging
@@ -15,6 +18,7 @@ from emporio.config import (
     load_mcp_settings,
     load_provider_settings,
     load_settings,
+    require_web_settings,
 )
 from emporio.db import DatabaseNotConfigured
 from emporio.support.domain.channel_identity import ChannelIdentity
@@ -40,11 +44,12 @@ def _parser() -> argparse.ArgumentParser:
     )
     chat_options.add_argument("--provider", type=Provider, choices=list(Provider))
     commands.add_parser("chat", parents=[chat_options])
-    commands.add_parser(
+    check = commands.add_parser(
         "check-config",
         parents=[chat_options],
         help="check the provider settings and exit (no Langfuse, no database)",
     )
+    check.add_argument("--web", action="store_true", help="also check the demo login and session")
     return parser
 
 
@@ -74,7 +79,9 @@ def main(
         return
     if args.command == "check-config":
         try:
-            load_provider_settings(args.provider)
+            settings = load_provider_settings(args.provider)
+            if args.web:
+                require_web_settings(settings)
         except ConfigError as err:
             print(err, file=sys.stderr)
             raise SystemExit(2) from err

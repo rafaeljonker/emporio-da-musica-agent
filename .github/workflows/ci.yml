@@ -20,6 +20,7 @@ jobs:
       pull-requests: read
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
@@ -28,10 +29,14 @@ jobs:
           filters: |
             backend:
               - 'backend/**'
+              - 'e2e/**'
               - '.github/workflows/**'
               - 'data/**'
               - 'Makefile'
               - 'docker-compose.yml'
+            frontend:
+              - 'frontend/**'
+              - '.github/workflows/**'
 
   backend-quality:
     needs: changes
@@ -48,6 +53,11 @@ jobs:
       - run: uv sync --locked
       - run: uv run ruff check .
       - run: uv run ruff format --check .
+      - name: ruff (e2e)
+        working-directory: .
+        run: |
+          uv run --project backend ruff check --config backend/pyproject.toml e2e
+          uv run --project backend ruff format --config backend/pyproject.toml --check e2e
       - run: uv run basedpyright
       - run: uv run lint-imports
 
@@ -81,6 +91,25 @@ jobs:
           working-directory: backend
       - run: uv sync --locked
       - run: uv run pytest -q -m "not eval"
+
+  frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
 
   secrets:
     runs-on: ubuntu-latest

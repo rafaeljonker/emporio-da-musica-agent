@@ -157,6 +157,8 @@ class GraphRunner:
 
     def _model(self) -> str:
         s = self._settings
+        if s.fake_model:
+            return "scripted"
         return {
             Provider.GEMMA: s.gemma_model,
             Provider.GEMINI: s.gemini_model,
@@ -180,6 +182,7 @@ class GraphRunner:
         probe = TurnProbe()
         trace_id = ""
         answer, scope = CHAT_ERROR, Scope.LOJA
+        failed = True
         try:
             callbacks, trace_id = self._tracer_factory.for_turn(identity)
             name = (
@@ -201,6 +204,8 @@ class GraphRunner:
             if not answer:
                 logger.warning("model produced an empty final answer")
                 answer = CHAT_ERROR
+            else:
+                failed = False
         except GraphRecursionError:
             logger.exception("turn hit the graph recursion limit")
         except Exception:
@@ -208,7 +213,7 @@ class GraphRunner:
         model = self._model()
         metrics = TurnMetrics(
             thread_id=identity.thread_id(),
-            provider=self._settings.provider.value,
+            provider=self._settings.provider_name,
             model=model,
             scope=scope,
             input_tokens=probe.input_tokens,
@@ -222,5 +227,6 @@ class GraphRunner:
             ms_tools=_ms(probe.ms_tools),
             cost_brl=self._cost_brl(model, probe),
             trace_id=trace_id,
+            failed=failed,
         )
         return answer, scope, metrics

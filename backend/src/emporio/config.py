@@ -7,6 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from emporio.paths import REPO_ROOT
 from emporio.shared.errors import DomainError
+from emporio.support.application.warmup import WarmMode
 
 
 class Provider(StrEnum):
@@ -55,12 +56,19 @@ class LangfuseUnreachable(ConfigError):
         )
 
 
+class WebSettingsRequired(ConfigError):
+    def __init__(self, problems: list[str]) -> None:
+        super().__init__(f"Web settings are required: {'; '.join(problems)}.")
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=REPO_ROOT / ".env", extra="ignore", populate_by_name=True
     )
 
     provider: Provider = Field(default=Provider.GEMMA, validation_alias="LLM_PROVIDER")
+    # Scripted model and classifier for e2e and dev: no provider key, Langfuse still mandatory.
+    fake_model: bool = Field(default=False, validation_alias="EMPORIO_FAKE_MODEL")
     gemma_model: str = "google/gemma-4-31B-it"
     gemini_model: str = "gemini-3.8-flash"
     openai_model: str = "gpt-6-luna"
@@ -83,6 +91,27 @@ class Settings(BaseSettings):
     langfuse_secret_key: SecretStr | None = None
     langfuse_base_url: str | None = None
     langfuse_salt: SecretStr | None = None
+
+    warm_expected_seconds_gpu: int = 180  # measured 175 s; phase 6 re-measures
+    warm_expected_seconds_local: int = 120
+    # A READY older than this is probed again on login/warm (phase 6: Modal's scaledown window).
+    warm_ready_ttl_seconds: int = 300
+    # Fake warm-up for e2e: the model "becomes ready" after N seconds (0 = ready at once).
+    fake_warm_seconds: int = Field(default=0, validation_alias="EMPORIO_FAKE_WARM_SECONDS")
+    fake_warm_mode: WarmMode = Field(
+        default=WarmMode.MODAL_GPU, validation_alias="EMPORIO_FAKE_WARM_MODE"
+    )
+
+    demo_email: str | None = None
+    demo_password: SecretStr | None = None
+    session_secret: SecretStr | None = None
+    session_https_only: bool = True
+    session_max_age_seconds: int = 28800
+
+    @property
+    def provider_name(self) -> str:
+        """What metrics and reports call the provider: "fake" under the scripted model."""
+        return "fake" if self.fake_model else self.provider.value
 
     usd_brl: Decimal = Decimal("5.50")
     # USD per million tokens (input, output, cached input). Empty for self-hosted Gemma.
@@ -165,11 +194,38 @@ def load_provider_settings(provider: Provider | None = None) -> Settings:
     settings = _read_settings()
     if provider is not None:
         settings = settings.model_copy(update={"provider": provider})
-    require_provider_settings(settings)
+    if not settings.fake_model:
+        require_provider_settings(settings)
     return settings
 
 
 def load_settings(provider: Provider | None = None) -> Settings:
     settings = load_provider_settings(provider)
     require_langfuse_settings(settings)
+    return settings
+
+
+_MIN_SESSION_SECRET = 32
+
+
+def require_web_settings(settings: Settings) -> None:
+    """Raise naming every missing demo-login variable and a too-short SESSION_SECRET."""
+    problems = [
+        f"{v} is not set" for v in ("DEMO_EMAIL", "DEMO_PASSWORD") if not _is_set(settings, v)
+    ]
+    if not _is_set(settings, "SESSION_SECRET"):
+        problems.append("SESSION_SECRET is not set (`make web-keys` writes one)")
+    elif len(_secret_text(settings.session_secret)) < _MIN_SESSION_SECRET:
+        problems.append(f"SESSION_SECRET must have at least {_MIN_SESSION_SECRET} characters")
+    if problems:
+        raise WebSettingsRequired(problems)
+
+
+def _secret_text(value: SecretStr | None) -> str:
+    return value.get_secret_value() if value else ""
+
+
+def load_web_settings(provider: Provider | None = None) -> Settings:
+    settings = load_settings(provider)
+    require_web_settings(settings)
     return settings

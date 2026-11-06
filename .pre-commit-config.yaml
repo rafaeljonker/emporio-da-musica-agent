@@ -13,11 +13,13 @@ repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.17.3
     hooks:
+      # e2e/ has no pyproject of its own: point every file at the backend ruff config.
       - id: ruff-check
-        args: [--fix]
-        files: ^backend/
+        args: [--fix, --config=backend/pyproject.toml]
+        files: ^(backend|e2e)/
       - id: ruff-format
-        files: ^backend/
+        args: [--config=backend/pyproject.toml]
+        files: ^(backend|e2e)/
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.30.1
     hooks:

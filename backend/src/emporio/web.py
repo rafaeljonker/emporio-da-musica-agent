@@ -1,0 +1,15 @@
+"""Web entry point: `uvicorn --factory emporio.web:create_web_app`."""
+
+from fastapi import FastAPI
+
+from emporio.api.app import create_app
+from emporio.bootstrap import build_agent, build_warmup
+from emporio.config import load_web_settings
+from emporio.paths import REPO_ROOT
+
+
+def create_web_app() -> FastAPI:
+    settings = load_web_settings()
+    agent = build_agent(settings)
+    warmup = build_warmup(settings, agent.reply_p50_seconds)
+    return create_app(agent, warmup, settings, static_dir=REPO_ROOT / "frontend" / "dist")

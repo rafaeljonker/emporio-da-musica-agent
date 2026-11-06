@@ -5,8 +5,11 @@ description = "Customer-service agent for Empório da Música (Artefact AI Engin
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "fastapi>=0.162.0",
     "fastembed>=0.9.1",
     "fastmcp>=4.1.6",
+    "httpx>=0.28.1",
+    "itsdangerous>=2.2.0",
     "langchain>=1.4.9",
     "langchain-anthropic>=1.7.10",
     "langchain-core>=1.7.6",
@@ -21,6 +24,7 @@ dependencies = [
     "psycopg[binary]>=3.3.8",
     "pydantic-settings>=2.16.2",
     "tzdata>=2026.6",
+    "uvicorn>=0.54.0",
 ]
 
 [project.scripts]
@@ -35,7 +39,9 @@ dev = [
     "basedpyright>=1.40.2",
     "hypothesis>=6.170.14",
     "import-linter>=2.15",
+    "playwright>=1.64.1",
     "pre-commit>=4.7.0",
+    "pytest-playwright>=0.10.0",
     "pytest>=9.2.0",
     "ruff>=0.17.3",
 ]
@@ -48,10 +54,12 @@ target-version = "py312"
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF", "ANN", "BLE", "TRY", "DTZ", "S", "PT", "RET", "C4", "PIE", "PERF"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["emporio"]
+known-first-party = ["emporio", "tests", "evals"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["S101", "ANN201"]
+# The e2e server is started from fixed arguments (sys.executable, uvicorn), no untrusted input.
+"**/e2e/conftest.py" = ["S603"]
 
 [tool.basedpyright]
 typeCheckingMode = "standard"
@@ -220,7 +228,7 @@ source_modules = [
 ]
 forbidden_modules = [
     "emporio.config", "emporio.paths", "emporio.db", "emporio.migrate", "emporio.embeddings", "emporio.ingest",
-    "emporio.bootstrap", "emporio.cli",
+    "emporio.bootstrap", "emporio.cli", "emporio.web",
 ]
 
 [[tool.importlinter.contracts]]
@@ -291,4 +299,16 @@ ignore_imports = [
     "emporio.support.infrastructure.agent.tools -> emporio.orders.domain.identity",
     "emporio.support.infrastructure.agent.tools -> emporio.policies.application.search_policies",
     "emporio.support.infrastructure.agent.tools -> emporio.policies.application.store_now",
+]
+
+[[tool.importlinter.contracts]]
+name = "API stays on the application layer"
+type = "forbidden"
+source_modules = ["emporio.api"]
+forbidden_modules = [
+    "emporio.catalog.infrastructure", "emporio.orders.infrastructure",
+    "emporio.policies.infrastructure", "emporio.support.infrastructure",
+    "emporio.bootstrap", "emporio.db", "emporio.migrate", "emporio.embeddings", "emporio.ingest",
+    "langchain", "langchain_core", "langgraph", "psycopg", "psycopg_pool", "langfuse",
+    "langchain_openai", "langchain_anthropic", "langchain_google_genai",
 ]

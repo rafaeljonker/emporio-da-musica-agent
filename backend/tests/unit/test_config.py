@@ -4,10 +4,13 @@ import pytest
 
 from emporio.config import (
     ConfigError,
+    LangfuseRequired,
     Provider,
     Settings,
+    WebSettingsRequired,
     load_mcp_settings,
     load_settings,
+    load_web_settings,
 )
 
 _ENV_VARS = (
@@ -15,7 +18,8 @@ _ENV_VARS = (
     "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "STORE_TODAY", "GEMMA_MODEL", "GEMINI_MODEL",
     "OPENAI_MODEL", "ANTHROPIC_MODEL", "USD_BRL", "DATABASE_URL", "LANGFUSE_PUBLIC_KEY",
     "LANGFUSE_SECRET_KEY", "LANGFUSE_BASE_URL", "LANGFUSE_SALT", "LANGFUSE_TRACING_ENABLED",
-    "OTEL_SDK_DISABLED", "LANGFUSE_SAMPLE_RATE",
+    "OTEL_SDK_DISABLED", "LANGFUSE_SAMPLE_RATE", "DEMO_EMAIL", "DEMO_PASSWORD", "SESSION_SECRET",
+    "SESSION_HTTPS_ONLY", "EMPORIO_FAKE_MODEL",
 )  # fmt: skip
 _FAKE_LANGFUSE = {
     "LANGFUSE_PUBLIC_KEY": "pk-fake",
@@ -127,3 +131,38 @@ def test_provider_check_needs_the_provider_key_but_not_langfuse(monkeypatch: pyt
         load_provider_settings(Provider.GEMINI)
     monkeypatch.setenv("GEMINI_API_KEY", "fake")
     assert load_provider_settings(Provider.GEMINI).provider is Provider.GEMINI
+
+
+def test_web_settings_name_missing_variables(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("VLLM_BASE_URL", "http://vllm.test/v1")
+    monkeypatch.setenv("VLLM_API_KEY", "fake")
+    with pytest.raises(WebSettingsRequired) as error:
+        load_web_settings()
+    for name in ("DEMO_EMAIL", "DEMO_PASSWORD", "SESSION_SECRET"):
+        assert name in str(error.value)
+
+
+def test_short_session_secret_rejected(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("VLLM_BASE_URL", "http://vllm.test/v1")
+    monkeypatch.setenv("VLLM_API_KEY", "fake")
+    monkeypatch.setenv("DEMO_EMAIL", "a@b.test")
+    monkeypatch.setenv("DEMO_PASSWORD", "pw")
+    monkeypatch.setenv("SESSION_SECRET", "short")
+    with pytest.raises(WebSettingsRequired, match="SESSION_SECRET"):
+        load_web_settings()
+    monkeypatch.setenv("SESSION_SECRET", "x" * 32)
+    assert load_web_settings().session_https_only is True
+
+
+def test_fake_model_skips_provider_keys_but_not_langfuse(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("EMPORIO_FAKE_MODEL", "1")
+    monkeypatch.setenv("DEMO_EMAIL", "a@b.test")
+    monkeypatch.setenv("DEMO_PASSWORD", "pw")
+    monkeypatch.setenv("SESSION_SECRET", "x" * 32)
+    settings = load_web_settings()
+    assert settings.fake_model
+    assert settings.provider_name == "fake"
+    for name in _FAKE_LANGFUSE:
+        monkeypatch.delenv(name)
+    with pytest.raises(LangfuseRequired):
+        load_web_settings()

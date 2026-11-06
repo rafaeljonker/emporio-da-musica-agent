@@ -1,10 +1,10 @@
 export PATH := $(CURDIR)/backend/.venv/bin:$(PATH)
 
-.PHONY: help setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys langfuse-db langfuse-up chat-config evals-config chat mcp
+.PHONY: help setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp web-install web-build check-web up-preflight web-config up dev e2e
 .DEFAULT_GOAL := help
 
 help:
-	@echo "targets: setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys langfuse-db langfuse-up chat-config evals-config chat mcp"
+	@echo "targets: up dev e2e setup fmt lint typecheck imports test check web-install web-build check-web db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp"
 
 setup:
 	cd backend && uv sync && uv run pre-commit install --config ../.pre-commit-config.yaml
@@ -14,6 +14,7 @@ fmt:
 
 lint:
 	cd backend && uv run ruff check . && uv run ruff format --check .
+	ruff check --config backend/pyproject.toml e2e && ruff format --config backend/pyproject.toml --check e2e
 
 typecheck:
 	cd backend && uv run basedpyright
@@ -25,6 +26,16 @@ test:
 	cd backend && env -u DATABASE_URL uv run pytest -q
 
 check: lint typecheck imports test
+
+web-install:
+	cd frontend && npm ci
+
+web-build: web-install
+	cd frontend && npm run build
+
+# oxlint + Vitest + tsc -b and vite build (npm run build runs both).
+check-web: web-install
+	cd frontend && npm run lint && npm test && npm run build
 
 # Dev-only local URL (matches docker-compose.yml); callers may override DATABASE_URL (e.g. Railway).
 LOCAL_DATABASE_URL := postgresql://emporio:emporio@localhost:5434/emporio
@@ -81,6 +92,13 @@ langfuse-keys:
 	put LANGFUSE_BASE_URL http://localhost:3000; put LANGFUSE_SALT "$$(hex 16)"
 	@chmod 600 .env
 
+# Writes SESSION_SECRET into .env only when absent; the value is never printed.
+web-keys:
+	@touch .env
+	@if [ -s .env ] && [ -n "$$(tail -c1 .env)" ]; then echo >> .env; fi
+	@grep -q "^SESSION_SECRET=" .env || printf 'SESSION_SECRET=%s\n' "$$(openssl rand -hex 32)" >> .env
+	@chmod 600 .env
+
 # Langfuse shares our Postgres container but gets its own database.
 langfuse-db: db-up
 	docker compose exec -T db psql -U emporio -d emporio -tc "SELECT 1 FROM pg_database WHERE datname='langfuse'" | grep -q 1 || docker compose exec -T db createdb -U emporio langfuse
@@ -99,3 +117,37 @@ chat: chat-config db langfuse-up
 # MCP over stdio; EMPORIO_MCP_CUSTOMER_ID=14 fixes the identity (unset = anonymous).
 mcp: db
 	cd backend && DATABASE_URL=$(LOCAL_DATABASE_URL) uv run emporio mcp
+
+up-preflight:
+	@command -v docker >/dev/null || { echo "docker is required"; exit 1; }
+	@docker info >/dev/null 2>&1 || { echo "the Docker daemon is not answering: start Docker Desktop and retry"; exit 1; }
+	@command -v uv >/dev/null || { echo "uv is required"; exit 1; }
+	@command -v node >/dev/null && node -e 'const [a, b] = process.versions.node.split(".").map(Number); process.exit(a > 22 || (a === 22 && b >= 12) ? 0 : 1)' || { echo "node >= 22.12 is required"; exit 1; }
+	@echo "make up: 1) check config  2) database (Postgres :5434, migrate, ingest)"
+	@echo "         3) Langfuse (first pull about 7 min, about 2.3 GB RAM)  4) build the frontend"
+	@echo "         5) serve http://localhost:8000"
+
+# PROVIDER on the command line overrides LLM_PROVIDER; otherwise .env's LLM_PROVIDER wins.
+WEB_PROVIDER = $(if $(filter command line,$(origin PROVIDER)),LLM_PROVIDER=$(PROVIDER),)
+
+# Provider key (skipped under EMPORIO_FAKE_MODEL=1), demo login and SESSION_SECRET (make web-keys).
+web-config:
+	cd backend && $(WEB_PROVIDER) uv run emporio check-config --web
+
+# Plain http on localhost, so the session cookie is not https-only. Always the local database.
+WEB_ENV = $(WEB_PROVIDER) SESSION_HTTPS_ONLY=false DATABASE_URL=$(LOCAL_DATABASE_URL)
+SERVE = uv run uvicorn --factory emporio.web:create_web_app --port 8000
+
+up: up-preflight web-config db langfuse-up web-build
+	cd backend && $(WEB_ENV) $(SERVE)
+
+# API with --reload on :8000 plus Vite (proxying /api) in parallel; Ctrl-C stops both.
+dev: web-config db langfuse-up web-install
+	(cd frontend && npm run dev) & cd backend && $(WEB_ENV) $(SERVE) --reload --reload-dir src
+
+# Scripted model unless PROVIDER is given on the command line: make e2e PROVIDER=gemini.
+E2E_FAKE = $(if $(filter command line,$(origin PROVIDER)),,EMPORIO_FAKE_MODEL=1)
+
+e2e: db langfuse-up web-build
+	cd backend && uv run playwright install chromium
+	$(E2E_FAKE) $(WEB_ENV) uv run --project backend pytest e2e -q

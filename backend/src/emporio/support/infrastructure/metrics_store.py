@@ -5,8 +5,8 @@ from emporio.support.application.ports import TurnMetrics
 _INSERT = """
 INSERT INTO turn_metrics (
     thread_id, provider, model, scope, input_tokens, output_tokens, cached_tokens, llm_calls,
-    tools, ms_total, ms_guard, ms_llm, ms_tools, cost_brl, trace_id
-) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    tools, ms_total, ms_guard, ms_llm, ms_tools, cost_brl, trace_id, failed
+) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
 """
 
 
@@ -21,6 +21,18 @@ class PgMetricsStore:
                 (
                     m.thread_id, m.provider, m.model, m.scope.value, m.input_tokens,
                     m.output_tokens, m.cached_tokens, m.llm_calls, list(m.tools), m.ms_total,
-                    m.ms_guard, m.ms_llm, m.ms_tools, m.cost_brl, m.trace_id,
+                    m.ms_guard, m.ms_llm, m.ms_tools, m.cost_brl, m.trace_id, m.failed,
                 ),
             )  # fmt: skip
+
+    def reply_p50_seconds(self, provider: str, limit: int = 50) -> float | None:
+        """Median time of the last `limit` answered turns of `provider`, None when none."""
+        with self._pool.connection() as conn:
+            row = conn.execute(
+                "SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY ms_total) FROM"
+                " (SELECT ms_total FROM turn_metrics WHERE provider = %s AND NOT failed"
+                " ORDER BY id DESC LIMIT %s)"
+                " recent",
+                (provider, limit),
+            ).fetchone()
+        return None if row is None or row[0] is None else float(row[0]) / 1000

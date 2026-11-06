@@ -238,3 +238,17 @@ def test_discontinued_and_store_open_judge_more_phrasings(
     token: str, spoken: str, expected: bool
 ) -> None:
     assert matches(token, normalize(spoken)) is expected
+
+
+def test_expected_tool_alternatives_accept_either() -> None:
+    expect = Expect(expect_tools=("list_my_orders|get_order_status",))
+    assert verify(expect, ("ok",), ("get_order_status",)).passed
+    assert not verify(expect, ("ok",), ("store_now",)).passed
+
+
+def test_forbidden_tools_fail_with_one_line() -> None:
+    assert not verify(Expect(forbid_tools=("*",)), ("ok",), ("store_now",)).passed
+    assert verify(Expect(forbid_tools=("*",)), ("ok",), ()).passed
+    verdict = verify(Expect(forbid_tools=("store_now",)), ("ok",), ("store_now", "x"))
+    assert len(verdict.failures) == 1
+    assert verify(Expect(forbid_tools=("store_now",)), ("ok",), ("x",)).passed
