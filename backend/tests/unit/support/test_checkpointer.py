@@ -1,13 +1,37 @@
 import threading
 
+import psycopg_pool
 import pytest
 
 from emporio.support.infrastructure import checkpointer
 
 
 class FakePool:
+    check_connection = psycopg_pool.ConnectionPool.check_connection
+
     def __init__(self, url: str, **kwargs: object) -> None:
         self.opened_with = kwargs
+
+
+class SaverWithoutLock:
+    def __init__(self, conn: object) -> None:
+        self.conn = conn
+
+
+def test_pool_checks_connections_before_handing_them_out(monkeypatch: pytest.MonkeyPatch) -> None:
+    # A full-size pool idles behind the Railway proxy, which may drop connections.
+    monkeypatch.setattr(checkpointer, "ConnectionPool", FakePool)
+    pool = checkpointer.make_checkpointer("postgresql://unused").conn
+    assert isinstance(pool, FakePool)
+    assert pool.opened_with["check"] is psycopg_pool.ConnectionPool.check_connection
+
+
+def test_saver_without_the_upstream_lock_fails_loudly(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Overriding a lock that upstream no longer reads would silently bring the 48 s queue back.
+    monkeypatch.setattr(checkpointer, "ConnectionPool", FakePool)
+    monkeypatch.setattr(checkpointer, "PostgresSaver", SaverWithoutLock)
+    with pytest.raises(checkpointer.SaverLockMissing):
+        checkpointer.make_checkpointer("postgresql://unused")
 
 
 def test_pool_is_opened_at_the_callers_size(monkeypatch: pytest.MonkeyPatch) -> None:
