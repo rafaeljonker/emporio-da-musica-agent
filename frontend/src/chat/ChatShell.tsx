@@ -30,7 +30,7 @@ export function ChatShell({ warm, fromLogin, onSignedOut }: Props) {
   const [said, setSaid] = useState<Announcement | null>(null)
   const announce = useCallback((text: string) => setSaid((s) => ({ n: (s?.n ?? 0) + 1, text })), [])
 
-  // provider_api (and a reload after ready) is ready on the first frame: no panel at all.
+  // A reload after ready is ready on the first frame: no panel at all.
   const [readyOnArrival] = useState(warm?.stage === 'ready')
   const [panelGone, setPanelGone] = useState(readyOnArrival)
   const ready = status?.stage === 'ready'
@@ -50,7 +50,9 @@ export function ChatShell({ warm, fromLogin, onSignedOut }: Props) {
     }
   }, [ready, readyOnArrival])
 
-  const queue = useQueuedMessage(panelGone, send, fromLogin)
+  // provider_api never warms, whatever the seed said.
+  const warming = !panelGone && status?.mode !== 'provider_api'
+  const queue = useQueuedMessage(!warming, send, fromLogin)
   const [text, setText] = useState(queue.restored)
 
   const undo = () => {
@@ -88,7 +90,7 @@ export function ChatShell({ warm, fromLogin, onSignedOut }: Props) {
           </Button>
         </div>
       </header>
-      {panelGone && status?.mode === 'local_cpu' && (
+      {!warming && status?.mode === 'local_cpu' && (
         <p className="border-b border-border">
           <span className="mx-auto flex w-full max-w-2xl gap-2 px-4 py-2 text-sm text-muted-foreground">
             <Laptop size={16} strokeWidth={1.75} absoluteStrokeWidth aria-hidden className="mt-0.5 shrink-0" />
@@ -97,7 +99,7 @@ export function ChatShell({ warm, fromLogin, onSignedOut }: Props) {
         </p>
       )}
       <main className="flex min-h-0 flex-1 flex-col">
-        {!panelGone && (
+        {warming && (
           <WarmupStatus
             status={status}
             elapsed={elapsed}
@@ -113,10 +115,10 @@ export function ChatShell({ warm, fromLogin, onSignedOut }: Props) {
         </StatusRegion>
         <Composer
           busy={busy}
-          onSend={panelGone ? send : queue.add}
+          onSend={warming ? queue.add : send}
           text={text}
           setText={setText}
-          placeholder={panelGone ? copy.chat.composerPlaceholder : copy.warmup.placeholder}
+          placeholder={warming ? copy.warmup.placeholder : copy.chat.composerPlaceholder}
         />
       </main>
     </div>

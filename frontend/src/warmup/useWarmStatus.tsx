@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { SessionExpired, startWarm, warmStatus } from '@/api/client'
 import type { WarmStatus } from '@/api/types'
+import { countUp } from './format'
 
 const POLL_MS = 1000
 const NETWORK_FAILURES = 3
@@ -9,18 +10,30 @@ const settled = (s: WarmStatus | null) => s?.stage === 'ready' || s?.stage === '
 
 /**
  * Polls GET /api/warm/status every second until `ready` or `failed`. The stage only ever comes
- * from the server; `elapsed` is the server's `elapsed_seconds` plus local ticks since that poll.
+ * from the server; `elapsed` is the last good poll's `elapsed_seconds` plus the time since that
+ * poll, and never goes back (the tick interval only re-renders).
  */
 export function useWarmStatus(seed: WarmStatus | null, onSessionExpired: () => void) {
   const [status, setStatus] = useState(seed)
-  const [ticks, setTicks] = useState(0)
+  const [elapsed, setElapsed] = useState(seed?.elapsed_seconds ?? 0)
   const [networkError, setNetworkError] = useState(false)
+  const anchor = useRef<{ base: number; at: number } | null>(null)
   const done = settled(status)
+
+  const anchorTo = useCallback((s: WarmStatus) => {
+    const a = { base: s.elapsed_seconds, at: performance.now() }
+    anchor.current = a
+    setElapsed((shown) => countUp(a.base, 0, shown))
+  }, [])
 
   useEffect(() => {
     if (done) return
+    anchor.current ??= { base: seed?.elapsed_seconds ?? 0, at: performance.now() }
     const run = { stopped: false, failures: 0, timer: undefined as ReturnType<typeof setTimeout> | undefined }
-    const tick = setInterval(() => setTicks((t) => t + 1), POLL_MS)
+    const tick = setInterval(() => {
+      const a = anchor.current
+      if (a) setElapsed((shown) => countUp(a.base, performance.now() - a.at, shown))
+    }, POLL_MS)
     // Sequential polls: a slow response never overlaps the next request.
     const poll = async () => {
       try {
@@ -29,7 +42,7 @@ export function useWarmStatus(seed: WarmStatus | null, onSessionExpired: () => v
         run.failures = 0
         setNetworkError(false)
         setStatus(next)
-        setTicks(0)
+        anchorTo(next)
       } catch (err) {
         if (run.stopped) return
         if (err instanceof SessionExpired) return onSessionExpired()
@@ -44,19 +57,19 @@ export function useWarmStatus(seed: WarmStatus | null, onSessionExpired: () => v
       clearInterval(tick)
       clearTimeout(run.timer)
     }
-  }, [done, seed, onSessionExpired])
+  }, [done, seed, onSessionExpired, anchorTo])
 
   /** Failed only: POST /api/warm again; the server keeps `started_at`, so the timer resumes. */
   const retry = useCallback(async () => {
     try {
-      setStatus(await startWarm())
-      setTicks(0)
+      const next = await startWarm()
+      setStatus(next)
+      anchorTo(next)
     } catch (err) {
       if (err instanceof SessionExpired) onSessionExpired()
       // Anything else leaves `failed` on screen; the button is still there.
     }
-  }, [onSessionExpired])
+  }, [onSessionExpired, anchorTo])
 
-  const elapsed = (status?.elapsed_seconds ?? 0) + (done ? 0 : ticks)
   return { status, elapsed, networkError, retry }
 }

@@ -13,7 +13,7 @@ export interface Exchange {
 }
 
 /**
- * Sends one message per turn. The server does not sleep (ruling R5): each bubble waits its
+ * Sends one message per turn; resolves false only when the session expired. The server does not sleep (ruling R5): each bubble waits its
  * `delay_ms` here, in arrival order, with typing still on, and is appended only when complete.
  */
 export function useChatStream(onSessionExpired: () => void) {
@@ -28,7 +28,7 @@ export function useChatStream(onSessionExpired: () => void) {
   }, [])
 
   const send = useCallback(
-    async (text: string) => {
+    async (text: string): Promise<boolean> => {
       const id = crypto.randomUUID()
       setExchanges((xs) => [...xs, { id, text, sentAt: new Date(), turn: initialTurn }])
       const apply = (e: ChatEvent) =>
@@ -46,15 +46,16 @@ export function useChatStream(onSessionExpired: () => void) {
       try {
         await streamChat(text, pacer.push, signal)
       } catch (err) {
-        if (signal.aborted) return
+        if (signal.aborted) return true
         if (err instanceof SessionExpired) {
           onSessionExpired()
-          return
+          return false
         }
       }
       await pacer.drained()
       // A dropped stream or a refused request (409, 429, network) ends the turn as an error.
       if (!pacer.ended && !signal.aborted) apply({ type: 'error', partial: pacer.shown > 0 })
+      return true
     },
     [onSessionExpired],
   )

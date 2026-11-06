@@ -16,3 +16,7 @@ export const isLongWait = (elapsed: number, expected: number) => elapsed > 2 * c
 /** The measured first-bubble p50; no number when there is none yet (or it rounds to 0). */
 export const firstReplyNote = (p50: number | null) =>
   p50 === null || p50 < 0.05 ? 'poucos segundos' : `uns ${decimal.format(p50)} s`
+
+/** Seconds to show: the last good poll's elapsed plus time since it, never below what is shown. */
+export const countUp = (base: number, sinceMs: number, shown: number) =>
+  Math.max(shown, base + Math.floor(sinceMs / 1000))
