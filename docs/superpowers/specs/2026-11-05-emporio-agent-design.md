@@ -84,9 +84,9 @@ They evaluate **"lógica, clareza e iniciativa"** (logic, clarity and initiative
     1. FP8 (half the weights to load);
     2. 16k context + compilation cache on the volume;
     3. **Modal GPU memory snapshot** (restores with the model already loaded; validate compatibility with vLLM/Gemma 4);
-    4. **Warm-up on login:** a successful login triggers `/warm`, which powers on the GPU. Opening the page triggers nothing, so as not to spend GPU on an anonymous visit.
+    4. **Warm-up on login:** a successful login triggers the warm-up (`POST /api/auth/login` starts it and returns its status; `POST /api/warm` is the retry), which powers on the GPU. Opening the page triggers nothing, so as not to spend GPU on an anonymous visit.
     5. **Clear, explanatory loading screen:** while the GPU comes up, the chat shows a loading state that:
-       - **shows which stage it is in**, via polling of `/warm/status`: "ligando a GPU", "carregando o modelo", "pronto";
+       - **shows which stage it is in**, via polling of `/api/warm/status`. Phase 5 ruling: the GPU has one honest stage ("Ligando o modelo", then "pronto"), because vLLM opens its port only after the weights load and a timer must not fake a second stage (section 7.2.4);
        - **shows the estimated and elapsed time**;
        - **explains in plain language why it takes long:** the model runs on its own GPU (Gemma 4 31B on Modal) that **shuts off when nobody is using it, to avoid generating cost**, and waking up takes a few seconds;
        - **warns that in production this would not happen:** with the machine on all the time (or during store hours), the answer comes out in about 2 s;
@@ -99,7 +99,8 @@ They evaluate **"lógica, clareza e iniciativa"** (logic, clarity and initiative
   - **GPU on during business hours (`min_containers`):** stays only as an option explained in the README, with the cost calculated, and is not enabled by default.
 - **Keys:** the vLLM one (secret `emporio-vllm` on Modal) and those of the optional providers stay only in the local `.env` and in Modal secrets; never in git. The code agent does not copy secrets. Whoever runs locally uses their own key, including the free one.
 - **Deploy:** **Modal (serverless)**, with the Python API (FastAPI + LangGraph) also serving the static React build in a single app. Postgres + pgvector lives on Railway, in the owner's existing project (owner decision, phase 3). Modal's free credits must be confirmed before going up.
-- **Demo access login:** the user and password live in Modal secrets and in the local `.env`, and **never enter git**. `.gitignore`, the `.env.example` without values and a CI step that looks for secrets (gitleaks or equivalent) guarantee this. The credentials go only in the delivery e-mail and Google Form.
+- **Demo access login (phase 5, as built):** one credential pair from env (`DEMO_EMAIL`, `DEMO_PASSWORD`) and a signed session cookie (`SESSION_SECRET`, at least 32 chars; Starlette `SessionMiddleware`, cookie `emporio_session`, HttpOnly, `SameSite=Strict`, 8 h sliding `max_age`, `Secure` unless `SESSION_HTTPS_ONLY=false` for plain-http localhost). E-mail and password are compared with `hmac.compare_digest` on both fields without short-circuit. The cookie holds only `sid` and `customer_id`. Login is limited to 5 per minute per IP plus 30 per minute overall (the proxy IP on Modal is unconfirmed). Every POST or PUT with a body must be `application/json` (415 otherwise); bodiless POSTs (logout, `POST /api/warm`) are exempt because `SameSite=Strict` already covers CSRF for them (R4). The cookie is stateless, so logout cannot revoke a copied cookie.
+  - The user and password live in Modal secrets and in the local `.env`, and **never enter git**. `.gitignore`, the `.env.example` without values and a CI step that looks for secrets (gitleaks or equivalent) guarantee this. The credentials go only in the delivery e-mail and Google Form.
 - **Deadline:** about 15h or more available until Monday. Submission is on Mon ~20h, with slack.
 
 ## 6. Decisions made
@@ -162,9 +163,24 @@ The agent's tools are a thin layer in `support/` that calls the use cases. A rul
 - **R9 (deferred):** dropping unanswered `tool_calls` at trim time is phase 5; a process death between the agent and tools node would 400 that thread until trimmed.
 - **Deferred to phases 5/6:** SSE streaming; a per-thread lock (a CLI session is single-user); a warm-up hook; the trace link in the UI via `/api/public/v2/observations`; baking the e5 model into the image; a stable `LANGFUSE_SALT` in deploy secrets.
 
+### 7.2.4 Phase 5 rulings
+- **Owner decisions (2026-11-06):** (1) bubbles: the whole turn runs, then the bubbles are sent paced with server-computed `delay_ms`, no token streaming; (2) GPU warm-up: one honest stage ("Ligando o modelo") with the timer running until vLLM `/health` answers, no undocumented Modal stats; (3) `make up PROVIDER=local` (Ollama plus hardware detection) moves to phase 6, while the local-mode warm-up screen is built now and driven by config; (4) text-only bubbles, product cards later if time allows.
+- **Same origin, `/api` prefix:** one FastAPI app serves `/api/*` and, mounted last, the built frontend; the spec's earlier `/auth/login`, `/warm`, `/chat` became `/api/auth/login`, `/api/warm`, `/api/chat` (contracts in 7.3.1).
+- **Session-scoped thread ids (supersedes the 7.2.3 format):** `{channel}:customer:{id}:{session}` and `{channel}:anon:{session}`, so two evaluators who pick the same customer never share a LangGraph thread. Switching customer rotates `sid`, which starts a new thread. The CLI makes a new session per run, so CLI customer memory no longer spans runs. The Langfuse session id is `{channel}:{pseudonym}:{session}` for a customer (the raw id never leaves) and the anonymous thread id otherwise.
+- **R5 (client-side pacing):** the server computes `delay_ms` and never sleeps; the client waits and appends (7.3.1).
+- **R4 (CSRF):** bodiless POSTs are exempt from the JSON-only guard; everything with a body returns 415 unless `application/json`.
+- **Per-thread lock:** one turn at a time per thread, in process; a held lock older than 300 s is reclaimed, and release is owner-token checked so a reclaimed owner cannot free the new holder. It lives in a request-scoped yield dependency, so it is released after the stream body ends, also on a client disconnect or a body-validation failure. The rate limit is counted before the lock check (R6; a double-click burns quota faster, accepted at demo scale).
+- **Rate limits:** login 5 per minute per IP and 30 per minute overall; chat 20 per 600 s per `sid` (a GPU cost guard). In-memory sliding windows, per process.
+- **Warm-up:** one GPU stage, `server_starting`; a per-attempt deadline of 600 s ends in `failed`; a retry (`POST /api/warm`) keeps `started_at` so the clock does not reset; a Modal 303 or a timeout counts as "still starting". `reply_p50_seconds` is the median `ms_total` of the last 50 turns of the same provider, computed outside the lock, and a failing query yields `null`. `GET /api/warm/expected` is public and starts nothing (it feeds the login note). State is per process (a one-row table is the upgrade for several containers).
+- **R9 done:** unanswered `tool_calls` are dropped at trim time, so a process death between the agent and tools nodes no longer dead-ends a thread.
+- **Scripted runs:** `EMPORIO_FAKE_MODEL=1` swaps in the scripted model (reported as provider `fake`, R2: `fake` is not in the `Provider` type); `EMPORIO_FAKE_WARM_SECONDS` and `EMPORIO_FAKE_WARM_MODE` fake the warm-up for e2e and screenshots. `make e2e` starts its own server per warm-up scenario (R1).
+- **Evals:** 22 golden cases (17 plus 5 added in phase 5); cases can forbid tools (`forbid_tools`). The real-provider run is still pending a provider key (R3).
+- **Parked, recorded in the PR:** a failed customer switch fails silently (the design has no copy for it: a design gap); mixed-null cost totals understate the sum (acceptable for the demo); `QueuedMessage.customerId` is written but not read.
+- **Phase 6 gates and deferrals:** masking the customer's first name in traces is a gate before switching to Langfuse Cloud (local-only until then); the trace link in the UI stays deferred; `PROVIDER=local`; baking the e5 model; a stable `LANGFUSE_SALT`.
+
 ### 7.3 Architecture
 ```
-React (Vite+TS, GSP design system) ──POST /chat (SSE)──► FastAPI (Python)
+React (Vite+TS, GSP design system) ──POST /api/chat (SSE)──► FastAPI (Python)
         │                                                  │ LangGraph: guard → agent ⇄ tools
         └── bubbles via SSE ◄─────────────────────────────┤ catalog/orders → stdlib csv (in memory)
                                                            ├ policies → pgvector
@@ -174,16 +190,17 @@ React (Vite+TS, GSP design system) ──POST /chat (SSE)──► FastAPI (Pyth
 - **Graph:** `guard` (same model, structured output; routes `loja | acessorio | fora_de_escopo | abuso`) → `agent` (model + tools, ReAct; tool rules from the spike's prompt v2) → answer. The guard runs on every turn; `abuso` returns a fixed reply, a classifier failure routes to `loja`.
   - **Tool loop:** capped at 5 iterations; hitting the cap (or any graph recursion error) returns a contact-the-team reply. Any exception inside a tool becomes a short tool text, so no `tool_call` is left dangling.
   - **No-tool turns** (`acessorio`, `fora_de_escopo`) keep the tools bound with `tool_choice` set to none (Anthropic: `{"type": "none"}`), because Anthropic rejects history that contains tool calls when no tools are defined.
-- **Memory:** LangGraph `thread_id`, derived from the channel identity, with a Postgres checkpointer (`langgraph-checkpoint-postgres`). The history is trimmed by token budget: it keeps the current turn and as much prior history (including the agent's previous answers) as fits the token budget.
+- **Memory:** LangGraph `thread_id`, derived from the channel identity and the session (`{channel}:customer:{id}:{session}` or `{channel}:anon:{session}`), with a Postgres checkpointer (`langgraph-checkpoint-postgres`). The history is trimmed by token budget: it keeps the current turn and as much prior history (including the agent's previous answers) as fits the token budget.
 - **Channel port:** `support` exposes `handle_message(channel_identity, text)`, independent of the channel.
   - **Implementations:** CLI (phase 4), MCP over stdio (phase 4, section 7.12) and web (FastAPI SSE, phase 5). A WhatsApp webhook adapter comes in only if time is left, with tests only.
   - **`channel_identity`:** represents what the channel reports, such as the number on WhatsApp.
-  - **On the web:** the "conversar como…" selector picks a customer from the CSV.
+  - **On the web:** the "conversar como…" selector picks a customer from the CSV (`GET /api/customers`, `PUT /api/identity`).
   - **On the CLI:** `--as-customer <id>`.
 - **Identity in orders:**
   - **With `channel_identity`:** the agent lists and queries **only** that customer's orders, and "me arrependi" works without asking for the order number.
   - **Anonymous:** it asks for the order number and the e-mail or phone, and only shows it if both match.
   - **Never** exposes another customer's data. This is tested.
+- **Web API:** every route lives under `/api`; `/chat` is Server-Sent Events (FastAPI's native `EventSourceResponse` over a sync generator). The whole turn runs first, then `bubble` events follow with `delay_ms`; the client does the waiting. Full contracts in 7.3.1.
 - **Tools (ten; identity comes only from `ToolRuntime`/`TurnContext`):**
   - `search_products`: accent/plural-normalized token match with `difflib` typo tolerance ("violuao" finds "violão"), category and price-range filters; results are graded Exact/Candidates and ambiguity becomes a question to the customer;
   - `recommend_products` (phase 3): semantic search over product descriptions (e5 + pgvector) for open needs ("algo pra tocar MPB em casa"); returns Candidates only, never an exact match, and prices still come from the catalog;
@@ -197,6 +214,37 @@ React (Vite+TS, GSP design system) ──POST /chat (SSE)──► FastAPI (Pyth
   - `search_policies`: hybrid retrieval, top 5 sections cited by section id.
 - **"Today" (design decision):** the orders run from 10/2025 to 03/2026. With the real date, all of them would be outside the withdrawal window. So `STORE_TODAY` is **mandatory** and defaults to **2026-02-20**, chosen so that there are orders inside and outside the window (order 7 is regret-eligible, order 5 is not). It is documented as an assumption, together with the data quirks: some orders are dated after that day, product #135 is named "Music Man Bass 1X" but described as a Fender Jazz Bass, the installment rules conflict (section 3.1 wins), and a delivered order's delivery date is taken as `estimated_delivery`.
 
+### 7.3.1 API contracts
+All routes are JSON except the chat stream. Errors are `{"detail": "<code>"}`. Routes marked "session" need the signed cookie and answer `401 {"detail": "unauthenticated"}` without it. Every POST or PUT with a body answers `415 json_required` unless the content type is `application/json`; unknown body fields and invalid values answer `422`.
+
+| Route | Auth | Body | Success | Errors |
+|---|---|---|---|---|
+| `POST /api/auth/login` | none | `{email, password}` (strings, no extra keys) | `200 {"warm": WarmStatus}`; sets the cookie with a fresh `sid` and `customer_id: null`; starts the warm-up | 401 `invalid_credentials`, 422, 429 `too_many_attempts`, 415 |
+| `POST /api/auth/logout` | none | none | `204`; clears the session | none |
+| `GET /api/auth/me` | session | none | `200 {"customer_id": int or null, "warm": WarmStatus}` | 401 |
+| `GET /api/customers` | session | none | `200 [{"id": int, "name": str, "city": str}]`; no phone or e-mail | 401 |
+| `PUT /api/identity` | session | `{"customer_id": int or null}` | `200 {"customer_id": int or null}`; rotates `sid` | 401, 404 `unknown_customer`, 415, 422 |
+| `POST /api/warm` | session | none | `200 WarmStatus`; starts the warm-up, or restarts it after `failed` (keeps `started_at`) | 401 |
+| `GET /api/warm/status` | session | none | `200 WarmStatus` | 401 |
+| `GET /api/warm/expected` | none | none | `200 {"mode": WarmMode, "expected_seconds": int}`; starts nothing | none |
+| `POST /api/chat` | session | `{"text": str}` | `200` `text/event-stream` (events below) | 401, 409 `turn_in_progress`, 415, 422, 429 `too_many_messages` |
+
+- **`customer_id`** is a strict integer from 1 to 2147483647, or `null` for anonymous (a JSON string or float is a 422). `/api/customers` lists the curated demo customers, not the whole CSV.
+- **`text`** is trimmed and must be 1 to 1000 characters; extra keys are a 422. Identity never comes from the body, only from the session.
+- **`WarmStatus`:** `{mode, stage, started_at, elapsed_seconds, expected_seconds, reply_p50_seconds}`.
+  - `mode`: `modal_gpu | local_cpu | provider_api`. Gemma is `modal_gpu`; Gemini, OpenAI and Anthropic are `provider_api` (stage `ready` at once, `expected_seconds` 0). `local_cpu` is driven by config until `PROVIDER=local` lands.
+  - `stage`: `server_starting | model_loading | ready | failed`. The GPU path only reports `server_starting`, then `ready` or `failed` (`model_loading` is reserved).
+  - `started_at`: ISO 8601 UTC. `elapsed_seconds`: integer seconds computed by the server (no client clock skew); it freezes at `ready` or `failed`.
+  - `expected_seconds`: integer seconds from config (`WARM_EXPECTED_SECONDS_GPU` 180, local 120). `reply_p50_seconds`: float seconds or `null` (no turns yet).
+- **Chat stream:** events in this order, each `data:` a JSON object. The stream also carries a 15 s keep-alive comment.
+  1. `typing {}`, sent first.
+  2. `bubble {"kind": "text", "text": str, "delay_ms": int}`, one per bubble (at most 3). `kind` reserves `product | handoff`.
+  3. `metrics {input_tokens, output_tokens, ms_model, ms_guard, ms_llm, ms_tools, cost_brl, cost_basis, action}`. Tokens are integers; every `ms_*` is an integer in milliseconds (`ms_model` is the server's total turn time); `cost_brl` is a decimal string rounded to 4 places or `null` when unmeasured; `cost_basis` is a pt-BR sentence ("Estimado pelo preço de lista do provedor" or "Custo de GPU ainda não medido"); `action` is a pt-BR label from the tool names ("busca no catálogo", "consulta de pedido", "consulta de troca", "cálculo de parcelas", "horário da loja", "consulta às políticas", joined with " + ", or "sem ferramenta"). The on-screen time is measured by the client.
+  4. `done {"trace_id": str or null}`.
+  - On failure: `error {"partial": bool}` ends the stream with no `metrics` or `done`; `partial` is true when at least one bubble was already sent. A failed turn is `partial: false`.
+- **`delay_ms` pacing:** a pure function in `support/domain/bubbles.py`. The first bubble is 0 (the typing indicator has been visible for the whole generation); each later bubble is `clamp(400 + 22 × len(text), 700, 2400)` ms, and the sum of all delays never exceeds 3000. The client keeps the typing indicator on, waits `delay_ms`, appends the bubble, and queues bubbles in order even if the stream delivers them at once. It does not reconnect: a broken stream becomes the design's error state ("Manda de novo?").
+- **Login → warm-up:** `POST /api/auth/login` starts the single-flight background probe and returns its status, so the client needs no extra call; it then polls `GET /api/warm/status` every second until `ready` or `failed`, and "Tentar de novo" calls `POST /api/warm`. Opening the page starts nothing. A message typed during warm-up is queued in `sessionStorage` and sent when the stage is `ready`.
+
 ### 7.4 Human voice
 - **Voice guide:** lives in `src/support/voice/`, with the tone from section 7.1 of the policy ("informal mas profissional, amigo que entende de música"), good and bad examples taken from the store's own scenarios and the list of AI tells (sources: Wikipedia's "Signs of AI writing" guide and WhatsApp customer-service guides). It feeds the persona prompt and is the same voice defined in the GSP brand strategy stage. The guide and the persona prompts are written in Portuguese (pt-BR); the persona prompt language (PT instructions vs EN instructions with PT examples) will be A/B-tested in the phase 4 evals, with PT as the default.
 - **Answer style:**
@@ -209,7 +257,7 @@ React (Vite+TS, GSP design system) ──POST /chat (SSE)──► FastAPI (Pyth
 - **"AI tell" detector:** a tested function and an evals step that fails an answer with an em dash, markdown, a blacklisted phrase or above the maximum length. The voice becomes measured, not just promised: `support/domain/ai_tells.py` gates the evals, which need 0 tells.
 
 ### 7.5 Scale and cost
-- **Metrics per turn**, stored in the Postgres `turn_metrics` table (`migrations/004_turn_metrics.sql`), filled by a `TurnProbe` callback: input, cached-input and output tokens, latency per stage (guard, LLM, tools) and cost in R$. Cost uses the cached-input price and is an estimate from list prices; the Gemma (GPU-seconds) cost lands in phase 6. The trace id is stored on the row. The frontend shows a discreet panel (phase 5).
+- **Metrics per turn**, stored in the Postgres `turn_metrics` table (`migrations/004_turn_metrics.sql`), filled by a `TurnProbe` callback: input, cached-input and output tokens, latency per stage (guard, LLM, tools) and cost in R$. Cost uses the cached-input price and is an estimate from list prices; the Gemma (GPU-seconds) cost lands in phase 6. The trace id is stored on the row. The frontend shows it in a collapsed "Métricas" `<details>` (design option A, decided in phase 5), fed by the `metrics` event; `cost_basis` says whether the cost is a provider list-price estimate or an unmeasured GPU cost, and the panel shows "não medido" for a `null` cost.
 - **Optimizations:**
   - short guard (few tokens, no reasoning);
   - vLLM prefix caching (fixed prompt preprocessed on the GPU), bubble streaming and reasoning off for simple answers;
@@ -229,7 +277,7 @@ React (Vite+TS, GSP design system) ──POST /chat (SSE)──► FastAPI (Pyth
   - installments;
   - PIX;
   - two phone numbers in the PDF (documented assumption).
-- **`evals/`:** 17 golden cases (`backend/evals/agent_cases.toml`) running the real graph (expected tool + expected fact + voice detector). `evals/verify.py` is a paraphrase-tolerant regex verifier with a documented ceiling (regex cannot judge every paraphrase), so each report also carries the full transcripts for human audit. Gate: hit rate ≥ 0.90 and 0 AI tells; `make evals PROVIDER=...` writes `backend/evals/reports/<provider>.md`. Status: the harness is verified offline with a scripted model; the real-provider run has not happened yet, it is pending a provider key. The cases include the 4 scenarios from the statement, ambiguous Takamine, order without identity, accessory, out of scope, "tá aberto agora?" and withdrawal inside and outside the window.
+- **`evals/`:** 22 golden cases (17 from phase 4 plus 5 added in phase 5: abuse, "é robô?", complaint, promo format, multi-turn; `backend/evals/agent_cases.toml`, cases may set `forbid_tools`) running the real graph (expected tool + expected fact + voice detector). `evals/verify.py` is a paraphrase-tolerant regex verifier with a documented ceiling (regex cannot judge every paraphrase), so each report also carries the full transcripts for human audit. Gate: hit rate ≥ 0.90 and 0 AI tells; `make evals PROVIDER=...` writes `backend/evals/reports/<provider>.md`. Status: the harness is verified offline with a scripted model; the real-provider run has not happened yet, it is pending a provider key. The cases include the 4 scenarios from the statement, ambiguous Takamine, order without identity, accessory, out of scope, "tá aberto agora?" and withdrawal inside and outside the window.
 - **CI on GitHub Actions:** `ruff`, `mypy` or `pyright`, `pytest` (deterministic only) and the frontend build.
 
 ### 7.7 Layered architecture and folder organization
@@ -237,9 +285,9 @@ React (Vite+TS, GSP design system) ──POST /chat (SSE)──► FastAPI (Pyth
 **Flow of a message:**
 ```mermaid
 flowchart LR
-  U[Customer in the React chat] -->|login| A[FastAPI /auth]
-  A -->|triggers| W[/warm → Modal GPU/]
-  U -->|POST /chat SSE| H[support.application.handle_message]
+  U[Customer in the React chat] -->|login| A[FastAPI /api/auth]
+  A -->|triggers| W[/warm-up → Modal GPU/]
+  U -->|POST /api/chat SSE| H[support.application.handle_message]
   H --> G[LangGraph: guard → agent ⇄ tools]
   G -->|tools| C[catalog use cases] --> R1[(CSV via stdlib csv)]
   G -->|tools| O[orders use cases] --> R1
@@ -294,7 +342,8 @@ emporio-da-musica-agent/
 │   │   │       ├── llm/factory.py # make_chat_model (flag+key rule)
 │   │   │       ├── mcp/server.py  # FastMCP stdio
 │   │   │       └── checkpointer.py · metrics_store.py · tracing.py
-│   │   ├── api/                   # app.py: /auth/login · /warm · /warm/status · /chat (SSE) · /customers
+│   │   ├── api/                   # app.py (factory) · auth.py · chat.py (SSE) · identity.py (/customers, /identity) · warm.py · guards.py (limiter, locks, session)
+│   │   ├── web.py                 # composition root of the web app: uvicorn --factory emporio.web:create_web_app
 │   │   ├── cli.py                 # `emporio chat --as-customer 14 --provider gemini` · `emporio mcp`
 │   │   ├── config.py              # pydantic-settings, provider and Langfuse validation
 │   │   ├── bootstrap.py           # composition root of the agent (build_agent)
@@ -308,9 +357,9 @@ emporio-da-musica-agent/
 │   └── load/                      # locustfile.py (simulated and real LLM)
 ├── docker-compose.yml             # local Postgres + pgvector (host port 5434); `observability` profile: Langfuse
 ├── backend/migrations/            # plain SQL files (001-004: ... turn_metrics), applied by emporio.migrate
-├── frontend/                      # Vite + React + TS, by feature: auth/ · warmup/ · chat/ · design-system/
+├── frontend/                      # Vite + React + TS: src/{api,auth,chat,warmup,components/ui}
 │   └── .design/                   # GSP artifacts (strategy, identity, tokens, critique)
-├── e2e/                           # Playwright: login → warm-up → conversation → bubbles
+├── e2e/                           # pytest-playwright: login → warm-up → conversation → bubbles → metrics → customer switch
 └── deploy/                        # modal_api.py (CPU) · modal_gemma.py (GPU)
 ```
 
@@ -321,8 +370,9 @@ emporio-da-musica-agent/
 | `*/domain` | only `shared` and stdlib. No LangChain, SQL, FastAPI or IO |
 | `*/application` | the domain's own `domain`, other `application` via port, `shared` |
 | `*/infrastructure` | `application`, `domain` and external libs |
-| `api/` | `support.application` and `config` (never another domain's `infrastructure` directly, only via the factory) |
+| `api/` | `support.application`, `support.domain`, `shared` and `config`; never an `infrastructure`, `bootstrap`, `db` or LangChain/psycopg/Langfuse |
 | `cli.py` | `bootstrap`, `config`, the `db` errors and `support.domain.channel_identity` |
+| `web.py` | a composition root like `bootstrap`: `api`, `bootstrap`, `config`, `paths` and `support.infrastructure.warmup` |
 
 **SOLID in practice, without ceremony:**
 - **S:** one use case per file.
@@ -427,6 +477,7 @@ These enter the project (FastAPI + Pydantic remains the web base):
     2. in the README, with the hardware × expected time table and the recommendation "for answers in ~2 s, use the hosted one";
     3. on the chat loading screen: "o modelo está rodando na sua máquina sem GPU; cada resposta pode levar de 30 s a alguns minutos".
 - **`make up PROVIDER=gemini|openai|anthropic`:** uses the provider's API, requires the matching key and fails early if it is missing.
+- **As built in phase 5:** `make up [PROVIDER=gemma|gemini|openai|anthropic]` checks prerequisites and config, starts Postgres and Langfuse, builds the frontend and serves the API and the built app on http://localhost:8000; it needs `make web-keys` plus `DEMO_EMAIL` and `DEMO_PASSWORD` in `.env`. `make dev` runs the API with `--reload` and Vite (proxying `/api`). `make e2e` runs the Playwright flow against a real server on the scripted model, or on a real provider with `PROVIDER=...`. `PROVIDER=local` (Ollama plus hardware detection, the three warnings below) is phase 6.
 - **`make e2e`** runs the complete flow against any of these modes.
 - **Phase 0 and phase 6 research:** Ollama (available Gemma 4 models, GPU in Docker, Metal on Mac), hardware detection in the script, `docker compose` profiles.
 

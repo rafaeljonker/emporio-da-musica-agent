@@ -63,6 +63,9 @@ Never write keys or real values in any file. Use `.env` (git-ignored); `.env.exa
 - Langfuse is mandatory: `make chat` and `make evals` fail at startup without its keys, and first run `emporio check-config` so a missing provider key fails in seconds, before Docker starts. The `observability` profile needs about 2.3 GB RAM; the first `make langfuse-up` pulls images (about 7 min).
 - `make db-up` (so `make db`) generates the Langfuse secrets into `.env` when absent; never print or commit them.
 - `LLM_PROVIDER` defaults to gemma, which needs `VLLM_BASE_URL` and `VLLM_API_KEY`; other providers need their own `*_API_KEY`. No silent fallback.
+- Web demo: on plain-http localhost set `SESSION_HTTPS_ONLY=false` or the browser drops the session cookie (`make up`, `make dev` and `make e2e` do it). `make e2e` needs Docker and Langfuse running.
+- Web state is per process: rate limits, thread locks and the warm-up status live in memory; run one API process (one container on Modal) until they move to a shared store.
+- Pre-commit does not typecheck: run `make check` before committing, not only the hooks.
 - `data/` is read-only source material.
 
 ## Code style
