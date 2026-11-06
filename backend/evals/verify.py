@@ -73,6 +73,7 @@ GROUPS: dict[str, str] = {
         r"fora do prazo|nao (esta|ta) (mais )?(no|dentro do) prazo"
         r"|prazo\b.{0,40}\b(?<!nao )(passou|acabou|venceu|expirou|encerrou|terminou)"
         r"|(?<!nao )(passou|acabou|venceu|expirou)\b.{0,15}\bprazo"
+        r"|prazo.{0,120}\bja (passaram|acabaram|venceram|expiraram)\b"
         r"|nao (da|e possivel|consigo|posso)( mais)? (pra |para )?(fazer a )?devol"
         r"|nao da mais"
     ),
