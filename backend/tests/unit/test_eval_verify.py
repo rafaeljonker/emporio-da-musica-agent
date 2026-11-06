@@ -252,3 +252,10 @@ def test_forbidden_tools_fail_with_one_line() -> None:
     verdict = verify(Expect(forbid_tools=("store_now",)), ("ok",), ("store_now", "x"))
     assert len(verdict.failures) == 1
     assert verify(Expect(forbid_tools=("store_now",)), ("ok",), ("x",)).passed
+
+
+@pytest.mark.parametrize(
+    "markup", ["<|channel>thought\n<channel|>Oi", "Oi<channel|>", "Oi <|channel>"]
+)
+def test_channel_markup_fails_any_case(markup: str) -> None:
+    assert not verify(Expect(), (markup,), ()).passed

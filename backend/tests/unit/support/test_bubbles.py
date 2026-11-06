@@ -1,5 +1,5 @@
 from emporio.support.domain.ai_tells import Tell, ai_tells
-from emporio.support.domain.bubbles import pace_bubbles, split_bubbles
+from emporio.support.domain.bubbles import pace_bubbles, split_bubbles, strip_channel_markup
 
 
 def test_split_caps_at_three_bubbles_merging_the_shortest_neighbours() -> None:
@@ -37,3 +37,24 @@ def test_delay_is_clamped() -> None:
 
 def test_total_pacing_capped_at_3000() -> None:
     assert pace_bubbles(("x", "a" * 200, "a" * 20)) == (0, 2400, 600)
+
+
+def test_empty_thought_prefix_is_removed() -> None:
+    assert split_bubbles("<|channel>thought\n<channel|>Oi, tudo bem?") == ("Oi, tudo bem?",)
+
+
+def test_non_empty_thought_block_is_removed_entirely() -> None:
+    text = "<|channel>thought\no cliente quer um violão\n\nvou buscar<channel|>Temos sim."
+    assert split_bubbles(text) == ("Temos sim.",)
+
+
+def test_stray_channel_tokens_are_removed() -> None:
+    assert strip_channel_markup("Oi<channel|> tudo<|channel>") == "Oi tudo"
+
+
+def test_text_without_markup_is_untouched() -> None:
+    assert strip_channel_markup("Fica R$ 2.199 <no pix>") == "Fica R$ 2.199 <no pix>"
+
+
+def test_markup_only_reply_is_empty() -> None:
+    assert split_bubbles("<|channel>thought\n<channel|>") == ()

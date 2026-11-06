@@ -319,3 +319,9 @@ def test_crashing_tool_is_logged_by_name_and_type_only(
     assert any(isinstance(m, ToolMessage) and m.content == TOOL_FAILURE_TEXT for m in messages)
     assert "tool search_policies raised RuntimeError" in caplog.text
     assert "segredo" not in caplog.text
+
+
+def test_channel_markup_never_reaches_the_checkpointed_history() -> None:
+    model = FakeToolCallingModel(messages=iter([AIMessage("<|channel>thought\n<channel|>Oi.")]))
+    messages = _ask(_graph(model, Scope.LOJA), "oi")
+    assert messages[-1].content == "Oi."
