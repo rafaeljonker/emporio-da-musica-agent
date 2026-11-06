@@ -46,7 +46,7 @@ class _Index:
         raise NotImplementedError
 
 
-def _box(*products: Product) -> Toolbox:
+def make_box(*products: Product) -> Toolbox:
     repo = FakeCatalogRepository(products or (product(),), (category(),))
     orders = FakeOrderRepository(
         (
@@ -72,7 +72,7 @@ def _box(*products: Product) -> Toolbox:
 
 
 def test_foreign_order_looks_unknown() -> None:
-    box, ctx = _box(), TurnContext(customer_id=3)
+    box, ctx = make_box(), TurnContext(customer_id=3)
 
     assert tools.get_order_status(box, ctx, order_id=5) == FOREIGN
     assert tools.get_order_status(box, ctx, order_id=999) == FOREIGN
@@ -80,14 +80,14 @@ def test_foreign_order_looks_unknown() -> None:
 
 
 def test_identified_customer_sees_own_order() -> None:
-    result = tools.get_order_status(_box(), TurnContext(customer_id=3), order_id=1)
+    result = tools.get_order_status(make_box(), TurnContext(customer_id=3), order_id=1)
 
     assert isinstance(result, dict)
     assert result["id"] == 1
 
 
 def test_anonymous_order_needs_identity() -> None:
-    box = _box()
+    box = make_box()
 
     assert tools.list_my_orders(box, ANON) == (
         "Peça o número do pedido e o e-mail ou telefone do cadastro."
@@ -100,7 +100,7 @@ def test_anonymous_order_needs_identity() -> None:
 
 
 def test_anonymous_return_check_verifies_identity_first() -> None:
-    box = _box()
+    box = make_box()
 
     assert tools.check_return_eligibility(box, ANON, 1, "errado@x.com") == FOREIGN
     ok = tools.check_return_eligibility(box, ANON, 1, "pedro.oliveira@jmail.com")
@@ -109,7 +109,7 @@ def test_anonymous_return_check_verifies_identity_first() -> None:
 
 
 def test_list_my_orders_newest_first() -> None:
-    result = tools.list_my_orders(_box(), TurnContext(customer_id=3))
+    result = tools.list_my_orders(make_box(), TurnContext(customer_id=3))
 
     assert isinstance(result, list)
     assert [o["id"] for o in result] == [2, 1]
@@ -118,7 +118,7 @@ def test_list_my_orders_newest_first() -> None:
 def test_search_reports_discontinued_product() -> None:
     gone = product(id=1, name="Violao Antigo", status=ProductStatus.DISCONTINUED, stock=0)
 
-    result = tools.search_products(_box(gone), ANON, query="violao antigo")
+    result = tools.search_products(make_box(gone), ANON, query="violao antigo")
 
     assert isinstance(result, dict)
     found = result["products"]
@@ -127,7 +127,7 @@ def test_search_reports_discontinued_product() -> None:
 
 
 def test_calc_installments_error_names_the_maximum() -> None:
-    result = tools.calc_installments(_box(), ANON, total=Decimal(100), count=10)
+    result = tools.calc_installments(make_box(), ANON, total=Decimal(100), count=10)
 
     assert isinstance(result, str)
     assert result.startswith("Esse parcelamento não é permitido para esse valor.")
@@ -153,13 +153,13 @@ def test_domain_errors_become_tool_text(error: DomainError, text: str) -> None:
 
 
 def test_calc_installments_huge_total_returns_text() -> None:
-    result = tools.calc_installments(_box(), ANON, total=Decimal("1e30"))
+    result = tools.calc_installments(make_box(), ANON, total=Decimal("1e30"))
 
     assert isinstance(result, str)
 
 
 def test_calc_installments_needs_positive_total() -> None:
-    result = tools.calc_installments(_box(), ANON, total=Decimal(0))
+    result = tools.calc_installments(make_box(), ANON, total=Decimal(0))
 
     assert result == "O valor precisa ser maior que zero."
 
