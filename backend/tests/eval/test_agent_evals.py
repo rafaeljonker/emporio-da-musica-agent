@@ -251,8 +251,14 @@ def test_agent_golden_cases(
             for case in CASES:
                 customer = case.get("customer_id")
                 identity = ChannelIdentity(f"eval-{run_id}-{len(outcomes)}", customer, "s")
-                message = str(case["message"]).format_map(facts)
-                reply = agent.handle(identity, message)
+                sent = case.get("messages") or [case["message"]]
+                assert isinstance(sent, list)
+                message = ""
+                for (
+                    raw
+                ) in sent:  # one identity: the thread keeps the history; only the last reply counts
+                    message = str(raw).format_map(facts)
+                    reply = agent.handle(identity, message)
                 tools, ms, tin, tout, cost = _turn_row(pg_conn, reply.trace_id)
                 verdict = verify(_expect(case, facts), reply.bubbles, tools)
                 outcomes.append(
