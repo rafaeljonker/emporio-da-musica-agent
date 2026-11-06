@@ -59,7 +59,7 @@ def test_probe_treats_303_and_timeout_as_starting():
         return httpx.Response(outcome)
 
     probe = vllm_health_probe(
-        "https://x--vllm.modal.run/v1", "k3y", transport=httpx.MockTransport(handler)
+        "https://vllm.example.test/v1", "k3y", transport=httpx.MockTransport(handler)
     )
     assert [probe(), probe(), probe()] == [False, False, True]
     assert {r.url.path for r in calls} == {"/health"}
