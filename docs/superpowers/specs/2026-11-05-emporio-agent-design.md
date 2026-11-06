@@ -99,7 +99,7 @@ They evaluate **"lógica, clareza e iniciativa"** (logic, clarity and initiative
   - **GPU on during business hours (`min_containers`):** stays only as an option explained in the README, with the cost calculated, and is not enabled by default.
 - **Keys:** the vLLM one (secret `emporio-vllm` on Modal) and those of the optional providers stay only in the local `.env` and in Modal secrets; never in git. The code agent does not copy secrets. Whoever runs locally uses their own key, including the free one.
 - **Deploy:** **Modal (serverless)**, with the Python API (FastAPI + LangGraph) also serving the static React build in a single app. Postgres + pgvector lives on Railway, in the owner's existing project (owner decision, phase 3). Modal's free credits must be confirmed before going up.
-- **Demo access login (phase 5, as built):** one credential pair from env (`DEMO_EMAIL`, `DEMO_PASSWORD`) and a signed session cookie (`SESSION_SECRET`, at least 32 chars; Starlette `SessionMiddleware`, cookie `emporio_session`, HttpOnly, `SameSite=Strict`, 8 h sliding `max_age`, `Secure` unless `SESSION_HTTPS_ONLY=false` for plain-http localhost). E-mail and password are compared with `hmac.compare_digest` on both fields without short-circuit. The cookie holds only `sid` and `customer_id`. Login is limited to 5 per minute per IP plus 30 per minute overall (the proxy IP on Modal is unconfirmed). Every POST or PUT with a body must be `application/json` (415 otherwise); bodiless POSTs (logout, `POST /api/warm`) are exempt because `SameSite=Strict` already covers CSRF for them (R4). The cookie is stateless, so logout cannot revoke a copied cookie.
+- **Demo access login (phase 5, as built):** one credential pair from env (`DEMO_EMAIL`, `DEMO_PASSWORD`) and a signed session cookie (`SESSION_SECRET`, at least 32 chars; Starlette `SessionMiddleware`, cookie `emporio_session`, HttpOnly, `SameSite=Strict`, 8 h `max_age` counted from login or the last customer switch (Starlette re-signs the cookie only when the session changes, so it does not slide), `Secure` unless `SESSION_HTTPS_ONLY=false` for plain-http localhost). E-mail and password are compared with `hmac.compare_digest` on both fields without short-circuit. The cookie holds only `sid` and `customer_id`. Login is limited to 5 per minute per IP plus 30 per minute overall (the proxy IP on Modal is unconfirmed). Every POST or PUT with a body must be `application/json` (415 otherwise); bodiless POSTs (logout, `POST /api/warm`) are exempt because `SameSite=Strict` already covers CSRF for them (R4). The cookie is stateless, so logout cannot revoke a copied cookie.
   - The user and password live in Modal secrets and in the local `.env`, and **never enter git**. `.gitignore`, the `.env.example` without values and a CI step that looks for secrets (gitleaks or equivalent) guarantee this. The credentials go only in the delivery e-mail and Google Form.
 - **Deadline:** about 15h or more available until Monday. Submission is on Mon ~20h, with slack.
 
@@ -175,7 +175,7 @@ The agent's tools are a thin layer in `support/` that calls the use cases. A rul
 - **R9 done:** unanswered `tool_calls` are dropped at trim time, so a process death between the agent and tools nodes no longer dead-ends a thread.
 - **Scripted runs:** `EMPORIO_FAKE_MODEL=1` swaps in the scripted model (reported as provider `fake`, R2: `fake` is not in the `Provider` type); `EMPORIO_FAKE_WARM_SECONDS` and `EMPORIO_FAKE_WARM_MODE` fake the warm-up for e2e and screenshots. `make e2e` starts its own server per warm-up scenario (R1).
 - **Evals:** 22 golden cases (17 plus 5 added in phase 5); cases can forbid tools (`forbid_tools`). The real-provider run is still pending a provider key (R3).
-- **Parked, recorded in the PR:** a failed customer switch fails silently (the design has no copy for it: a design gap); mixed-null cost totals understate the sum (acceptable for the demo); `QueuedMessage.customerId` is written but not read.
+- **Parked, recorded in the PR:** a failed customer switch fails silently (the design has no copy for it: a design gap); mixed-null cost totals understate the sum (acceptable for the demo); a reload keeps the server thread while the transcript is empty (the browser forgets the bubbles, the LangGraph thread does not).
 - **Phase 6 gates and deferrals:** masking the customer's first name in traces is a gate before switching to Langfuse Cloud (local-only until then); the trace link in the UI stays deferred; `PROVIDER=local`; baking the e5 model; a stable `LANGFUSE_SALT`.
 
 ### 7.3 Architecture
@@ -372,7 +372,7 @@ emporio-da-musica-agent/
 | `*/infrastructure` | `application`, `domain` and external libs |
 | `api/` | `support.application`, `support.domain`, `shared` and `config`; never an `infrastructure`, `bootstrap`, `db` or LangChain/psycopg/Langfuse |
 | `cli.py` | `bootstrap`, `config`, the `db` errors and `support.domain.channel_identity` |
-| `web.py` | a composition root like `bootstrap`: `api`, `bootstrap`, `config`, `paths` and `support.infrastructure.warmup` |
+| `web.py` | a composition root like `bootstrap`: `api`, `bootstrap`, `config` and `paths` |
 
 **SOLID in practice, without ceremony:**
 - **S:** one use case per file.
