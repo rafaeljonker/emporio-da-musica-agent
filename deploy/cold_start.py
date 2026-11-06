@@ -27,7 +27,7 @@ def _container_ids(app: str) -> list[str]:
 
 def _stop_containers(app: str) -> None:
     for container_id in _container_ids(app):
-        subprocess.run(["modal", "container", "stop", container_id], check=True)
+        subprocess.run(["modal", "container", "stop", "--yes", container_id], check=True)
     deadline = time.monotonic() + DEADLINE_SECONDS
     while _container_ids(app):
         if time.monotonic() > deadline:
