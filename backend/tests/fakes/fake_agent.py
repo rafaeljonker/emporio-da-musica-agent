@@ -7,10 +7,13 @@ from emporio.support.domain.scope import Scope
 
 
 def turn_metrics(
-    tools: tuple[str, ...] = (), cost_brl: Decimal | None = None, failed: bool = False
+    tools: tuple[str, ...] = (),
+    cost_brl: Decimal | None = None,
+    failed: bool = False,
+    provider: str = "gemma",
 ) -> TurnMetrics:
     return TurnMetrics(
-        "web:anon:s", "gemma", "m", Scope.LOJA, 120, 30, 0, 1, tools, 900, 40, 700, 100, cost_brl,
+        "web:anon:s", provider, "m", Scope.LOJA, 120, 30, 0, 1, tools, 900, 40, 700, 100, cost_brl,
         "trace-fake", failed,
     )  # fmt: skip
 

@@ -61,13 +61,23 @@ def test_chat_event_order_and_payload_keys(client: TestClient, agent: FakeAgent)
     assert got[4][1] == {"trace_id": "trace-1"}
 
 
-def test_unpriced_metrics_basis(client: TestClient, agent: FakeAgent) -> None:
-    agent.reply = two_bubbles()
+@pytest.mark.parametrize(
+    ("provider", "basis"),
+    [
+        ("gemma", "Custo de GPU ainda não medido"),
+        ("gemini", "Preço do provedor ainda não confirmado"),
+        ("fake", "Modo de teste, sem custo"),
+    ],
+)
+def test_unpriced_metrics_basis_depends_on_provider(
+    client: TestClient, agent: FakeAgent, provider: str, basis: str
+) -> None:
+    agent.reply = two_bubbles(provider=provider)
     login(client)
     metrics = events(send(client).text)[3][1]
     assert isinstance(metrics, dict)
     assert metrics["cost_brl"] is None
-    assert metrics["cost_basis"] == "Custo de GPU ainda não medido"
+    assert metrics["cost_basis"] == basis
     assert metrics["action"] == "sem ferramenta"
 
 
