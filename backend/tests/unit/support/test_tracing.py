@@ -9,12 +9,14 @@ from langgraph.checkpoint.memory import InMemorySaver
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from emporio.config import ConfigError, Settings
+from emporio.orders.domain.identity import normalize_phone
 from emporio.support.domain.channel_identity import ChannelIdentity
 from emporio.support.domain.scope import Scope
 from emporio.support.infrastructure.agent.graph import build_graph
 from emporio.support.infrastructure.agent.runner import GraphRunner
 from emporio.support.infrastructure.agent.tools import build_tools
 from emporio.support.infrastructure.tracing import (
+    REDACTED,
     LangfuseTracerFactory,
     make_langfuse,
     mask_otel_spans,
@@ -214,3 +216,39 @@ def test_malformed_tool_args_leak_nothing_to_logs_or_spans(
     for secret in ("outra@jmail", "67984321098", "jmail"):
         assert secret not in exported
         assert secret not in caplog.text
+
+
+@pytest.mark.parametrize(
+    "phone",
+    [
+        "67 9 8432 1098",
+        "(67) 9 8432-1098",
+        "55 67 9 8432-1098",
+        "+55 (67) 9 8432 1098",
+        "67.98432.1098",
+        "679 843 210 98",
+        "67 3321 4455",
+        "(67)3321-4455",
+        "5567984321098",
+    ],
+)
+def test_phone_with_any_separators_is_redacted(phone: str) -> None:
+    # Each of these authenticates as the same phone, so each must be masked.
+    assert len(normalize_phone(phone)) in (10, 11)
+    assert redact(f"meu telefone: {phone}, ok") == f"meu telefone: {REDACTED}, ok"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "pedido 1042 e 2026",
+        "das 9h-18h",
+        "12/11/2026 as 14:30",
+        "R$ 2.199,00 em 12x",
+        "cust-1234567890",
+        "span 1234567890123456 hex 12345678901234567890123456789012",
+        "1 2 3 4",
+    ],
+)
+def test_identifiers_and_plain_numbers_are_not_redacted(text: str) -> None:
+    assert redact(text) == text
