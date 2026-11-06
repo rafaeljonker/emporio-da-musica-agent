@@ -2,8 +2,10 @@ import logging
 from pathlib import Path
 
 import psycopg
+from langgraph.checkpoint.postgres import PostgresSaver
+from psycopg.rows import DictRow, dict_row
 
-from emporio.db import connect, register_vector_if_available
+from emporio.db import connect, database_url, register_vector_if_available
 from emporio.paths import MIGRATIONS_DIR
 
 log = logging.getLogger(__name__)
@@ -42,10 +44,19 @@ def apply_migrations(conn: psycopg.Connection, directory: Path = MIGRATIONS_DIR)
     return applied
 
 
+def setup_checkpointer(url: str | None = None) -> None:
+    """Create or upgrade the LangGraph checkpoint tables; idempotent, on its own connection."""
+    with psycopg.Connection[DictRow].connect(
+        url or database_url(), autocommit=True, prepare_threshold=0, row_factory=dict_row
+    ) as conn:
+        PostgresSaver(conn).setup()
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO)
     with connect() as conn:
         applied = apply_migrations(conn)
+    setup_checkpointer()
     log.info("applied: %s", applied or "nothing to do")
 
 

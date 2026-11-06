@@ -10,10 +10,12 @@ pytestmark = pytest.mark.postgres
 
 
 def test_apply_migrations_creates_tables_and_is_idempotent(pg_conn: psycopg.Connection):
-    pg_conn.execute("DROP TABLE IF EXISTS policy_chunks, product_embeddings, schema_migrations")
+    pg_conn.execute(
+        "DROP TABLE IF EXISTS policy_chunks, product_embeddings, turn_metrics, schema_migrations"
+    )
     pg_conn.commit()
 
-    assert apply_migrations(pg_conn) == ["001", "002", "003"]
+    assert apply_migrations(pg_conn) == ["001", "002", "003", "004"]
     assert apply_migrations(pg_conn) == []
 
     rows = pg_conn.execute(
