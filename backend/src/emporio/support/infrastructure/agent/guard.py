@@ -1,5 +1,6 @@
 """Scope classifier: one structured-output call per turn, injected into the graph."""
 
+import logging
 from collections.abc import Callable, Sequence
 from typing import Literal
 
@@ -9,6 +10,9 @@ from pydantic import BaseModel
 
 from emporio.support.domain.scope import Scope
 from emporio.support.infrastructure.agent.prompt import guard_prompt
+
+logger = logging.getLogger("emporio.support.guard")
+MAX_PREVIOUS_CHARS = 500
 
 
 class Label(BaseModel):
@@ -23,16 +27,32 @@ def make_classifier(model: BaseChatModel) -> Callable[[Sequence[BaseMessage]], S
     structured = model.with_structured_output(Label, method="json_schema")
 
     def classify(messages: Sequence[BaseMessage]) -> Scope:
-        last = next(
-            i for i in range(len(messages) - 1, -1, -1) if isinstance(messages[i], HumanMessage)
-        )
-        previous = next(
-            (_text(m) for m in reversed(messages[:last]) if isinstance(m, AIMessage) and _text(m)),
-            "",
-        )
-        prompt = f"Mensagem anterior do assistente: {previous or '(nenhuma)'}\n"
-        prompt += f"Última mensagem do cliente: {_text(messages[last])}"
-        answer = structured.invoke([SystemMessage(guard_prompt()), HumanMessage(prompt)])
-        return Scope(Label.model_validate(answer).label)
+        # A classifier failure must not abort the turn: fall back to the full store path.
+        try:
+            last = next(
+                (
+                    i
+                    for i in range(len(messages) - 1, -1, -1)
+                    if isinstance(messages[i], HumanMessage)
+                ),
+                None,
+            )
+            if last is None:
+                return Scope.LOJA
+            previous = next(
+                (
+                    _text(m)
+                    for m in reversed(messages[:last])
+                    if isinstance(m, AIMessage) and _text(m)
+                ),
+                "",
+            )[:MAX_PREVIOUS_CHARS]
+            prompt = f"Mensagem anterior do assistente: {previous or '(nenhuma)'}\n"
+            prompt += f"Última mensagem do cliente: {_text(messages[last])}"
+            answer = structured.invoke([SystemMessage(guard_prompt()), HumanMessage(prompt)])
+            return Scope(Label.model_validate(answer).label)
+        except Exception:
+            logger.warning("guard fell back to loja", exc_info=True)
+            return Scope.LOJA
 
     return classify

@@ -2,14 +2,19 @@
 
 The system prompt is rebuilt per model call from `TurnContext` (customer name, today) and the
 turn's scope: static prefix first, dynamic tail last, so prefix caching still hits. Trimming
-works on a copy; the checkpointed state keeps the full history.
+works on a copy and never touches the current turn; the checkpointed state keeps the full history.
 """
 
 from collections.abc import Callable, Sequence
-from typing import NotRequired
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, trim_messages
+from langchain_core.messages import (
+    AIMessage,
+    BaseMessage,
+    HumanMessage,
+    SystemMessage,
+    trim_messages,
+)
 from langchain_core.messages.utils import count_tokens_approximately
 from langchain_core.tools import BaseTool
 from langgraph.checkpoint.base import BaseCheckpointSaver
@@ -22,6 +27,9 @@ from emporio.support.domain.scope import Scope
 from emporio.support.infrastructure.agent.context import TurnContext
 from emporio.support.infrastructure.agent.prompt import scope_note, system_prompt
 
+MAX_TOOL_ROUNDS = 5
+NO_MORE_TOOLS = "Responda com o que você já tem, sem chamar mais ferramentas."
+
 ABUSE_REPLY = (
     "Vamos manter a conversa respeitosa. "
     "Posso te ajudar com instrumentos, pedidos ou dúvidas da loja."
@@ -29,10 +37,10 @@ ABUSE_REPLY = (
 
 
 class AgentState(MessagesState):
-    scope: NotRequired[Scope | None]  # set by the guard on every turn
+    scope: Scope  # set by the guard on every turn
 
 
-type AgentGraph = CompiledStateGraph[AgentState, TurnContext, AgentState, AgentState]
+type AgentGraph = CompiledStateGraph[AgentState, TurnContext, MessagesState, AgentState]
 
 
 def build_graph(
@@ -43,6 +51,8 @@ def build_graph(
     *,
     max_history_tokens: int = 3000,
 ) -> AgentGraph:
+    with_tools = model.bind_tools(tools)
+
     def guard(state: AgentState) -> dict[str, Scope]:
         return {"scope": classify(state["messages"])}
 
@@ -51,25 +61,34 @@ def build_graph(
 
     def agent(state: AgentState, runtime: Runtime[TurnContext]) -> dict[str, list[BaseMessage]]:
         ctx = runtime.context
-        scope = state.get("scope")
-        head = system_prompt(ctx.customer_name, ctx.today)
-        note = "" if scope is None else scope_note(scope)
+        scope = state["scope"]
+        messages = state["messages"]
+        current = max(i for i, m in enumerate(messages) if isinstance(m, HumanMessage))
+        turn = messages[current:]
+        rounds = sum(isinstance(m, AIMessage) and bool(m.tool_calls) for m in turn)
+        capped = rounds >= MAX_TOOL_ROUNDS
+        notes = [NO_MORE_TOOLS] if capped else []
+        if note := scope_note(scope):
+            notes.append(note)
+        # The current turn is never trimmed: only older history is, within what is left.
+        budget = max(0, max_history_tokens - count_tokens_approximately(turn))
         history = trim_messages(
-            state["messages"],
+            messages[:current],
             strategy="last",
             token_counter=count_tokens_approximately,
-            max_tokens=max_history_tokens,
+            max_tokens=budget,
             start_on="human",
             end_on=("human", "tool"),
         )
-        prompt = [SystemMessage(f"{head}\n\n{note}" if note else head), *history]
-        runner = model.bind_tools(tools) if scope is Scope.LOJA else model
+        head = system_prompt(ctx.customer_name, ctx.today)
+        prompt = [SystemMessage("\n\n".join([head, *notes])), *history, *turn]
+        runner = with_tools if scope is Scope.LOJA and not capped else model
         return {"messages": [runner.invoke(prompt)]}
 
     def route_scope(state: AgentState) -> str:
-        return "abuse_reply" if state.get("scope") is Scope.ABUSO else "agent"
+        return "abuse_reply" if state["scope"] is Scope.ABUSO else "agent"
 
-    graph = StateGraph(AgentState, context_schema=TurnContext)
+    graph = StateGraph(AgentState, context_schema=TurnContext, input_schema=MessagesState)
     graph.add_node("guard", guard)
     graph.add_node("abuse_reply", abuse_reply)
     graph.add_node("agent", agent)

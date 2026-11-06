@@ -33,7 +33,8 @@ def _static_prompt() -> str:
 
 def system_prompt(customer_name: str | None, today: date) -> str:
     customer = customer_name or "não identificado"
-    return f"{_static_prompt()}\n\nCliente: {customer}\nHoje: {today:%d/%m/%Y}"
+    tail = f"Cliente: {customer}\nData de referência de pedidos e trocas: {today:%d/%m/%Y}"
+    return f"{_static_prompt()}\n\n{tail}"
 
 
 @cache
