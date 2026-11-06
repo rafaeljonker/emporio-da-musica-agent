@@ -169,7 +169,12 @@ class GraphRunner:
     def _cost_brl(self, model: str, probe: TurnProbe) -> Decimal | None:
         price = self._settings.prices.get(model)
         if price is None:
-            return None
+            gpu = self._settings.gpu_usd_per_hour
+            if gpu is None or self._settings.provider_name != Provider.GEMMA.value:
+                return None
+            # Upper bound: assumes the GPU served only this turn (concurrency 1).
+            ms = Decimal(_ms(probe.ms_guard) + _ms(probe.ms_llm))
+            return gpu * ms / 3_600_000 * self._settings.usd_brl
         usd_in, usd_out, usd_cached = price
         fresh = probe.input_tokens - probe.cached_tokens
         usd = (

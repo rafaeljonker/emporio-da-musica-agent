@@ -33,6 +33,7 @@ ACTIONS = {
     "search_policies": "consulta às políticas",
 }
 PRICED = "Estimado pelo preço de lista do provedor"
+GPU_UPPER_BOUND = "Teto pelo tempo de GPU desta resposta"
 GPU_UNMEASURED = "Custo de GPU ainda não medido"
 PRICE_UNCONFIRMED = "Preço do provedor ainda não confirmado"
 FAKE = "Modo de teste, sem custo"
@@ -47,9 +48,9 @@ def _cost_basis(m: TurnMetrics) -> str:
     """Why `cost_brl` is what it is: priced, self-hosted GPU, unpriced API, or the fake model."""
     if m.provider == "fake":
         return FAKE
-    if m.cost_brl is not None:
-        return PRICED
-    return GPU_UNMEASURED if m.provider == "gemma" else PRICE_UNCONFIRMED
+    if m.provider == "gemma":
+        return GPU_UNMEASURED if m.cost_brl is None else GPU_UPPER_BOUND
+    return PRICED if m.cost_brl is not None else PRICE_UNCONFIRMED
 
 
 def _metrics_payload(m: TurnMetrics) -> dict[str, object]:

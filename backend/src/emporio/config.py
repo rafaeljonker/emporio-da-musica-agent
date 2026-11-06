@@ -114,10 +114,14 @@ class Settings(BaseSettings):
         return "fake" if self.fake_model else self.provider.value
 
     usd_brl: Decimal = Decimal("5.50")
-    # USD per million tokens (input, output, cached input). Empty for self-hosted Gemma.
+    # GPU rental in USD per hour: prices Gemma turns as an upper bound (concurrency 1).
+    gpu_usd_per_hour: Decimal | None = None
+    # USD per million tokens (input, output, cached input). Gemma is priced by GPU time instead.
     # Cached input is an estimate: 10% of the input price.
     prices: dict[str, tuple[Decimal, Decimal, Decimal]] = Field(
         default_factory=lambda: {
+            # list price until 2026-12-31; 1.50 / 7.50 / 0.15 from 2027-01-01
+            "gemini-3.8-flash": (Decimal("0.75"), Decimal("3.75"), Decimal("0.075")),
             "gpt-6-luna": (Decimal("0.10"), Decimal("0.50"), Decimal("0.01")),
             "claude-haiku-5-5": (Decimal("0.10"), Decimal("0.50"), Decimal("0.01")),
         }
