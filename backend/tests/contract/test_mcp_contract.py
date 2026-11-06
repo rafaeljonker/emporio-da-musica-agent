@@ -36,14 +36,14 @@ def _types(prop: dict[str, Any]) -> set[str]:
 
 def test_mcp_schemas_equal_agent_schemas() -> None:
     agent = {t.name: _shape(_agent_schema(t)) for t in tools.build_tools(make_box())}
-    mcp = {t.name: _shape(t.inputSchema) for t in _mcp_tools()}
+    mcp = {t.name: _shape(t.input_schema) for t in _mcp_tools()}
 
     assert mcp == agent
 
 
 def test_mcp_schema_has_no_customer_id() -> None:
     for t in _mcp_tools():
-        assert "customer_id" not in json.dumps(t.inputSchema), t.name
+        assert "customer_id" not in json.dumps(t.input_schema), t.name
 
 
 def test_mcp_call_returns_same_json() -> None:

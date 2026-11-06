@@ -2,12 +2,13 @@
 
 import argparse
 import logging
+import os
 import sys
 import time
 from collections.abc import Callable, Sequence
 from uuid import uuid4
 
-from emporio.bootstrap import build_agent
+from emporio.bootstrap import build_agent, run_mcp
 from emporio.config import ConfigError, Provider, load_settings
 from emporio.db import DatabaseNotConfigured
 from emporio.support.domain.channel_identity import ChannelIdentity
@@ -25,10 +26,22 @@ def bubble_pause(bubble: str) -> float:
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="emporio")
-    chat = parser.add_subparsers(dest="command", required=True).add_parser("chat")
+    commands = parser.add_subparsers(dest="command", required=True)
+    commands.add_parser("mcp", help="serve the tools over MCP (stdio)")
+    chat = commands.add_parser("chat")
     chat.add_argument("--as-customer", type=int, metavar="ID", help="log in as this customer id")
     chat.add_argument("--provider", type=Provider, choices=list(Provider))
     return parser
+
+
+def _serve_mcp() -> None:
+    raw = os.environ.get("EMPORIO_MCP_CUSTOMER_ID", "")
+    try:
+        customer_id = int(raw) if raw else None
+        run_mcp(load_settings(), customer_id)
+    except (ValueError, ConfigError, DatabaseNotConfigured) as err:
+        print(err, file=sys.stderr)
+        raise SystemExit(2) from err
 
 
 def main(
@@ -38,6 +51,9 @@ def main(
     sleep: Callable[[float], None] = time.sleep,
 ) -> None:
     args = _parser().parse_args(argv)
+    if args.command == "mcp":
+        _serve_mcp()
+        return
     try:
         agent = build_agent(load_settings(provider=args.provider))
     except (ConfigError, DatabaseNotConfigured) as err:

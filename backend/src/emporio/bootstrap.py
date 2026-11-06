@@ -8,6 +8,7 @@ from collections.abc import Callable
 from contextlib import ExitStack
 from dataclasses import dataclass
 
+from psycopg_pool import ConnectionPool
 from pydantic import SecretStr
 
 from emporio.catalog.application.get_product import GetProduct
@@ -42,6 +43,7 @@ from emporio.support.infrastructure.agent.runner import GraphRunner
 from emporio.support.infrastructure.agent.tools import Toolbox, build_tools
 from emporio.support.infrastructure.checkpointer import make_checkpointer
 from emporio.support.infrastructure.llm.factory import make_chat_model
+from emporio.support.infrastructure.mcp.server import build_mcp
 from emporio.support.infrastructure.metrics_store import PgMetricsStore
 from emporio.support.infrastructure.tracing import (
     LangfuseTracerFactory,
@@ -61,6 +63,31 @@ class Agent:
     customer_exists: Callable[[int], bool]
 
 
+def build_toolbox(
+    stack: ExitStack, url: str, settings: Settings
+) -> tuple[Toolbox, CsvCustomerRepository, ConnectionPool]:
+    """Wire the ten tools' dependencies; shared by the agent and the MCP server."""
+    pool = stack.enter_context(make_pool(url))
+    embedder = E5Embedder()
+    catalog = CsvCatalogRepository()
+    orders = CsvOrderRepository()
+    customers = CsvCustomerRepository()
+    box = Toolbox(
+        SearchProducts(catalog),
+        RecommendProducts(catalog, PgProductIndex(pool, embedder)),
+        GetProduct(catalog),
+        ListPromotions(catalog),
+        QuoteInstallments(),
+        ListCustomerOrders(orders),
+        GetOrderStatus(orders, customers),
+        CheckReturnEligibility(orders, FixedClock(settings.store_today)),
+        StoreNow(SystemClock(), STORE_HOLIDAYS),
+        SearchPolicies(PgPolicyIndex(pool, embedder)),
+        catalog,
+    )
+    return box, customers, pool
+
+
 def build_agent(settings: Settings) -> Agent:
     """Wire the whole agent. Migrations run first so the pools never see a stale schema."""
     url = database_url()
@@ -68,24 +95,7 @@ def build_agent(settings: Settings) -> Agent:
         apply_migrations(conn)
     setup_checkpointer(url)
     with ExitStack() as stack:
-        pool = stack.enter_context(make_pool(url))
-        embedder = E5Embedder()
-        catalog = CsvCatalogRepository()
-        orders = CsvOrderRepository()
-        customers = CsvCustomerRepository()
-        box = Toolbox(
-            SearchProducts(catalog),
-            RecommendProducts(catalog, PgProductIndex(pool, embedder)),
-            GetProduct(catalog),
-            ListPromotions(catalog),
-            QuoteInstallments(),
-            ListCustomerOrders(orders),
-            GetOrderStatus(orders, customers),
-            CheckReturnEligibility(orders, FixedClock(settings.store_today)),
-            StoreNow(SystemClock(), STORE_HOLIDAYS),
-            SearchPolicies(PgPolicyIndex(pool, embedder)),
-            catalog,
-        )
+        box, customers, pool = build_toolbox(stack, url, settings)
         model = make_chat_model(settings)
         saver = make_checkpointer(url)
         stack.enter_context(saver.conn)  # pyright: ignore[reportArgumentType]  # pool is a context manager
@@ -106,3 +116,10 @@ def build_agent(settings: Settings) -> Agent:
             GraphRunner(graph, settings, tracer, first_name), PgMetricsStore(pool)
         )
         return Agent(handle, stack.pop_all().close, lambda cid: customers.by_id(cid) is not None)
+
+
+def run_mcp(settings: Settings, customer_id: int | None) -> None:
+    """Serve the tools over stdio. No model, graph, checkpointer or Langfuse needed."""
+    with ExitStack() as stack:
+        box, _, _ = build_toolbox(stack, database_url(), settings)
+        build_mcp(box, customer_id=customer_id).run()

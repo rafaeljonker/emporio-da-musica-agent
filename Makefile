@@ -1,6 +1,6 @@
 export PATH := $(CURDIR)/backend/.venv/bin:$(PATH)
 
-.PHONY: help setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys langfuse-db langfuse-up chat
+.PHONY: help setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys langfuse-db langfuse-up chat mcp
 .DEFAULT_GOAL := help
 
 help:
@@ -83,3 +83,7 @@ langfuse-up: langfuse-keys langfuse-db
 # ARGS example: make chat ARGS="--as-customer 14 --provider gemini"
 chat: db langfuse-up
 	cd backend && uv run emporio chat $(ARGS)
+
+# MCP over stdio; EMPORIO_MCP_CUSTOMER_ID=14 fixes the identity (unset = anonymous).
+mcp: db
+	cd backend && uv run emporio mcp
