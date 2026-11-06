@@ -9,7 +9,7 @@ from collections.abc import Callable, Sequence
 from uuid import uuid4
 
 from emporio.bootstrap import build_agent, run_mcp
-from emporio.config import ConfigError, Provider, load_settings
+from emporio.config import ConfigError, Provider, load_mcp_settings, load_settings
 from emporio.db import DatabaseNotConfigured
 from emporio.support.domain.channel_identity import ChannelIdentity
 
@@ -38,8 +38,12 @@ def _serve_mcp() -> None:
     raw = os.environ.get("EMPORIO_MCP_CUSTOMER_ID", "")
     try:
         customer_id = int(raw) if raw else None
-        run_mcp(load_settings(), customer_id)
-    except (ValueError, ConfigError, DatabaseNotConfigured) as err:
+    except ValueError:
+        print("EMPORIO_MCP_CUSTOMER_ID precisa ser um número inteiro", file=sys.stderr)
+        raise SystemExit(2) from None
+    try:
+        run_mcp(load_mcp_settings(), customer_id)
+    except (ConfigError, DatabaseNotConfigured) as err:
         print(err, file=sys.stderr)
         raise SystemExit(2) from err
 

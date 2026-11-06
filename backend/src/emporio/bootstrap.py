@@ -18,7 +18,7 @@ from emporio.catalog.application.recommend_products import RecommendProducts
 from emporio.catalog.application.search_products import SearchProducts
 from emporio.catalog.infrastructure.csv_catalog_repository import CsvCatalogRepository
 from emporio.catalog.infrastructure.pg_product_index import PgProductIndex
-from emporio.config import Settings
+from emporio.config import Settings, UnknownCustomer
 from emporio.db import connect, database_url, make_pool
 from emporio.embeddings import E5Embedder
 from emporio.migrate import apply_migrations, setup_checkpointer
@@ -119,7 +119,12 @@ def build_agent(settings: Settings) -> Agent:
 
 
 def run_mcp(settings: Settings, customer_id: int | None) -> None:
-    """Serve the tools over stdio. No model, graph, checkpointer or Langfuse needed."""
+    """Serve the tools over stdio. No model, graph, checkpointer or Langfuse needed.
+
+    Migrations are not applied here: the schema is expected to exist (`make mcp` runs `make db`).
+    """
     with ExitStack() as stack:
-        box, _, _ = build_toolbox(stack, database_url(), settings)
+        box, customers, _ = build_toolbox(stack, database_url(), settings)
+        if customer_id is not None and customers.by_id(customer_id) is None:
+            raise UnknownCustomer(customer_id)
         build_mcp(box, customer_id=customer_id).run()

@@ -25,6 +25,11 @@ class InvalidSettings(ConfigError):
         super().__init__(f"Invalid configuration: {detail}")
 
 
+class UnknownCustomer(ConfigError):
+    def __init__(self, customer_id: int) -> None:
+        super().__init__(f"cliente {customer_id} não encontrado")
+
+
 class MissingSetting(ConfigError):
     def __init__(self, variable: str, provider: Provider, alternatives: str) -> None:
         super().__init__(
@@ -139,15 +144,24 @@ def require_langfuse_settings(settings: Settings) -> None:
         raise LangfuseRequired(problems)
 
 
-def load_settings(provider: Provider | None = None) -> Settings:
+def _read_settings() -> Settings:
     try:
-        settings = Settings()
+        return Settings()
     except ValidationError as error:
         details = "; ".join(
             f"{'.'.join(str(part) for part in item['loc'])}: {item['msg']}"
             for item in error.errors()
         )
         raise InvalidSettings(details) from error
+
+
+def load_mcp_settings() -> Settings:
+    """Settings for the MCP server: no model and no tracing, so no provider/Langfuse checks."""
+    return _read_settings()
+
+
+def load_settings(provider: Provider | None = None) -> Settings:
+    settings = _read_settings()
     if provider is not None:
         settings = settings.model_copy(update={"provider": provider})
     require_provider_settings(settings)
