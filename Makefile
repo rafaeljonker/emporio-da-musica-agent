@@ -139,6 +139,9 @@ up-preflight:
 # PROVIDER on the command line overrides LLM_PROVIDER; otherwise .env's LLM_PROVIDER wins.
 WEB_PROVIDER = $(if $(filter command line,$(origin PROVIDER)),LLM_PROVIDER=$(PROVIDER),)
 
+# Like WEB_PROVIDER: only PROVIDER=local on the command line prepares the Ollama model.
+WEB_LOCAL_MODEL = $(if $(filter command line,$(origin PROVIDER)),$(LOCAL_MODEL),)
+
 # Provider key (skipped under EMPORIO_FAKE_MODEL=1), demo login and SESSION_SECRET (make web-keys).
 web-config:
 	cd backend && $(WEB_PROVIDER) uv run emporio check-config --web
@@ -147,11 +150,11 @@ web-config:
 WEB_ENV = $(WEB_PROVIDER) SESSION_HTTPS_ONLY=false DATABASE_URL=$(LOCAL_DATABASE_URL)
 SERVE = uv run uvicorn --factory emporio.web:create_web_app --port 8000
 
-up: up-preflight web-config $(LOCAL_MODEL) db langfuse-up web-build
+up: up-preflight web-config $(WEB_LOCAL_MODEL) db langfuse-up web-build
 	cd backend && $(WEB_ENV) $(SERVE)
 
 # API with --reload on :8000 plus Vite (proxying /api) in parallel; Ctrl-C stops both.
-dev: web-config $(LOCAL_MODEL) db langfuse-up web-install
+dev: web-config $(WEB_LOCAL_MODEL) db langfuse-up web-install
 	(cd frontend && npm run dev) & cd backend && $(WEB_ENV) $(SERVE) --reload --reload-dir src
 
 # Scripted model unless PROVIDER is given on the command line: make e2e PROVIDER=gemini.

@@ -81,6 +81,9 @@ def _local_model() -> None:
     except subprocess.CalledProcessError as err:
         print(f"local model setup failed: {' '.join(err.cmd)}", file=sys.stderr)
         raise SystemExit(1) from err
+    except OSError as err:
+        print(f"local model setup needs {err.filename or 'docker/ollama'} on PATH", file=sys.stderr)
+        raise SystemExit(2) from err
 
 
 def main(

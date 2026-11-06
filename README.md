@@ -33,7 +33,7 @@ Comandos:
 | Máquina | Modelo | Download | Tempo por resposta |
 |---|---|---|---|
 | Mac Apple Silicon, 32 GB ou mais | `gemma4:31b` | ~20 GB | 10–30 s (estimativa) |
-| Mac Apple Silicon, 16 GB | `gemma4:12b` | ~8 GB | menos de 20–60 s (estimativa) |
+| Mac Apple Silicon, 16 GB | `gemma4:12b` | ~8 GB | 20–60 s, menos com Metal (estimativa) |
 | GPU NVIDIA com 24 GB+ de VRAM | `gemma4:31b` | ~20 GB | poucos segundos (estimativa) |
 | Só CPU, 16 GB ou mais | `gemma4:12b` | ~8 GB | 20–60 s (estimativa) |
 | Só CPU, menos de 16 GB | `gemma4:e4b` | ~10 GB | 10–30 s (estimativa) |

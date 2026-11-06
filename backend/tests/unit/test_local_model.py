@@ -30,3 +30,11 @@ def test_docker_route_runs_ollama_inside_compose():
     assert steps[0][-4:] == ["up", "-d", "--wait", "ollama"]
     assert steps[1][-6:] == ["exec", "-T", "ollama", "ollama", "pull", "gemma4:e4b"]
     assert steps[-1][-4:] == ["create", "emporio-gemma", "-f", "/root/Modelfile"]
+
+
+def test_nvidia_route_uses_the_gpu_compose_service():
+    plan = LocalPlan("docker-nvidia", "gemma4:31b", 20, 32, "estimate")
+    steps = setup_commands(plan, "emporio-gemma", Path("Modelfile"))
+    assert steps[0][-4:] == ["up", "-d", "--wait", "ollama-nvidia"]
+    assert all("ollama-nvidia" in step for step in steps[1:2] + steps[3:])
+    assert steps[2][-1] == "ollama-nvidia:/root/Modelfile"
