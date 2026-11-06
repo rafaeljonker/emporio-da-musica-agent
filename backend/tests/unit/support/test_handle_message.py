@@ -1,8 +1,10 @@
 import time
 from decimal import Decimal
+from uuid import uuid4
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.outputs import ChatGeneration, LLMResult
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.errors import GraphRecursionError
 
@@ -94,6 +96,10 @@ def _usage(text: str, i: int, o: int) -> AIMessage:
     )
 
 
+def _result(message: AIMessage) -> LLMResult:
+    return LLMResult(generations=[[ChatGeneration(message=message)]])
+
+
 def test_runner_sums_tokens_and_counts_calls_and_tools() -> None:
     call = AIMessage(
         content="",
@@ -153,6 +159,36 @@ def test_gemini_turn_is_priced() -> None:
     runner = _cost_runner(LLM_PROVIDER="gemini", GEMINI_API_KEY="k")
     cost = runner._cost_brl("gemini-3.8-flash", probe)  # pyright: ignore[reportPrivateUsage]
     assert cost == (Decimal("0.75") + Decimal("3.75")) * Decimal("5.50")
+
+
+def test_probe_counts_guard_tokens_apart_from_agent_tokens() -> None:
+    probe, guard, guard_llm, agent_llm = TurnProbe(), uuid4(), uuid4(), uuid4()
+    probe.on_chain_start(None, {}, run_id=guard, name="guard")
+    probe.on_chat_model_start(None, [], run_id=guard_llm, parent_run_id=guard)
+    probe.on_llm_end(_result(_usage("loja", 10, 1)), run_id=guard_llm)
+    probe.on_chain_end({}, run_id=guard)
+    probe.on_chat_model_start(None, [], run_id=agent_llm)
+    probe.on_llm_end(_result(_usage("Temos.", 100, 20)), run_id=agent_llm)
+    assert (probe.input_tokens, probe.output_tokens) == (110, 21)
+    assert (probe.guard_input_tokens, probe.guard_output_tokens) == (10, 1)
+
+
+def test_gemini_guard_tokens_are_priced_at_the_guard_model() -> None:
+    probe = _timed_probe()
+    probe.input_tokens, probe.output_tokens = 2_000_000, 2_000_000
+    probe.guard_input_tokens, probe.guard_output_tokens = 1_000_000, 1_000_000
+    runner = _cost_runner(LLM_PROVIDER="gemini", GEMINI_API_KEY="k")
+    cost = runner._cost_brl("gemini-3.8-flash", probe)  # pyright: ignore[reportPrivateUsage]
+    flash, lite = Decimal("0.75") + Decimal("3.75"), Decimal("0.25") + Decimal("1.50")
+    assert cost == (flash + lite) * Decimal("5.50")
+
+
+def test_other_providers_price_guard_tokens_at_the_chat_model() -> None:
+    probe = _timed_probe()
+    probe.input_tokens, probe.guard_input_tokens = 2_000_000, 1_000_000
+    runner = _cost_runner(LLM_PROVIDER="openai", OPENAI_API_KEY="k")
+    cost = runner._cost_brl("gpt-6-luna", probe)  # pyright: ignore[reportPrivateUsage]
+    assert cost == Decimal("0.10") * 2 * Decimal("5.50")
 
 
 def test_gemma_turn_cost_is_gpu_seconds_upper_bound() -> None:
