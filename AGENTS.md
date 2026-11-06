@@ -27,7 +27,8 @@ Enforced by `import-linter` (`make imports`).
 | `*/application` | own `domain`, other `application` via ports, `shared` |
 | `*/infrastructure` | `application`, `domain` and external libs |
 | `api/` | `support.application`, `support.domain`, `shared` and `config`; never an `infrastructure`, `bootstrap`, `db` or LangChain/psycopg/Langfuse (enforced) |
-| `cli.py`, `web.py` | `bootstrap`, `config`, the `db` errors and `support.domain.channel_identity` (never an `infrastructure` module directly) |
+| `cli.py` | `bootstrap`, `config`, the `db` errors and `support.domain.channel_identity` (never an `infrastructure` module directly) |
+| `web.py` | a composition root like `bootstrap`: `api`, `bootstrap`, `config`, `paths` and `support.infrastructure.warmup` |
 
 `emporio.db`, `embeddings`, `migrate` are leaf technical modules usable only by infrastructure; The composition roots are `emporio.bootstrap` (the agent: wires use cases, tools, model, tracing) and `emporio.ingest` (the data: PDF and CSV into Postgres).
 

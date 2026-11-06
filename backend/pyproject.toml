@@ -308,4 +308,5 @@ forbidden_modules = [
     "emporio.policies.infrastructure", "emporio.support.infrastructure",
     "emporio.bootstrap", "emporio.db", "emporio.migrate", "emporio.embeddings", "emporio.ingest",
     "langchain", "langchain_core", "langgraph", "psycopg", "psycopg_pool", "langfuse",
+    "langchain_openai", "langchain_anthropic", "langchain_google_genai",
 ]

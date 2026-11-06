@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from emporio.api.auth import build_auth_router
-from emporio.config import Settings, WebSettingsRequired
+from emporio.config import Settings, require_web_settings
 from emporio.support.application.ports import ChatAgent
 from emporio.support.application.warmup import Warmup
 
@@ -15,8 +15,8 @@ from emporio.support.application.warmup import Warmup
 def create_app(
     agent: ChatAgent, warmup: Warmup, settings: Settings, *, static_dir: Path | None = None
 ) -> FastAPI:
-    if settings.session_secret is None:
-        raise WebSettingsRequired(["SESSION_SECRET is not set"])
+    require_web_settings(settings)
+    secret = settings.session_secret.get_secret_value() if settings.session_secret else ""
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -26,9 +26,11 @@ def create_app(
             agent.close()
 
     app = FastAPI(lifespan=lifespan)
+    # ponytail: stateless signed cookie, so logout cannot revoke a copied cookie and max_age slides
+    # with activity; upgrade = server-side sid denylist or an absolute issued_at check.
     app.add_middleware(
         SessionMiddleware,
-        secret_key=settings.session_secret.get_secret_value(),
+        secret_key=secret,
         session_cookie="emporio_session",
         same_site="strict",
         https_only=settings.session_https_only,
