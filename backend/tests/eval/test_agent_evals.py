@@ -48,6 +48,7 @@ from emporio.shared.money import Money
 from emporio.support.application.ports import Reply
 from emporio.support.domain.channel_identity import ChannelIdentity
 from emporio.support.domain.scope import Scope
+from emporio.support.infrastructure.agent.graph import ABUSE_REPLY
 from evals.verify import Expect, Facts, Verdict, expand, verify
 from tests.fakes.fake_chat_model import FakeToolCallingModel
 
@@ -100,7 +101,18 @@ def _derive_facts(pool: ConnectionPool, settings: Settings) -> Facts:
     recommended = RecommendProducts(catalog, PgProductIndex(pool, E5Embedder()))(
         "algo pra tocar MPB em casa"
     )
+    c40 = next(p for p in catalog.products() if "C40" in p.name)
+    c40_quote = get_product(c40.id)[1]
+    promo_product, promo_quote = ListPromotions(catalog)()[0]
+    assert promo_quote.promotion is not None
     return {
+        "c40_name": c40.name,
+        "c40_pix": (c40_quote.pix or c40_quote.final).format_brl(),
+        "promo_name": promo_product.name,
+        "promo_table": promo_quote.table.format_brl(),
+        "promo_percent": f"{promo_quote.promotion.percent.normalize():f}%",
+        "promo_final": promo_quote.final.format_brl(),
+        "abuse_reply": ABUSE_REPLY.split(".")[0],
         "viol_ok": tuple(_short(p) for p in violoes if p.is_available),
         "viol_bad": tuple(_short(p) for p in violoes if not p.is_available),
         "gd20_final": gd20_quote.final.format_brl(),
