@@ -1,4 +1,5 @@
 import logging
+import re
 from uuid import uuid4
 
 import pytest
@@ -19,7 +20,8 @@ from emporio.support.infrastructure.tracing import (
     REDACTED,
     LangfuseTracerFactory,
     make_langfuse,
-    mask_otel_spans,
+    make_mask,
+    name_pattern,
     pseudonym,
     redact,
 )
@@ -47,7 +49,7 @@ def test_pseudonym_survives_redact() -> None:
     key = OtelSpanIdentifier("a" * 32, "b" * 16)
     attributes = {"user.id": digits, "session.id": digits, "langfuse.user.id": digits}
     span = OtelSpanData("a" * 32, "b" * 16, None, "n", None, None, attributes, {})
-    assert mask_otel_spans(params=MaskOtelSpansParams(spans={key: span})).span_patches == {}
+    assert make_mask(None)(params=MaskOtelSpansParams(spans={key: span})).span_patches == {}
 
 
 def test_hex_id_not_redacted() -> None:
@@ -113,14 +115,15 @@ def test_for_turn_returns_fresh_handler_and_distinct_trace_ids() -> None:
     assert len(id_a) == 32
 
 
-def test_mask_redacts_email_phone_cpf() -> None:
+@pytest.mark.parametrize("names", [None, name_pattern(("Lucas Mendes da Silva",))])
+def test_mask_redacts_email_phone_cpf(names: re.Pattern[str] | None) -> None:
     text = (
         "joao@exemplo.com.br (67) 98432-1098 67984321098 +55 67 98432-1098 "
         "000.000.000-00 12345678901 pedido 1042"
     )
     key = OtelSpanIdentifier("a" * 32, "b" * 16)
     span = OtelSpanData("a" * 32, "b" * 16, None, "n", None, None, {"input": text, "n": 3}, {})
-    result = mask_otel_spans(params=MaskOtelSpansParams(spans={key: span}))
+    result = make_mask(names)(params=MaskOtelSpansParams(spans={key: span}))
     patch = result.span_patches[key]
     assert patch is not None
     masked = str(patch.set_attributes["input"])
@@ -172,7 +175,7 @@ def _exported_runner(
         base_url="http://x.test",
         tracing_enabled=True,
         sample_rate=1.0,
-        mask_otel_spans=mask_otel_spans,
+        mask_otel_spans=make_mask(None),
         span_exporter=exporter,
     )
     tracer = LangfuseTracerFactory(client, "salt", key)
@@ -259,3 +262,32 @@ def test_phone_with_any_separators_is_redacted(phone: str) -> None:
 )
 def test_identifiers_and_plain_numbers_are_not_redacted(text: str) -> None:
     assert redact(text) == text
+
+
+NAMES = ("Lucas Mendes da Silva", "Ana Carolina Ferreira")
+
+
+def test_mask_redacts_customer_names_any_case() -> None:
+    masked = redact("oi, aqui é a ana carolina ferreira e o LUCAS", name_pattern(NAMES))
+    for part in ("ana", "carolina", "lucas"):
+        assert part not in masked.casefold()
+
+
+def test_mask_keeps_words_that_contain_a_name() -> None:
+    pattern = name_pattern(NAMES)
+    assert redact("banana", pattern) == "banana"
+    assert redact("Lucastro", pattern) == "Lucastro"
+
+
+def test_name_pattern_is_none_without_names() -> None:
+    assert name_pattern(()) is None
+
+
+def test_mask_never_rewrites_identifier_keys() -> None:
+    key = OtelSpanIdentifier("a" * 32, "b" * 16)
+    attributes = {"session.id": "cust-ab12 lucas", "input": "lucas"}
+    span = OtelSpanData("a" * 32, "b" * 16, None, "n", None, None, attributes, {})
+    result = make_mask(name_pattern(NAMES))(params=MaskOtelSpansParams(spans={key: span}))
+    patch = result.span_patches[key]
+    assert patch is not None
+    assert patch.set_attributes == {"input": REDACTED}
