@@ -1,6 +1,6 @@
 export PATH := $(CURDIR)/backend/.venv/bin:$(PATH)
 
-.PHONY: help setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp deploy-llm deploy-api web-install web-build check-web up-preflight web-config local-model up dev e2e
+.PHONY: help setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys web-keys langfuse-db langfuse-up chat-config evals-config chat mcp deploy-llm deploy-api web-install web-build check-web up-preflight web-config local-model up dev e2e loadtest
 .DEFAULT_GOAL := help
 
 help:
@@ -176,3 +176,7 @@ LLM_APP ?= emporio-llm-h100-fp8
 LOADTEST ?=
 deploy-api: web-build
 	cd backend && EMPORIO_LLM_APP=$(LLM_APP) EMPORIO_LOADTEST=$(LOADTEST) uv run modal deploy ../deploy/modal_api.py
+
+# Locust against a running app: make loadtest ARGS="--host <url> -u 50 -r 10 -t 2m". Needs DEMO_EMAIL and DEMO_PASSWORD.
+loadtest:
+	cd backend && uv run --group load locust -f ../loadtest/locustfile.py --headless $(ARGS)
