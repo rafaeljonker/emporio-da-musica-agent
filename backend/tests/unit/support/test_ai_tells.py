@@ -60,3 +60,55 @@ def test_legit_text_is_not_a_tell(text: str) -> None:
 )
 def test_edge_cases_are_not_tells(text: str) -> None:
     assert ai_tells(text) == ()
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Prezado cliente, tudo bem?",
+        "Prezada Letícia, segue o preço.",
+        "Prezados, bom dia.",
+        "Qualquer dúvida, estou à disposição.",
+        "Fico à disposição pra mais coisa.",
+        "Não hesite em chamar.",
+        "Nao hesite, viu.",
+        "Fico feliz em ajudar!",
+        "Fico feliz em te ajudar.",
+        "Espero ter ajudado.",
+        "Ótima pergunta, vou ver.",
+        "Estou aqui para ajudar.",
+        "Estou aqui para te ajudar no que precisar.",
+        "Sinta-se à vontade.",
+        "Sinta se a vontade!",
+        "Como posso te ajudar hoje?",
+        "Como posso ajudar hoje?",
+        "Fico feliz,  em   ajudar.",
+    ],
+)
+def test_banned_phrase_variants_are_caught(text: str) -> None:
+    assert Tell.BANNED_PHRASE in ai_tells(text)
+
+
+def test_mano_is_textspeak() -> None:
+    assert Tell.TEXTSPEAK in ai_tells("E aí mano, quer o preto?")
+    assert ai_tells("O Manoel passou aqui.") == ()
+
+
+@pytest.mark.parametrize("text", ["Esse é *muito* bom.", "Sai *R$ 1.299* no PIX."])
+def test_single_asterisk_italics_is_markdown(text: str) -> None:
+    assert Tell.MARKDOWN in ai_tells(text)
+
+
+@pytest.mark.parametrize(
+    "text", ["Violão - preto, folk.", "Preto - 12 cordas.", "Sai 1299 - no PIX."]
+)
+def test_spaced_hyphen_used_as_a_dash_is_a_tell(text: str) -> None:
+    assert Tell.EM_DASH in ai_tells(text)
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["Abrimos das 9h-18h.", "Abrimos das 9h - 18h.", "Pós-venda e sub-total.", "Vale 2 * 3 = 6."],
+)
+def test_hyphens_and_asterisks_in_legit_use_are_not_tells(text: str) -> None:
+    assert ai_tells(text) == ()
