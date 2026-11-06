@@ -196,7 +196,7 @@ class GraphRunner:
                 config,  # pyright: ignore[reportArgumentType]  # plain dict is a valid RunnableConfig
                 context=context,
             )
-            scope = result["scope"]
+            scope = Scope(result["scope"])
             answer = result["messages"][-1].text.strip()
             if not answer:
                 logger.warning("model produced an empty final answer")

@@ -43,7 +43,7 @@ ABUSE_REPLY = (
 
 
 class AgentState(MessagesState):
-    scope: Scope  # set by the guard on every turn
+    scope: str  # Scope value, set by the guard on every turn; a plain str checkpoints cleanly
 
 
 type AgentGraph = CompiledStateGraph[AgentState, TurnContext, MessagesState, AgentState]
@@ -75,15 +75,15 @@ def build_graph(
     with_tools = model.bind_tools(tools)
     without_calls = bind_without_tool_calls(model, tools)
 
-    def guard(state: AgentState) -> dict[str, Scope]:
-        return {"scope": classify(state["messages"])}
+    def guard(state: AgentState) -> dict[str, str]:
+        return {"scope": classify(state["messages"]).value}
 
     def abuse_reply(state: AgentState) -> dict[str, list[BaseMessage]]:
         return {"messages": [AIMessage(ABUSE_REPLY)]}
 
     def agent(state: AgentState, runtime: Runtime[TurnContext]) -> dict[str, list[BaseMessage]]:
         ctx = runtime.context
-        scope = state["scope"]
+        scope = Scope(state["scope"])
         messages = state["messages"]
         current = max((i for i, m in enumerate(messages) if isinstance(m, HumanMessage)), default=0)
         turn = messages[current:]
@@ -108,7 +108,7 @@ def build_graph(
         return {"messages": [runner.invoke(prompt)]}
 
     def route_scope(state: AgentState) -> str:
-        return "abuse_reply" if state["scope"] is Scope.ABUSO else "agent"
+        return "abuse_reply" if state["scope"] == Scope.ABUSO else "agent"
 
     graph = StateGraph(AgentState, context_schema=TurnContext, input_schema=MessagesState)
     graph.add_node("guard", guard)
