@@ -133,6 +133,13 @@ ADVERSARIAL = [
         True,
     ),
     ("@return_no", "Já passou o prazo de 7 dias.", True),
+    (
+        "@return_no",
+        "O prazo de 7 dias pra devolução por arrependimento e o de 30 dias pra troca por "
+        "defeito já passaram.",
+        True,
+    ),
+    ("@return_no", "Os prazos de devolução ainda não passaram.", False),
     ("@return_no", "O prazo de 7 dias venceu em 25/01.", True),
     ("@return_no", "O prazo de 7 dias ainda não passou.", False),
     ("@return_yes", "Sim, entendo. Mas o prazo de 7 dias já passou.", False),
