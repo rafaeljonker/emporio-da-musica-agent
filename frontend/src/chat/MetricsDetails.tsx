@@ -20,7 +20,7 @@ function Block({ title, children }: { title: string; children: ReactNode }) {
       <p className="mt-2 first:mt-0">
         <strong>{title}</strong>
       </p>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 [&_dd]:tnum [&_dt]:text-muted-foreground">
+      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 [&_dd]:[overflow-wrap:anywhere] [&_dd]:tnum [&_dt]:text-muted-foreground">
         {children}
       </dl>
     </>
