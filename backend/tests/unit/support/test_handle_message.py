@@ -65,6 +65,12 @@ def test_reply_reports_ai_tells() -> None:
     assert reply.tells
 
 
+def test_tells_are_measured_on_the_delivered_bubbles() -> None:
+    reply = HandleMessage(FakeRunner("Um.\n\nDois.\n\nTrês.\n\nQuer?"), FakeStore())(ANON, "oi")
+    assert len(reply.bubbles) == 3
+    assert reply.tells == ()
+
+
 def test_blank_message_short_circuits() -> None:
     runner, store = FakeRunner("x"), FakeStore()
     reply = HandleMessage(runner, store)(ANON, "   \n")
