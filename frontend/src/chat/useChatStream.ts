@@ -1,6 +1,7 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { SessionExpired, streamChat } from '@/api/client'
 import type { ChatEvent } from '@/api/types'
+import { createPacer } from './pacing'
 import { initialTurn, reduceTurn, type TurnState } from './turn'
 
 export interface Exchange {
@@ -11,8 +12,6 @@ export interface Exchange {
   turn: TurnState
 }
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
-
 /**
  * Sends one message per turn. The server does not sleep (ruling R5): each bubble waits its
  * `delay_ms` here, in arrival order, with typing still on, and is appended only when complete.
@@ -20,6 +19,13 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 export function useChatStream(onSessionExpired: () => void) {
   const [exchanges, setExchanges] = useState<Exchange[]>([])
   const busy = exchanges.at(-1)?.turn.status === 'streaming'
+  // Aborted on unmount (e.g. Sair): the fetch stops and no paced bubble lands afterwards.
+  const controller = useRef<AbortController | null>(null)
+  useEffect(() => {
+    const c = new AbortController()
+    controller.current = c
+    return () => c.abort()
+  }, [])
 
   const send = useCallback(
     async (text: string) => {
@@ -34,30 +40,21 @@ export function useChatStream(onSessionExpired: () => void) {
           ),
         )
 
-      // Per-turn queue: events apply in arrival order, each bubble after its own delay.
-      const run = { queue: Promise.resolve(), shown: 0, ended: false }
-      const enqueue = (e: ChatEvent) => {
-        run.queue = run.queue.then(async () => {
-          if (e.type === 'bubble') {
-            await sleep(e.delay_ms)
-            run.shown += 1
-          }
-          if (e.type === 'done' || e.type === 'error') run.ended = true
-          apply(e)
-        })
-      }
+      const signal = controller.current!.signal
+      const pacer = createPacer(apply, signal)
 
       try {
-        await streamChat(text, enqueue)
+        await streamChat(text, pacer.push, signal)
       } catch (err) {
+        if (signal.aborted) return
         if (err instanceof SessionExpired) {
           onSessionExpired()
           return
         }
       }
-      await run.queue
+      await pacer.drained()
       // A dropped stream or a refused request (409, 429, network) ends the turn as an error.
-      if (!run.ended) apply({ type: 'error', partial: run.shown > 0 })
+      if (!pacer.ended && !signal.aborted) apply({ type: 'error', partial: pacer.shown > 0 })
     },
     [onSessionExpired],
   )

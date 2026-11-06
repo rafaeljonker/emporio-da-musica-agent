@@ -14,13 +14,14 @@ export class HttpError extends Error {
   }
 }
 
-function send(method: string, path: string, body?: unknown): Promise<Response> {
+function send(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<Response> {
   // Bodiless requests send no JSON content type (the backend 415s only bodies that are not JSON).
   return fetch(path, {
     method,
     credentials: 'same-origin',
     headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
+    signal,
   })
 }
 
@@ -54,8 +55,12 @@ export const startWarm = () => call<WarmStatus>('POST', '/api/warm')
 export const warmExpected = () => call<WarmExpected>('GET', '/api/warm/expected')
 
 /** POSTs one message and reports each SSE event; no reconnect (a dropped turn is an error). */
-export async function streamChat(text: string, onEvent: (e: ChatEvent) => void): Promise<void> {
-  const res = check(await send('POST', '/api/chat', { text }))
+export async function streamChat(
+  text: string,
+  onEvent: (e: ChatEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const res = check(await send('POST', '/api/chat', { text }, signal))
   const parser = createParser({
     onEvent: (m) => onEvent({ type: m.event, ...JSON.parse(m.data) } as ChatEvent),
   })

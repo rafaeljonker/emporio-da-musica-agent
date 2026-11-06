@@ -11,13 +11,11 @@ import { useChatStream } from './useChatStream'
 export function ChatShell({ onSignedOut }: { onSignedOut: () => void }) {
   const { exchanges, busy, send } = useChatStream(onSignedOut)
 
-  const signOut = async () => {
-    try {
-      await logout()
-    } finally {
-      onSignedOut()
-    }
-  }
+  // Back to login even if the logout request fails (offline, 5xx).
+  const signOut = () =>
+    logout()
+      .catch(() => {})
+      .finally(onSignedOut)
 
   return (
     <div className="flex h-dvh flex-col">

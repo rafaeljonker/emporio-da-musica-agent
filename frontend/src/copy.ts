@@ -13,7 +13,7 @@ export const copy = {
     invalid: 'E-mail ou senha não bateram. Confere e tenta de novo.',
     network: 'Não consegui falar com o servidor agora. Confere a conexão e tenta de novo.',
     // The warm-up sentence ("Ao entrar, o assistente começa a ligar; …{N} s.") lands with
-    // GET /api/warm/expected in Task 7.
+    // GET /api/warm/expected in Task 6/7.
     demoNote: 'Ambiente de demonstração. As credenciais foram enviadas no e-mail da entrega.',
   },
   chat: {
