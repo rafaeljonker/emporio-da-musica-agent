@@ -3,6 +3,7 @@ from langchain_core.messages import AIMessage
 from langfuse import Langfuse
 from langfuse.types import MaskOtelSpansParams, OtelSpanData, OtelSpanIdentifier
 from langgraph.checkpoint.memory import InMemorySaver
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from emporio.config import ConfigError, Settings
 from emporio.support.domain.channel_identity import ChannelIdentity
@@ -145,3 +146,42 @@ def test_failed_auth_check_shuts_the_client_down(monkeypatch: pytest.MonkeyPatch
     with pytest.raises(LangfuseUnreachable):
         tracing.make_langfuse(Settings())
     assert shut == [True]
+
+
+def _exported_runner(
+    replies: list[AIMessage], customer_name: str | None = None
+) -> tuple[GraphRunner, InMemorySpanExporter, Langfuse, LangfuseTracerFactory]:
+    exporter = InMemorySpanExporter()
+    client = Langfuse(
+        public_key="pk-export",  # the SDK keeps one client per public key; do not reuse "pk"
+        secret_key=FAKE_SK,
+        base_url="http://x.test",
+        tracing_enabled=True,
+        sample_rate=1.0,
+        mask_otel_spans=mask_otel_spans,
+        span_exporter=exporter,
+    )
+    tracer = LangfuseTracerFactory(client, "salt", "pk-export")
+    model = FakeToolCallingModel(messages=iter(replies))
+    graph = build_graph(model, build_tools(make_box()), lambda _m: Scope.LOJA, InMemorySaver())
+    settings = Settings(_env_file=None)  # pyright: ignore[reportCallIssue]
+    return GraphRunner(graph, settings, tracer, lambda _id: customer_name), exporter, client, tracer
+
+
+def _exported_text(exporter: InMemorySpanExporter) -> str:
+    lines: list[str] = []
+    for span in exporter.get_finished_spans():
+        lines += [f"{k}={v}" for k, v in (span.attributes or {}).items()]
+        lines.append(span.status.description or "")
+        lines += [str(e.attributes) for e in span.events]
+    return "\n".join(lines)
+
+
+def test_exported_spans_never_carry_the_raw_thread_id() -> None:
+    runner, exporter, client, _ = _exported_runner([AIMessage("Oi.")])
+    runner.run(ChannelIdentity("web", 3, "s"), "oi")
+    client.flush()
+    exported = _exported_text(exporter)
+    assert exported
+    assert "customer:3" not in exported
+    assert f"session.id=web:{pseudonym('salt', 3)}" in exported
