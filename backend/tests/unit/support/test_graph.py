@@ -203,3 +203,12 @@ def test_graph_without_human_message_does_not_crash() -> None:
     graph = _graph(model, Scope.LOJA)
     graph.invoke({"messages": [AIMessage("sozinha")]}, CONFIG, context=TurnContext(None))
     assert len(model.seen) == 1
+
+
+def test_second_turn_prompt_includes_previous_answer() -> None:
+    model = FakeToolCallingModel(messages=iter([AIMessage("resposta A"), AIMessage("resposta B")]))
+    graph = _graph(model, Scope.LOJA)
+    _ask(graph, "quero violão")
+    _ask(graph, "e o preço?")
+    texts = [m.text for m in model.seen[-1] if isinstance(m, AIMessage)]
+    assert texts == ["resposta A"]
