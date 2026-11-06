@@ -12,8 +12,8 @@ _STATIC = ("persona.md", "voice.md", "tools.md")
 _SCOPE_NOTES = {
     Scope.ACESSORIO: (
         "A mensagem pede um acessório. Diga com leveza que a Empório trabalha só com "
-        "instrumentos, sugira uma loja parceira de acessórios e se ofereça pra ajudar "
-        "se um instrumento entrar no plano."
+        "instrumentos, sugira uma loja parceira de acessórios sem citar nome de loja, "
+        "você não tem essa lista, e se ofereça pra ajudar se um instrumento entrar no plano."
     ),
     Scope.FORA_DE_ESCOPO: (
         "A mensagem não é sobre a loja. Diga com bom humor que disso você não entende, "
