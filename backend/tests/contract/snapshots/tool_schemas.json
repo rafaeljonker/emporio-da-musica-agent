@@ -1,0 +1,105 @@
+{
+  "calc_installments": {
+    "count": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Count"
+    },
+    "total": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "title": "Total"
+    }
+  },
+  "check_return_eligibility": {
+    "email_or_phone": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Email Or Phone"
+    },
+    "order_id": {
+      "title": "Order Id",
+      "type": "integer"
+    }
+  },
+  "get_order_status": {
+    "email_or_phone": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Email Or Phone"
+    },
+    "order_id": {
+      "title": "Order Id",
+      "type": "integer"
+    }
+  },
+  "get_product": {
+    "product_id": {
+      "title": "Product Id",
+      "type": "integer"
+    }
+  },
+  "list_active_promotions": {},
+  "list_my_orders": {},
+  "recommend_products": {
+    "need": {
+      "title": "Need",
+      "type": "string"
+    }
+  },
+  "search_policies": {
+    "question": {
+      "title": "Question",
+      "type": "string"
+    }
+  },
+  "search_products": {
+    "max_price": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Max Price"
+    },
+    "query": {
+      "title": "Query",
+      "type": "string"
+    }
+  },
+  "store_now": {}
+}
