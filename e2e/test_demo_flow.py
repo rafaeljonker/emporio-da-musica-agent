@@ -175,3 +175,45 @@ def test_logout_returns_to_login(signed_in_page: Page) -> None:
     expect(page.request.get("/api/auth/me")).not_to_be_ok()
     page.reload()
     expect(login_title).to_be_visible()
+
+
+# One unbroken token in a value (a long cost basis) must wrap inside the panel, not widen it.
+LONG_VALUE = "PrecoPorTokenAindaNaoConfirmadoPeloProvedor" * 3
+SSE_TURN = "".join(
+    f"event: {name}\ndata: {data}\n\n"
+    for name, data in [
+        ("typing", "{}"),
+        ("bubble", '{"kind": "text", "text": "Oi", "delay_ms": 0}'),
+        (
+            "metrics",
+            '{"input_tokens": 1200, "output_tokens": 80, "ms_model": 900, "ms_guard": 10,'
+            ' "ms_llm": 800, "ms_tools": 20, "cost_brl": "0.0123",'
+            f' "cost_basis": "{LONG_VALUE}", "action": "sem ferramenta"}}',
+        ),
+        ("done", '{"trace_id": null}'),
+    ]
+)
+
+
+def test_metrics_panel_fits_320px(signed_in_page: Page) -> None:
+    page = signed_in_page
+    page.set_viewport_size({"width": 320, "height": 640})
+    page.route(
+        "**/api/chat",
+        lambda route: route.fulfill(status=200, content_type="text/event-stream", body=SSE_TURN),
+    )
+    composer = page.get_by_label("Mensagem", exact=True)
+    composer.fill("Oi")
+    composer.press("Enter")
+    typing = page.get_by_role("status").filter(has_text="O assistente está digitando")
+    expect(typing).to_have_count(0, timeout=AGENT_TIMEOUT_MS)
+
+    page.get_by_text("Métricas ·").click()
+    panel = page.locator("details[open] > div")
+    expect(panel).to_contain_text(LONG_VALUE[:20])
+    # The panel may grow with its content instead of scrolling, so it must also stay in view.
+    fits = panel.evaluate(
+        "el => el.scrollWidth <= el.clientWidth && el.getBoundingClientRect().right <= innerWidth"
+    )
+    if not fits:
+        pytest.fail("the metrics panel scrolls sideways at 320 px")
