@@ -4,7 +4,7 @@ export PATH := $(CURDIR)/backend/.venv/bin:$(PATH)
 .DEFAULT_GOAL := help
 
 help:
-	@echo "targets: setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys langfuse-up chat"
+	@echo "targets: setup fmt lint typecheck imports test check db-up db-test migrate db test-pg ingest evals langfuse-keys langfuse-db langfuse-up chat mcp"
 
 setup:
 	cd backend && uv sync && uv run pre-commit install --config ../.pre-commit-config.yaml
@@ -56,7 +56,7 @@ test-pg: db-up db-test
 # PROVIDER picks the model (gemma|gemini|openai|anthropic) and names backend/evals/reports/<provider>.md.
 # EVAL_FAKE_MODEL=1 swaps in a scripted model to check the harness only (the gate then fails).
 PROVIDER ?= gemma
-evals: db-up db-test
+evals: db-test langfuse-up
 	cd backend && LLM_PROVIDER=$(PROVIDER) DATABASE_URL=$(TEST_DATABASE_URL) uv run pytest -q -m eval -s
 
 # Writes the Langfuse secrets into .env only when absent; values are never printed.
