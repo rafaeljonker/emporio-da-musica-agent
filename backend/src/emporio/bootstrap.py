@@ -58,6 +58,7 @@ def _secret(value: SecretStr | None) -> str:
 class Agent:
     handle: Callable[[ChannelIdentity, str], Reply]  # a HandleMessage; callable keeps tests easy
     close: Callable[[], None]
+    customer_exists: Callable[[int], bool]
 
 
 def build_agent(settings: Settings) -> Agent:
@@ -104,4 +105,4 @@ def build_agent(settings: Settings) -> Agent:
         handle = HandleMessage(
             GraphRunner(graph, settings, tracer, first_name), PgMetricsStore(pool)
         )
-        return Agent(handle, stack.pop_all().close)
+        return Agent(handle, stack.pop_all().close, lambda cid: customers.by_id(cid) is not None)

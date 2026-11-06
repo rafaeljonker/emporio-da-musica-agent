@@ -122,6 +122,7 @@ def make_langfuse(settings: Settings) -> Langfuse:
         logger.exception("Langfuse auth_check raised")
         ok = False
     if not ok:
+        client.shutdown()  # do not leave its exporter threads running behind the error
         raise LangfuseUnreachable(settings.langfuse_base_url)
     _client = client
     return client

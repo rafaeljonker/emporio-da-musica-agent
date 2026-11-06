@@ -29,7 +29,9 @@ class Closed:
 def _wire(monkeypatch: pytest.MonkeyPatch, handle: FakeHandle) -> Closed:
     closed = Closed()
     monkeypatch.setattr(cli, "load_settings", lambda provider=None: provider)
-    monkeypatch.setattr(cli, "build_agent", lambda settings: Agent(handle, closed))
+    monkeypatch.setattr(
+        cli, "build_agent", lambda settings: Agent(handle, closed, lambda _id: True)
+    )
     return closed
 
 
@@ -90,7 +92,9 @@ def test_cli_exits_on_ctrl_d_and_always_shuts_down(
 def test_cli_maps_provider_flag(monkeypatch: pytest.MonkeyPatch) -> None:
     seen: list[Provider | None] = []
     monkeypatch.setattr(cli, "load_settings", lambda provider=None: seen.append(provider))
-    monkeypatch.setattr(cli, "build_agent", lambda s: Agent(FakeHandle(), lambda: None))
+    monkeypatch.setattr(
+        cli, "build_agent", lambda s: Agent(FakeHandle(), lambda: None, lambda _id: True)
+    )
     cli.main(["chat", "--provider", "gemini"], read=_typing(), sleep=lambda _: None)
     assert seen == [Provider.GEMINI]
 
