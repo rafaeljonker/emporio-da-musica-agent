@@ -33,6 +33,22 @@ class MissingSetting(ConfigError):
         )
 
 
+class LangfuseRequired(ConfigError):
+    def __init__(self, problems: list[str]) -> None:
+        super().__init__(
+            f"Langfuse tracing is mandatory: {'; '.join(problems)}. "
+            "Run `make langfuse-up` to start a local Langfuse and write its keys to .env."
+        )
+
+
+class LangfuseUnreachable(ConfigError):
+    def __init__(self, base_url: str | None) -> None:
+        super().__init__(
+            f"Langfuse auth_check failed against {base_url}: wrong keys or the server is down. "
+            "Run `make langfuse-up` for a local Langfuse."
+        )
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=REPO_ROOT / ".env", extra="ignore", populate_by_name=True
@@ -53,7 +69,10 @@ class Settings(BaseSettings):
     database_url: str | None = None
     store_today: date = date(2026, 2, 20)
 
-    # Optional until the tracing task makes them mandatory.
+    # Mandatory tracing: presence and the three disabling switches are enforced in load_settings.
+    langfuse_tracing_enabled: bool = True
+    otel_sdk_disabled: bool = False
+    langfuse_sample_rate: float = 1.0
     langfuse_public_key: SecretStr | None = None
     langfuse_secret_key: SecretStr | None = None
     langfuse_base_url: str | None = None
@@ -98,6 +117,27 @@ def require_provider_settings(settings: Settings) -> None:
             raise MissingSetting(variable, provider, others)
 
 
+_LANGFUSE_REQUIRED = (
+    "LANGFUSE_PUBLIC_KEY",
+    "LANGFUSE_SECRET_KEY",
+    "LANGFUSE_BASE_URL",
+    "LANGFUSE_SALT",
+)
+
+
+def require_langfuse_settings(settings: Settings) -> None:
+    """Tracing is mandatory: raise naming every missing or tracing-disabling variable."""
+    problems = [f"{v} is not set" for v in _LANGFUSE_REQUIRED if not _is_set(settings, v)]
+    if not settings.langfuse_tracing_enabled:
+        problems.append("LANGFUSE_TRACING_ENABLED must not be false")
+    if settings.otel_sdk_disabled:
+        problems.append("OTEL_SDK_DISABLED must not be true")
+    if settings.langfuse_sample_rate < 1:
+        problems.append("LANGFUSE_SAMPLE_RATE must be 1 (no sampling)")
+    if problems:
+        raise LangfuseRequired(problems)
+
+
 def load_settings(provider: Provider | None = None) -> Settings:
     try:
         settings = Settings()
@@ -110,4 +150,5 @@ def load_settings(provider: Provider | None = None) -> Settings:
     if provider is not None:
         settings = settings.model_copy(update={"provider": provider})
     require_provider_settings(settings)
+    require_langfuse_settings(settings)
     return settings

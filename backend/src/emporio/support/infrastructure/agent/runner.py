@@ -189,6 +189,7 @@ class GraphRunner:
             config = {
                 "configurable": {"thread_id": identity.thread_id()},
                 "callbacks": [*callbacks, probe],
+                "metadata": self._tracer_factory.turn_metadata(identity),
             }
             result = self._graph.invoke(
                 {"messages": [HumanMessage(text)]},
