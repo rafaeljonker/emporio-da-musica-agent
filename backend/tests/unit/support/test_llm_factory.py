@@ -1,7 +1,7 @@
 import pytest
 from pydantic import SecretStr
 
-from emporio.config import Provider, Settings
+from emporio.config import ConfigError, Provider, Settings
 from emporio.support.infrastructure.llm.factory import make_chat_model
 
 
@@ -27,10 +27,22 @@ def test_factory_builds_each_provider_without_network(
     settings = Settings(
         provider=provider,
         vllm_base_url="http://vllm.test/v1",
+        vllm_api_key=SecretStr("fake"),
         gemini_api_key=SecretStr("fake"),
         openai_api_key=SecretStr("fake"),
         anthropic_api_key=SecretStr("fake"),
     )
     model = make_chat_model(settings)
     assert type(model).__name__ == class_name
+    assert getattr(model, "temperature", None) == 0.3
     assert model_id in (getattr(model, "model_name", None), getattr(model, "model", None))
+
+
+def test_gemini_thinking_is_minimal():
+    model = make_chat_model(Settings(provider=Provider.GEMINI, gemini_api_key=SecretStr("fake")))
+    assert getattr(model, "thinking_level", None) == "minimal"
+
+
+def test_gemma_without_base_url_raises():
+    with pytest.raises(ConfigError, match="VLLM_BASE_URL"):
+        make_chat_model(Settings(provider=Provider.GEMMA))
