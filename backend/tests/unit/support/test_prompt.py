@@ -93,3 +93,9 @@ def test_guard_treats_injection_with_store_question_as_abuse() -> None:
 
 def test_prompt_says_to_trust_store_now_for_current_time() -> None:
     assert "confie só no store_now, nunca na data de referência" in system_prompt(None, TODAY)
+
+
+def test_complaint_flow_gives_the_team_reply_time_without_claiming_registration() -> None:
+    prompt = system_prompt(None, TODAY)
+    assert "24 horas úteis" in prompt
+    assert "Não diga que registrou nada" in prompt
