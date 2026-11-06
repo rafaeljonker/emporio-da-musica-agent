@@ -38,9 +38,10 @@ def test_factory_builds_each_provider_without_network(
     assert model_id in (getattr(model, "model_name", None), getattr(model, "model", None))
 
 
-def test_gemini_thinking_is_minimal():
+def test_gemini_thinking_is_low():
+    # gemini-3.8-flash rejects MINIMAL (400 INVALID_ARGUMENT); LOW is its lowest level.
     model = make_chat_model(Settings(provider=Provider.GEMINI, gemini_api_key=SecretStr("fake")))
-    assert getattr(model, "thinking_level", None) == "minimal"
+    assert getattr(model, "thinking_level", None) == "low"
 
 
 def test_gemma_without_base_url_raises():
