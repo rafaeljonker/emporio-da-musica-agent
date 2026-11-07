@@ -8,12 +8,18 @@ const NETWORK_FAILURES = 3
 
 const settled = (s: WarmStatus | null) => s?.stage === 'ready' || s?.stage === 'failed'
 
+/** `checking` until the first status (no seed); `polling` while the server warms up. */
+export type WarmStatusView = { elapsed: number; networkError: boolean; retry: () => Promise<void> } & (
+  | { state: 'checking'; status: null }
+  | { state: 'polling' | 'ready' | 'failed'; status: WarmStatus }
+)
+
 /**
  * Polls GET /api/warm/status every second until `ready` or `failed`. The stage only ever comes
  * from the server; `elapsed` is the last good poll's `elapsed_seconds` plus the time since that
  * poll, and never goes back (the tick interval only re-renders).
  */
-export function useWarmStatus(seed: WarmStatus | null) {
+export function useWarmStatus(seed: WarmStatus | null): WarmStatusView {
   const [status, setStatus] = useState(seed)
   const [elapsed, setElapsed] = useState(seed?.elapsed_seconds ?? 0)
   const [networkError, setNetworkError] = useState(false)
@@ -68,5 +74,8 @@ export function useWarmStatus(seed: WarmStatus | null) {
     anchorTo(res.data)
   }, [anchorTo])
 
-  return { status, elapsed, networkError, retry }
+  const base = { elapsed, networkError, retry }
+  if (!status) return { ...base, state: 'checking', status: null }
+  const state = status.stage === 'ready' || status.stage === 'failed' ? status.stage : 'polling'
+  return { ...base, state, status }
 }

@@ -1,5 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { enqueue, load, save, undo, type QueuedMessage } from '@/client/warmup/domain/queue'
+import { useCallback, useEffect, useEffectEvent, useState } from 'react'
+import { enqueue, load, save, undo } from '@/client/warmup/domain/queue'
+
+type Queue = { state: 'empty' } | { state: 'queued'; lines: string[] } | { state: 'flushed' }
+
+export type QueuedMessageView = Queue & {
+  /** Text a re-login puts back into the composer ('' when none). */
+  restored: string
+  /** Queues `line`; false (the line would pass the 1000-char cap) keeps it in the composer. */
+  add: (line: string) => boolean
+  /** Removes the queue and returns its text for the composer. */
+  take: () => string
+}
+
+const EMPTY: Queue = { state: 'empty' }
+const toQueue = (lines: string[] | undefined): Queue => (lines ? { state: 'queued', lines } : EMPTY)
 
 /**
  * Lines typed during warm-up, kept in sessionStorage. After a reload they are queued again;
@@ -12,40 +26,45 @@ export function useQueuedMessage(
   ready: boolean,
   send: (text: string) => Promise<boolean>,
   restoreToComposer: boolean,
-) {
+): QueuedMessageView {
   const [initial] = useState(() => {
     const stored = load()
     return restoreToComposer
-      ? { queued: null, restored: stored ? undo(stored) : '' }
-      : { queued: stored, restored: '' }
+      ? { queue: EMPTY, restored: stored ? undo(stored) : '' }
+      : { queue: toQueue(stored?.lines), restored: '' }
   })
-  const [queued, setQueued] = useState<QueuedMessage | null>(initial.queued)
-  const flushed = useRef(false)
-  useEffect(() => {
-    if (!flushed.current) save(queued)
-  }, [queued])
+  const [queue, setQueue] = useState<Queue>(initial.queue)
 
+  // sessionStorage mirrors the queue; once flushed, only a confirmed send clears it.
   useEffect(() => {
-    if (!ready || !queued || flushed.current) return
-    flushed.current = true
-    setQueued(null)
-    void send(undo(queued)).then((sessionOk) => sessionOk && save(null))
-  }, [ready, queued, send])
+    if (queue.state !== 'flushed') save(queue.state === 'queued' ? { lines: queue.lines } : null)
+  }, [queue])
 
-  /** Queues `line`; false (the line would pass the 1000-char cap) keeps it in the composer. */
+  const flush = useEffectEvent((lines: string[]) => {
+    setQueue({ state: 'flushed' })
+    void send(undo({ lines })).then((sessionOk) => sessionOk && save(null))
+  })
+  // On the next task, so a cleanup (Strict Mode's remount, `ready` flipping back) cancels it:
+  // the POST goes out exactly once.
+  const lines = queue.state === 'queued' ? queue.lines : null
+  useEffect(() => {
+    if (!ready || !lines) return
+    const timer = setTimeout(() => flush(lines), 0)
+    return () => clearTimeout(timer)
+  }, [ready, lines])
+
   const add = useCallback(
     (line: string) => {
-      const next = enqueue(queued, line)
-      if (next) setQueued(next)
+      const next = enqueue(queue.state === 'queued' ? { lines: queue.lines } : null, line)
+      if (next) setQueue(toQueue(next.lines))
       return next !== null
     },
-    [queued],
+    [queue],
   )
-  /** Removes the queue and returns its text for the composer. */
   const take = useCallback(() => {
-    setQueued(null)
-    return queued ? undo(queued) : ''
-  }, [queued])
+    setQueue(EMPTY)
+    return queue.state === 'queued' ? undo(queue) : ''
+  }, [queue])
 
-  return { queued, restored: initial.restored, add, take }
+  return { ...queue, restored: initial.restored, add, take }
 }

@@ -5,10 +5,10 @@ import { useQueuedMessage } from '@/client/warmup/useCases/queuedMessage/useQueu
 
 const advance = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms))
 
-function setup({ restore = false, sessionOk = true } = {}) {
+function setup({ restore = false, sessionOk = true, ready = false } = {}) {
   const send = vi.fn(async (_text: string) => sessionOk)
   const hook = renderHook(({ ready }) => useQueuedMessage(ready, send, restore), {
-    initialProps: { ready: false },
+    initialProps: { ready },
     reactStrictMode: true,
   })
   return { send, ...hook }
@@ -53,6 +53,13 @@ describe('useQueuedMessage', () => {
     expect(send).toHaveBeenCalledWith('Oi\nTem C40?')
     expect(result.current.state).toBe('flushed')
     expect(load()).toBeNull()
+  })
+
+  it('flushes once when ready on mount, under Strict Mode remounting effects', async () => {
+    save({ lines: ['Oi'] })
+    const { send } = setup({ ready: true })
+    await advance(0)
+    expect(send).toHaveBeenCalledTimes(1)
   })
 
   it('keeps text on unauthenticated', async () => {

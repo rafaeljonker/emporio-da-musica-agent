@@ -155,13 +155,13 @@ export function ChatShell({ warm, fromLogin, customerId: initialCustomer, onSign
             status={status}
             elapsed={elapsed}
             networkError={networkError}
-            compact={!!queue.queued}
+            compact={queue.state === 'queued'}
             onRetry={retry}
             announce={announce}
           />
         )}
-        {!warming && !entries.length && !queue.queued && <EmptyState />}
-        <Transcript entries={entries} queued={queue.queued?.lines} typing={typing} onUndo={undo} onResend={resend} />
+        {!warming && !entries.length && queue.state !== 'queued' && <EmptyState />}
+        <Transcript entries={entries} queued={queue.state === 'queued' ? queue.lines : undefined} typing={typing} onUndo={undo} onResend={resend} />
         {/* The visible dots live in the log (aria-hidden); this live region speaks them. */}
         <StatusRegion said={said}>{typing && <span className="sr-only">{copy.chat.typing}</span>}</StatusRegion>
         <Composer
