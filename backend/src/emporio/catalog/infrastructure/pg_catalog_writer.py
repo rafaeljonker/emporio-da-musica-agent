@@ -1,4 +1,5 @@
 import hashlib
+import logging
 from collections.abc import Sequence
 
 import psycopg
@@ -7,9 +8,12 @@ from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool, PoolTimeout
 
 from emporio.catalog.domain.pricing import Promotion
-from emporio.catalog.domain.product import Category, Product, search_document
+from emporio.catalog.domain.product import Category, Product, ProductDraft, search_document
+from emporio.catalog.infrastructure.pg_catalog_repository import _COLUMNS, _product
 from emporio.db import IndexUnavailable
 from emporio.embeddings import TextEmbedder
+
+logger = logging.getLogger(__name__)
 
 # A row whose search document is unchanged keeps its embedding (both new values are NULL).
 _UPSERT_PRODUCT = """
@@ -25,6 +29,11 @@ ON CONFLICT (id) DO UPDATE SET
   embedded_hash = coalesce(EXCLUDED.embedded_hash, products.embedded_hash),
   updated_at = now()
 """
+
+
+_OWN = (
+    "SELECT {columns} FROM products p WHERE p.source = 'admin' AND p.owner = %s ORDER BY p.id DESC"
+).replace("{columns}", _COLUMNS)
 
 
 def _hash(doc: str) -> str:
@@ -91,3 +100,105 @@ class PgCatalogWriter:
         except (psycopg.OperationalError, PoolTimeout) as err:
             raise IndexUnavailable from err
         return len(vectors)
+
+    def create(self, owner: str, draft: ProductDraft) -> Product:
+        doc = self._document(draft)
+        vector, digest = self._embed(doc)
+        with self._pool.connection() as conn, conn.transaction():
+            [(new_id,)] = conn.execute(
+                "INSERT INTO products (id, name, category_id, description, specs, price, stock,"
+                " status, source, owner, search_doc, embedding, embedded_hash)"
+                " VALUES (nextval('products_admin_id_seq'), %s, %s, %s, %s, %s, %s, %s,"
+                " 'admin', %s, %s, %s, %s) RETURNING id",
+                (*_values(draft), owner, doc, vector, digest),
+            ).fetchall()
+            created = draft.with_id(new_id)
+            _audit(conn, owner, "create", created)
+        return created
+
+    def update(self, owner: str, product_id: int, draft: ProductDraft) -> Product | None:
+        with self._pool.connection() as conn:
+            found = conn.execute(
+                "SELECT embedded_hash FROM products WHERE id = %s AND source = 'admin'"
+                " AND owner = %s",
+                (product_id, owner),
+            ).fetchone()
+        if found is None:
+            return None
+        doc = self._document(draft)
+        changed = found[0] != _hash(doc)
+        vector, digest = self._embed(doc) if changed else (None, None)
+        with self._pool.connection() as conn, conn.transaction():
+            row = conn.execute(
+                "UPDATE products SET name = %s, category_id = %s, description = %s, specs = %s,"
+                " price = %s, stock = %s, status = %s, search_doc = %s,"
+                " embedding = CASE WHEN %s THEN %s ELSE embedding END,"
+                " embedded_hash = CASE WHEN %s THEN %s ELSE embedded_hash END,"
+                " updated_at = now()"
+                " WHERE id = %s AND source = 'admin' AND owner = %s RETURNING id",
+                (*_values(draft), doc, changed, vector, changed, digest, product_id, owner),
+            ).fetchone()
+            if row is None:
+                return None
+            updated = draft.with_id(product_id)
+            _audit(conn, owner, "update", updated)
+        return updated
+
+    def own(self, owner: str) -> Sequence[Product]:
+        with self._pool.connection() as conn:
+            rows = conn.execute(
+                _OWN,
+                (owner,),
+            ).fetchall()
+        return [_product(r) for r in rows]
+
+    def admin_total(self) -> int:
+        with self._pool.connection() as conn:
+            row = conn.execute("SELECT count(*) FROM products WHERE source = 'admin'").fetchone()
+        return row[0] if row else 0
+
+    def _document(self, draft: ProductDraft) -> str:
+        with self._pool.connection() as conn:
+            row = conn.execute(
+                "SELECT name FROM categories WHERE id = %s", (draft.category_id,)
+            ).fetchone()
+        category = row[0] if row else ""
+        return search_document(draft.name, category, draft.description, draft.specs)
+
+    def _embed(self, doc: str) -> tuple[Vector | None, str | None]:
+        """The vector and its document hash, or (None, None) when the embedder fails."""
+        try:
+            [vector] = self._embedder.embed_passages([doc])
+        except Exception as err:  # any model failure: save the row, text search still finds it
+            logger.warning("product embed failed: %s", type(err).__name__, exc_info=True)
+            return None, None
+        return Vector(vector), _hash(doc)
+
+
+def _values(draft: ProductDraft) -> tuple[object, ...]:
+    return (
+        draft.name,
+        draft.category_id,
+        draft.description,
+        Jsonb(dict(draft.specs)),
+        draft.price.amount,
+        draft.stock,
+        draft.status.value,
+    )
+
+
+def _audit(conn: psycopg.Connection, actor: str, action: str, product: Product) -> None:
+    after = {
+        "id": product.id,
+        "name": product.name,
+        "category_id": product.category_id,
+        "description": product.description,
+        "specs": dict(product.specs),
+        "price": str(product.price.amount),
+        "stock": product.stock,
+        "status": product.status.value,
+    }
+    conn.execute(
+        "INSERT INTO catalog_audit (actor, action, product_id, after) VALUES (%s, %s, %s, %s)",
+        (actor, action, product.id, Jsonb(after)),
+    )
