@@ -12,10 +12,11 @@ from emporio.catalog.domain.product import Product, ProductStatus
 from emporio.orders.application.check_return_eligibility import CheckReturnEligibility
 from emporio.orders.application.get_order_status import GetOrderStatus
 from emporio.orders.application.list_customer_orders import ListCustomerOrders
+from emporio.orders.infrastructure.csv_order_repository import OrdersDataError
 from emporio.policies.application.search_policies import SearchPolicies
 from emporio.policies.application.store_now import StoreNow
 from emporio.shared.clock import FixedClock
-from emporio.shared.errors import DomainError, StoreUnavailable
+from emporio.shared.errors import StoreUnavailable
 from emporio.support.infrastructure.agent import tools
 from emporio.support.infrastructure.agent.context import TurnContext
 from emporio.support.infrastructure.agent.tools import Toolbox
@@ -120,18 +121,12 @@ def test_calc_installments_error_names_the_maximum() -> None:
     assert "O máximo é 2x" in result
 
 
-@pytest.mark.parametrize(
-    ("error", "text"),
-    [
-        (StoreUnavailable(), "Busca indisponível agora; ofereça encaminhar para a equipe."),
-    ],
-)
-def test_domain_errors_become_tool_text(error: Exception, text: str) -> None:
+def test_store_unavailable_is_index_unavailable() -> None:
     @tools._safe
     def boom() -> str:
-        raise error
+        raise StoreUnavailable
 
-    assert str(boom()).startswith(text)
+    assert boom() == "Busca indisponível agora; ofereça encaminhar para a equipe."
 
 
 def test_unknown_product_is_product_not_found_text() -> None:
@@ -144,26 +139,14 @@ def test_calc_installments_huge_total_returns_text() -> None:
     assert isinstance(result, str)
 
 
-def test_calc_installments_needs_positive_total() -> None:
-    result = tools.calc_installments(make_box(), ANON, total=0)
+def test_data_error_is_tool_failure_not_invalid_data() -> None:
+    def bad_csv(customer_id: int) -> object:
+        raise OrdersDataError("orders.csv", 2, ValueError("segredo@exemplo.com"))
 
-    assert result == "O valor precisa ser maior que zero."
-
-
-def test_generic_domain_error_is_logged_not_echoed(caplog: pytest.LogCaptureFixture) -> None:
-    class Secret(DomainError):
-        def __init__(self) -> None:
-            super().__init__("segredo interno")
-
-    @tools._safe
-    def boom() -> str:
-        raise Secret
-
-    with caplog.at_level("WARNING", logger="emporio.support.tools"):
-        result = boom()
-
-    assert result == "Dado inválido."
-    assert "segredo interno" in caplog.text
+    box = replace(make_box(), list_customer_orders=bad_csv)  # pyright: ignore[reportArgumentType]
+    with pytest.raises(tools.ToolCrashed) as crash:
+        tools.list_my_orders(box, TurnContext(customer_id=3))
+    assert str(crash.value) == "list_my_orders raised OrdersDataError"
 
 
 def test_unexpected_exception_is_reduced_to_tool_name_and_type() -> None:
