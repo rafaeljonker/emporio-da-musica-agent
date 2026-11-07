@@ -14,13 +14,6 @@ class DatabaseNotConfigured(DomainError):
         super().__init__("DATABASE_URL is not set; run `make db` or see .env.example")
 
 
-class IndexUnavailable(DomainError):
-    """The database behind a search index cannot be reached."""
-
-    def __init__(self) -> None:
-        super().__init__("search index unavailable: database unreachable")
-
-
 def database_url() -> str:
     url = os.environ.get("DATABASE_URL")
     if not url:

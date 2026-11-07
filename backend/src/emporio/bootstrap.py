@@ -13,6 +13,7 @@ from psycopg_pool import ConnectionPool
 from pydantic import SecretStr
 from starlette.applications import Starlette
 
+from emporio.catalog.application.admin import CatalogAdmin, CatalogAdminService
 from emporio.catalog.application.create_product import CreateProduct
 from emporio.catalog.application.get_product import GetProduct
 from emporio.catalog.application.list_promotions import ListPromotions
@@ -39,7 +40,7 @@ from emporio.policies.infrastructure.holidays import STORE_HOLIDAYS
 from emporio.policies.infrastructure.pg_policy_index import PgPolicyIndex
 from emporio.shared.clock import FixedClock, SystemClock
 from emporio.support.application.handle_message import HandleMessage
-from emporio.support.application.ports import CatalogAdmin, DemoCustomer, Reply
+from emporio.support.application.ports import DemoCustomer, Reply
 from emporio.support.application.warmup import WarmMode, WarmStage, Warmup
 from emporio.support.domain.channel_identity import ChannelIdentity
 from emporio.support.domain.scope import Scope
@@ -48,7 +49,6 @@ from emporio.support.infrastructure.agent.graph import build_graph
 from emporio.support.infrastructure.agent.guard import make_classifier
 from emporio.support.infrastructure.agent.runner import GraphRunner
 from emporio.support.infrastructure.agent.tools import Toolbox, build_tools
-from emporio.support.infrastructure.catalog_admin import CatalogAdminService
 from emporio.support.infrastructure.checkpointer import make_checkpointer
 from emporio.support.infrastructure.llm.factory import make_chat_model, make_guard_model
 from emporio.support.infrastructure.llm.scripted import ScriptedChatModel

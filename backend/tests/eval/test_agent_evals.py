@@ -29,7 +29,7 @@ from emporio.catalog.domain.errors import CatalogErrorCode
 from emporio.catalog.domain.installments import InstallmentPlan
 from emporio.catalog.domain.pricing import PriceQuote
 from emporio.catalog.domain.product import Product, ProductStatus
-from emporio.catalog.domain.search import Candidates, Exact, SearchResult
+from emporio.catalog.domain.search import Candidates, Exact, NoMatch, SearchResult
 from emporio.catalog.infrastructure.csv_catalog_repository import CsvCatalogRepository
 from emporio.catalog.infrastructure.pg_catalog_repository import PgCatalogRepository
 from emporio.catalog.infrastructure.pg_catalog_writer import PgCatalogWriter
@@ -77,7 +77,8 @@ def _products(found: SearchResult) -> tuple[Product, ...]:
             return (product,)
         case Candidates(products):
             return products
-    return ()
+        case NoMatch():
+            return ()
 
 
 def _derive_facts(pool: ConnectionPool, embedder: E5Embedder, settings: Settings) -> Facts:

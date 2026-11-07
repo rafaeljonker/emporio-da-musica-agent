@@ -27,8 +27,7 @@ from emporio.catalog.application.ports import CatalogRepository
 from emporio.catalog.application.quote_installments import QuoteInstallments
 from emporio.catalog.application.recommend_products import RecommendProducts
 from emporio.catalog.application.search_products import SearchProducts
-from emporio.catalog.domain.errors import ProductNotFound
-from emporio.catalog.domain.installments import InvalidInstallments, max_installments
+from emporio.catalog.domain.installments import max_installments
 from emporio.catalog.domain.pricing import (
     PriceQuote,
     Promotion,
@@ -37,7 +36,6 @@ from emporio.catalog.domain.pricing import (
 )
 from emporio.catalog.domain.product import Product
 from emporio.catalog.domain.search import Candidates, Exact, NoMatch
-from emporio.db import IndexUnavailable
 from emporio.orders.application.check_return_eligibility import CheckReturnEligibility
 from emporio.orders.application.get_order_status import GetOrderStatus
 from emporio.orders.application.list_customer_orders import ListCustomerOrders
@@ -46,8 +44,9 @@ from emporio.orders.domain.identity import IdentityMismatch
 from emporio.orders.domain.order import Order
 from emporio.policies.application.search_policies import SearchPolicies
 from emporio.policies.application.store_now import StoreNow
-from emporio.shared.errors import DomainError
+from emporio.shared.errors import DomainError, StoreUnavailable
 from emporio.shared.money import Money
+from emporio.shared.result import Err, Ok
 from emporio.support.infrastructure.agent.context import TurnContext
 from emporio.support.infrastructure.agent.serializers import (
     eligibility_json,
@@ -148,9 +147,7 @@ def _safe[**P](fn: Callable[P, ToolOutput]) -> Callable[P, ToolOutput]:
             return fn(*args, **kwargs)
         except (IdentityMismatch, OrderNotFound):
             return ORDER_NOT_FOUND
-        except ProductNotFound:
-            return PRODUCT_NOT_FOUND
-        except IndexUnavailable:
+        except StoreUnavailable:
             return INDEX_UNAVAILABLE
         except DomainError as err:  # e.g. InvalidMoney
             logger.warning("tool input rejected: %s", err)
@@ -215,8 +212,11 @@ def recommend_products(box: Toolbox, ctx: TurnContext, need: Need) -> ToolOutput
 
 @_safe
 def get_product(box: Toolbox, ctx: TurnContext, product_id: ProductId) -> ToolOutput:
-    found, quote = box.get_product(product_id)
-    return product_json(found, quote, _categories(box, (found,))[product_id])
+    match box.get_product(product_id):
+        case Ok((found, quote)):
+            return product_json(found, quote, _categories(box, (found,))[product_id])
+        case Err():
+            return PRODUCT_NOT_FOUND
 
 
 @_safe
@@ -233,11 +233,13 @@ def calc_installments(
     if total <= 0:
         return "O valor precisa ser maior que zero."
     money = Money(_reais(total))
-    try:
-        return installments_json(box.quote_installments(money, count))
-    except InvalidInstallments:
-        best = max_installments(money)
-        return f"{INSTALLMENTS_NOT_ALLOWED} O máximo é {best.count}x de {best.parcel.format_brl()}."
+    match box.quote_installments(money, count):
+        case Ok(plan):
+            return installments_json(plan)
+        case Err():
+            best = max_installments(money)
+            parcel = best.parcel.format_brl()
+            return f"{INSTALLMENTS_NOT_ALLOWED} O máximo é {best.count}x de {parcel}."
 
 
 @_safe

@@ -73,6 +73,7 @@ known-first-party = ["emporio", "tests", "evals"]
 typeCheckingMode = "standard"
 include = ["src", "tests", "evals"]
 strict = ["src/emporio/*/domain", "src/emporio/*/application", "src/emporio/shared"]
+reportMatchNotExhaustive = "error"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -296,7 +297,6 @@ ignore_imports = [
     "emporio.support.infrastructure.agent.tools -> emporio.catalog.application.quote_installments",
     "emporio.support.infrastructure.agent.tools -> emporio.catalog.application.recommend_products",
     "emporio.support.infrastructure.agent.tools -> emporio.catalog.application.search_products",
-    "emporio.support.infrastructure.agent.tools -> emporio.catalog.domain.errors",
     "emporio.support.infrastructure.agent.tools -> emporio.catalog.domain.installments",
     "emporio.support.infrastructure.agent.tools -> emporio.catalog.domain.pricing",
     "emporio.support.infrastructure.agent.tools -> emporio.catalog.domain.product",
@@ -309,9 +309,6 @@ ignore_imports = [
     "emporio.support.infrastructure.agent.tools -> emporio.orders.domain.order",
     "emporio.support.infrastructure.agent.tools -> emporio.policies.application.search_policies",
     "emporio.support.infrastructure.agent.tools -> emporio.policies.application.store_now",
-    # The catalog admin service maps the web DTOs to catalog drafts (write path).
-    "emporio.support.infrastructure.catalog_admin -> emporio.catalog.application.*",
-    "emporio.support.infrastructure.catalog_admin -> emporio.catalog.domain.*",
 ]
 
 [[tool.importlinter.contracts]]

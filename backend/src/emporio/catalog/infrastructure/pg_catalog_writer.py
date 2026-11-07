@@ -14,8 +14,8 @@ from emporio.catalog.infrastructure.pg_catalog_repository import (
     catalog_connection,
     product_from_row,
 )
-from emporio.db import IndexUnavailable
 from emporio.embeddings import TextEmbedder
+from emporio.shared.errors import StoreUnavailable
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +107,7 @@ class PgCatalogWriter:
                     [(x.id, x.product_id, x.percent, x.label, x.active) for x in promotions],
                 )
         except (psycopg.OperationalError, PoolTimeout) as err:
-            raise IndexUnavailable from err
+            raise StoreUnavailable from err
         return len(vectors)
 
     def create(self, owner: str, draft: ProductDraft) -> Product:
