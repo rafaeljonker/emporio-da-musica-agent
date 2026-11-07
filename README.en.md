@@ -74,6 +74,15 @@ Each message first goes through a scope classifier (the guard), then to the agen
 - `search_products` and `recommend_products` run a hybrid search over the catalog: Portuguese full-text, trigram for typos and product codes, and pgvector for meaning, fused with RRF. Filters (price, stock, category) and the final price with promotions are computed in SQL and Python. The model receives structured rows, not text to summarize.
 - The other tools (`get_product`, `list_active_promotions`, `calc_installments`, `list_my_orders`, `get_order_status`, `check_return_eligibility`, `store_now`) are direct lookups or calculations in code.
 
+## MCP
+
+The store's ten tools, for any MCP client. The identity comes from the server, never from the model.
+
+- **Local (stdio):** `make mcp`; `EMPORIO_MCP_CUSTOMER_ID=14` fixes the customer, unset is anonymous.
+- **Remote:** `https://emporio.fastmind.site/mcp` with `Authorization: Bearer <token>`; each token is anonymous or one customer. The token is sent with the demo credentials, never in git.
+- **Claude Code:** `claude mcp add --transport http emporio https://emporio.fastmind.site/mcp --header "Authorization: Bearer $EMPORIO_MCP_TOKEN"`
+- **Claude Desktop:** `npx mcp-remote https://emporio.fastmind.site/mcp --header "Authorization: Bearer ${EMPORIO_MCP_TOKEN}"`, with the token in the `env` block.
+
 ## Catalog in Postgres
 
 Products live in Postgres, and one query combines text, typo tolerance and meaning. In the demo, log in and open **Catálogo** (the store's back office): create a product and ask about it in the chat. The agent still only reads. The logged-in user writes, and only their own products. A product named like a store product, or with promotion claims in its text, is rejected. With 50 thousand products the search took 17 to 34 ms (median, local probes; [research](docs/research/catalog-db.md), [ADR 0011](docs/decisions/0011-catalog-in-postgres-hybrid-search.md)).
@@ -170,6 +179,7 @@ Each row is a single run. The previous Gemini run scored 20/22: one recommender 
 - **Not measured, because of the GPU budget:** Gemma evals after the last voice fixes, a load test with a real model and the local-mode times.
 - **A single instance:** rate limits and in-flight conversations live in process memory; scaling out needs them moved to Postgres or Redis.
 - **UI details:** reloading the page clears the bubbles (the conversation continues on the server), and a failed customer switch gives no warning.
+- **OAuth for the remote MCP (claude.ai connectors):** today it is a bearer token ([ADR 0012](docs/decisions/0012-remote-mcp-bearer-token.md)).
 - **With more time:** official WhatsApp, hand-off to a human agent, reranking in policy search, product cards in the bubbles and stronger personal-data protection.
 
 ## Use of AI assistants

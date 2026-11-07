@@ -46,3 +46,8 @@ def test_api_providers_are_gemma_and_gemini():
     # The hosted demo runs Gemma on the GPU app or Gemini through its API (no GPU, no warm-up).
     providers = _constant("modal_api.py", "API_PROVIDERS")
     assert providers == ("gemma", "gemini")
+
+
+def test_demo_app_alone_gets_the_proxy_and_mcp_secrets():
+    # The load-test app shares the demo's database: it must not serve /mcp or trust the proxy.
+    assert _constant("modal_api.py", "DEMO_ONLY_SECRETS") == ("emporio-proxy", "emporio-mcp")

@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from psycopg_pool import ConnectionPool
 from pydantic import SecretStr
+from starlette.applications import Starlette
 
 from emporio.catalog.application.create_product import CreateProduct
 from emporio.catalog.application.get_product import GetProduct
@@ -21,7 +22,7 @@ from emporio.catalog.application.search_products import SearchProducts
 from emporio.catalog.application.update_product import UpdateProduct
 from emporio.catalog.infrastructure.pg_catalog_repository import PgCatalogRepository
 from emporio.catalog.infrastructure.pg_catalog_writer import PgCatalogWriter
-from emporio.config import Provider, Settings, UnknownCustomer
+from emporio.config import Provider, Settings, UnknownCustomer, mcp_token_identities
 from emporio.db import connect, database_url, make_pool
 from emporio.embeddings import E5Embedder, TextEmbedder
 from emporio.migrate import apply_migrations, setup_checkpointer
@@ -42,6 +43,7 @@ from emporio.support.application.ports import CatalogAdmin, DemoCustomer, Reply
 from emporio.support.application.warmup import WarmMode, WarmStage, Warmup
 from emporio.support.domain.channel_identity import ChannelIdentity
 from emporio.support.domain.scope import Scope
+from emporio.support.infrastructure.agent.context import TurnContext
 from emporio.support.infrastructure.agent.graph import build_graph
 from emporio.support.infrastructure.agent.guard import make_classifier
 from emporio.support.infrastructure.agent.runner import GraphRunner
@@ -50,7 +52,7 @@ from emporio.support.infrastructure.catalog_admin import CatalogAdminService
 from emporio.support.infrastructure.checkpointer import make_checkpointer
 from emporio.support.infrastructure.llm.factory import make_chat_model, make_guard_model
 from emporio.support.infrastructure.llm.scripted import ScriptedChatModel
-from emporio.support.infrastructure.mcp.server import build_mcp
+from emporio.support.infrastructure.mcp.server import build_mcp, build_mcp_http_app
 from emporio.support.infrastructure.metrics_store import PgMetricsStore
 from emporio.support.infrastructure.tracing import (
     LangfuseTracerFactory,
@@ -84,6 +86,7 @@ class Agent:
     close: Callable[[], None]
     customer_exists: Callable[[int], bool]
     catalog_admin: CatalogAdmin
+    toolbox: Toolbox  # the ten tools, shared with the remote MCP app
     demo_customers: tuple[DemoCustomer, ...] = ()
     reply_p50_seconds: Callable[[], float | None] = lambda: None
 
@@ -165,6 +168,7 @@ def build_agent(settings: Settings) -> Agent:
             stack.pop_all().close,
             lambda cid: customers.by_id(cid) is not None,
             catalog_admin,
+            box,
             demo,
             lambda: store.reply_p50_seconds(settings.provider_name),
         )
@@ -222,4 +226,17 @@ def run_mcp(settings: Settings, customer_id: int | None) -> None:
         box, customers, _, _ = build_toolbox(stack, database_url(), settings)
         if customer_id is not None and customers.by_id(customer_id) is None:
             raise UnknownCustomer(customer_id)
-        build_mcp(box, customer_id=customer_id).run()
+        build_mcp(box, lambda: TurnContext(customer_id=customer_id)).run()
+
+
+def build_remote_mcp(
+    agent: Agent, settings: Settings, customer_id: Callable[[], int | None]
+) -> Starlette:
+    """The /mcp app over the agent's tools; a token naming an unknown customer fails startup.
+
+    `customer_id` reads the request's identity (set by the API's bearer gate).
+    """
+    for customer in mcp_token_identities(settings).values():
+        if customer is not None and not agent.customer_exists(customer):
+            raise UnknownCustomer(customer)
+    return build_mcp_http_app(agent.toolbox, customer_id)
