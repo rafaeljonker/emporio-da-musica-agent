@@ -43,9 +43,14 @@ class McpBearerAuth:
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         request = Request(scope)
+        ip = client_ip(request, self._settings)
+        # Locked-out IP: 429 before any compare, so a hit looks like a miss.
+        if self._failures.full(ip):
+            await JSONResponse({"detail": "too_many_attempts"}, 429)(scope, receive, send)
+            return
         match = self._match(request.headers.get("authorization", ""))
         if match is None:
-            if self._failures.allow(client_ip(request, self._settings)):
+            if self._failures.allow(ip):
                 reply = JSONResponse(
                     {"detail": "invalid_token"}, 401, headers={"WWW-Authenticate": "Bearer"}
                 )

@@ -44,6 +44,13 @@ class SlidingWindow:
         self._hits: dict[str, deque[float]] = {}
         self._lock = threading.Lock()
 
+    def full(self, key: str) -> bool:
+        """True when `key` is at its limit right now; records nothing."""
+        now = time.monotonic()
+        with self._lock:
+            hits = self._hits.get(key, deque())
+            return sum(1 for t in hits if now - t < self._seconds) >= self._limit
+
     def allow(self, key: str) -> bool:
         now = time.monotonic()
         with self._lock:
