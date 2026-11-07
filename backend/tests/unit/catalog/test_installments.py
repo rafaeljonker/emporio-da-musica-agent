@@ -4,14 +4,15 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
+from emporio.catalog.domain.errors import CatalogErrorCode
 from emporio.catalog.domain.installments import (
     InstallmentPlan,
-    InvalidInstallments,
     installment_plan,
     max_installments,
     minimum_for,
 )
 from emporio.shared.money import Money
+from emporio.shared.result import Err, Ok
 from tests.unit.catalog.factories import m
 
 
@@ -28,7 +29,7 @@ def test_150_allows_three_of_50() -> None:
 
 
 def test_twelve_installments_of_2199() -> None:
-    assert installment_plan(m("2199"), 12).parcel == m("183.25")
+    assert installment_plan(m("2199"), 12) == Ok(InstallmentPlan(12, m("183.25")))
 
 
 @pytest.mark.parametrize(
@@ -39,30 +40,33 @@ def test_minimum_is_checked_on_exact_parcel(total: str, count: int, parcel: str)
     assert max_installments(m(total)) == InstallmentPlan(count, m(parcel))
 
 
+NOT_ALLOWED = Err(CatalogErrorCode.INSTALLMENTS_NOT_ALLOWED)
+
+
 def test_rejects_13_installments() -> None:
-    with pytest.raises(InvalidInstallments):
-        installment_plan(m("5000"), 13)
+    assert installment_plan(m("5000"), 13) == NOT_ALLOWED
 
 
 def test_rejects_parcel_below_minimum() -> None:
-    with pytest.raises(InvalidInstallments):
-        installment_plan(m("90"), 2)
+    assert installment_plan(m("90"), 2) == NOT_ALLOWED
 
 
 @pytest.mark.parametrize("count", [0, -1])
 def test_rejects_count_below_one(count: int) -> None:
-    with pytest.raises(InvalidInstallments):
-        installment_plan(m("5000"), count)
+    assert installment_plan(m("5000"), count) == NOT_ALLOWED
 
 
 @pytest.mark.parametrize(
-    ("count", "minimum"), [(1, 0), (2, 50), (3, 50), (4, 80), (6, 80), (7, 100), (12, 100)]
+    ("count", "minimum"),
+    [(1, 0), (2, 50), (3, 50), (4, 80), (6, 80), (7, 100), (12, 100), (0, None), (13, None)],
 )
-def test_minimum_for_tiers(count: int, minimum: int) -> None:
-    assert minimum_for(count) == minimum
+def test_minimum_for_tiers(count: int, minimum: int | None) -> None:
+    assert minimum_for(count) == (None if minimum is None else Money(Decimal(minimum)))
 
 
 @given(st.decimals(min_value=1, max_value=50000, places=2))
 def test_max_installments_respects_minimum(total: Decimal) -> None:
     plan = max_installments(Money(total))
-    assert plan.count == 1 or total / plan.count >= minimum_for(plan.count)
+    minimum = minimum_for(plan.count)
+    assert minimum is not None
+    assert plan.count == 1 or total / plan.count >= minimum.amount

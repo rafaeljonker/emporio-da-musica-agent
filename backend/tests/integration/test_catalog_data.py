@@ -2,9 +2,12 @@ from emporio.catalog.application.get_product import GetProduct
 from emporio.catalog.application.list_promotions import ListPromotions
 from emporio.catalog.application.quote_installments import QuoteInstallments
 from emporio.catalog.application.search_products import SearchProducts
+from emporio.catalog.domain.installments import InstallmentPlan
+from emporio.catalog.domain.pricing import PriceQuote
 from emporio.catalog.domain.search import Candidates, Exact
 from emporio.catalog.infrastructure.csv_catalog_repository import CsvCatalogRepository
 from emporio.shared.money import Money
+from emporio.shared.result import Ok
 from tests.unit.catalog.fakes import FakeCatalogRepository
 
 CSV = CsvCatalogRepository()
@@ -18,6 +21,12 @@ def m(value: str) -> Money:
     return Money.from_str(value)
 
 
+def quote(product_id: int) -> PriceQuote:
+    result = GetProduct(repo)(product_id)
+    assert isinstance(result, Ok)
+    return result.value[1]
+
+
 def test_takamine_returns_four_candidates() -> None:
     r = SearchProducts(repo)("takamine")
     assert isinstance(r, Candidates)
@@ -25,16 +34,14 @@ def test_takamine_returns_four_candidates() -> None:
 
 
 def test_gd20_price_and_pix() -> None:
-    _, q = GetProduct(repo)(95)
+    q = quote(95)
     assert q.final == m("2199")
     assert q.pix == m("2089.05")
 
 
 def test_gd20_installments_max_12x() -> None:
-    _, q = GetProduct(repo)(95)
-    plan = QuoteInstallments()(q.final)
-    assert plan.count == 12
-    assert plan.parcel == m("183.25")
+    q = quote(95)
+    assert QuoteInstallments()(q.final) == Ok(InstallmentPlan(12, m("183.25")))
 
 
 def test_four_active_promotions() -> None:
@@ -42,7 +49,7 @@ def test_four_active_promotions() -> None:
 
 
 def test_crafter_ht100_promo() -> None:
-    _, q = GetProduct(repo)(90)
+    q = quote(90)
     assert q.final == m("1967.18")
     assert q.pix is None
 

@@ -5,9 +5,10 @@ from psycopg_pool import ConnectionPool
 
 from emporio.catalog.application.ports import CatalogFilter
 from emporio.catalog.infrastructure.pg_catalog_repository import PgCatalogRepository
-from emporio.db import IndexUnavailable, make_pool
+from emporio.db import make_pool
 from emporio.policies.infrastructure.pdf_sections import read_policy_chunks
 from emporio.policies.infrastructure.pg_policy_index import PgPolicyIndex
+from emporio.shared.errors import StoreUnavailable
 from tests.fakes.hash_embedder import HashEmbedder
 
 pytestmark = pytest.mark.postgres
@@ -34,9 +35,9 @@ def test_concurrent_searches_share_pool(
 def test_unreachable_db_raises_index_unavailable() -> None:
     pool = make_pool(UNREACHABLE, timeout=1)
     try:
-        with pytest.raises(IndexUnavailable):
+        with pytest.raises(StoreUnavailable):
             PgPolicyIndex(pool, HashEmbedder()).search("troca", 3)
-        with pytest.raises(IndexUnavailable):
+        with pytest.raises(StoreUnavailable):
             PgCatalogRepository(pool, HashEmbedder()).search("violao", CatalogFilter(), 3)
     finally:
         pool.close()
@@ -57,7 +58,7 @@ def test_unreachable_db_fails_catalog_writes_as_unavailable() -> None:
             lambda: writer.own("a"),
             writer.admin_total,
         ):
-            with pytest.raises(IndexUnavailable):
+            with pytest.raises(StoreUnavailable):
                 write()
     finally:
         pool.close()

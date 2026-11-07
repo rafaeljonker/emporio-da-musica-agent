@@ -1,18 +1,26 @@
 from decimal import Decimal
 
-import pytest
-
 from emporio.catalog.application.get_product import GetProduct
 from emporio.catalog.application.list_promotions import ListPromotions
 from emporio.catalog.application.ports import CatalogFilter
 from emporio.catalog.application.quote_installments import QuoteInstallments
 from emporio.catalog.application.search_products import SearchProducts
-from emporio.catalog.domain.errors import ProductNotFound
-from emporio.catalog.domain.product import ProductStatus
+from emporio.catalog.domain.errors import CatalogErrorCode
+from emporio.catalog.domain.installments import InstallmentPlan
+from emporio.catalog.domain.pricing import PriceQuote
+from emporio.catalog.domain.product import Product, ProductStatus
 from emporio.catalog.domain.search import Exact
 from emporio.shared.money import Money
+from emporio.shared.result import Err, Ok, Result
 from tests.unit.catalog.factories import category, m, product, promo
 from tests.unit.catalog.fakes import FakeCatalogRepository
+
+
+def found(
+    result: Result[tuple[Product, PriceQuote], CatalogErrorCode],
+) -> tuple[Product, PriceQuote]:
+    assert isinstance(result, Ok)
+    return result.value
 
 
 def test_get_product_quotes_with_active_promotion() -> None:
@@ -24,8 +32,8 @@ def test_get_product_quotes_with_active_promotion() -> None:
             promo(id=2, product_id=1, percent="20"),
         ),
     )
-    found, quote = GetProduct(repo)(1)
-    assert found.id == 1
+    item, quote = found(GetProduct(repo)(1))
+    assert item.id == 1
     assert quote.final == m("800")
     assert quote.promotion is not None
     assert quote.promotion.id == 2
@@ -34,7 +42,7 @@ def test_get_product_quotes_with_active_promotion() -> None:
 
 def test_get_product_without_promotion_has_pix() -> None:
     repo = FakeCatalogRepository((product(id=1, price="1000"),))
-    _, quote = GetProduct(repo)(1)
+    _, quote = found(GetProduct(repo)(1))
     assert quote.final == m("1000")
     assert quote.pix == m("950")
 
@@ -45,12 +53,11 @@ def test_get_product_picks_highest_active_percent() -> None:
         (),
         (promo(id=1, product_id=1, percent="10"), promo(id=2, product_id=1, percent="15")),
     )
-    assert GetProduct(repo)(1)[1].final == m("850")
+    assert found(GetProduct(repo)(1))[1].final == m("850")
 
 
 def test_get_product_not_found() -> None:
-    with pytest.raises(ProductNotFound):
-        GetProduct(FakeCatalogRepository())(99)
+    assert GetProduct(FakeCatalogRepository())(99) == Err(CatalogErrorCode.PRODUCT_NOT_FOUND)
 
 
 def test_list_promotions_only_active_on_available_sorted() -> None:
@@ -76,8 +83,12 @@ def test_list_promotions_only_active_on_available_sorted() -> None:
 
 
 def test_quote_installments_defaults_to_max_and_accepts_count() -> None:
-    assert QuoteInstallments()(m("1200")).count == 12
-    assert QuoteInstallments()(m("1200"), 3).count == 3
+    assert QuoteInstallments()(m("1200")) == Ok(InstallmentPlan(12, m("100")))
+    assert QuoteInstallments()(m("1200"), 3) == Ok(InstallmentPlan(3, m("400")))
+
+
+def test_quote_installments_past_twelve_is_err_installments_not_allowed() -> None:
+    assert QuoteInstallments()(m("1200"), 13) == Err(CatalogErrorCode.INSTALLMENTS_NOT_ALLOWED)
 
 
 def test_search_products_delegates_to_domain() -> None:

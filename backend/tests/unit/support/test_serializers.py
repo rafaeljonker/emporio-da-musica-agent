@@ -1,6 +1,6 @@
 from datetime import UTC, date, datetime
 
-from emporio.catalog.domain.installments import installment_plan
+from emporio.catalog.domain.installments import InstallmentPlan
 from emporio.catalog.domain.pricing import quote_price
 from emporio.catalog.domain.search import Candidates, Exact, NoMatch
 from emporio.orders.domain.order import OrderItem
@@ -124,7 +124,7 @@ def test_policy_hits_drop_score():
 
 
 def test_installments_json():
-    out = installments_json(installment_plan(m("1200"), 12))
+    out = installments_json(InstallmentPlan(12, m("100")))
     assert out == {"count": 12, "parcel": "R$ 100"}
 
 

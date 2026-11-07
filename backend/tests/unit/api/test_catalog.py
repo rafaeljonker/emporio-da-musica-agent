@@ -5,7 +5,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from emporio.api.app import create_app
-from emporio.support.application.ports import ProductInput, RejectionCode
+from emporio.catalog.application.admin import ProductInput
+from emporio.catalog.domain.errors import CatalogErrorCode
 from emporio.support.application.warmup import WarmMode
 from emporio.support.infrastructure.warmup import ReadyWarmup
 from tests.fakes.fake_agent import FakeAgent
@@ -176,14 +177,14 @@ def test_create_requires_json(client: TestClient, catalog: FakeCatalogAdmin) -> 
 
 def test_create_unknown_category_is_422(client: TestClient, catalog: FakeCatalogAdmin) -> None:
     login(client)
-    catalog.reject = "unknown_category"
+    catalog.reject = CatalogErrorCode.UNKNOWN_CATEGORY
     response = client.post("/api/catalog/products", json=_with(category_id=99))
     assert (response.status_code, response.json()) == (422, {"detail": "unknown_category"})
 
 
 def test_put_foreign_or_seed_product_is_404(client: TestClient, catalog: FakeCatalogAdmin) -> None:
     login(client)
-    catalog.reject = "not_found"
+    catalog.reject = CatalogErrorCode.PRODUCT_NOT_OWNED
     response = client.put("/api/catalog/products/95", json=BODY)
     assert (response.status_code, response.json()) == (404, {"detail": "not_found"})
     assert [(c[0], c[2]) for c in catalog.calls] == [("update", 95)]
@@ -203,17 +204,17 @@ def test_put_own_product_returns_200(client: TestClient) -> None:
 
 def test_catalog_full_is_409(client: TestClient, catalog: FakeCatalogAdmin) -> None:
     login(client)
-    catalog.reject = "catalog_full"
+    catalog.reject = CatalogErrorCode.CATALOG_FULL
     response = client.post("/api/catalog/products", json=BODY)
     assert (response.status_code, response.json()) == (409, {"detail": "catalog_full"})
 
 
 @pytest.mark.parametrize("code", ["name_taken_by_store", "promo_claim"])
 def test_product_text_rejections_are_422(
-    client: TestClient, catalog: FakeCatalogAdmin, code: RejectionCode
+    client: TestClient, catalog: FakeCatalogAdmin, code: str
 ) -> None:
     login(client)
-    catalog.reject = code
+    catalog.reject = CatalogErrorCode(code)
     response = client.post("/api/catalog/products", json=BODY)
     assert (response.status_code, response.json()) == (422, {"detail": code})
 
@@ -256,7 +257,7 @@ def test_description_keeps_line_breaks(client: TestClient, catalog: FakeCatalogA
 
 def test_unavailable_catalog_is_503(client: TestClient, catalog: FakeCatalogAdmin) -> None:
     login(client)
-    catalog.reject = "catalog_unavailable"
+    catalog.reject = CatalogErrorCode.CATALOG_UNAVAILABLE
     created = client.post("/api/catalog/products", json=BODY)
     listed = client.get("/api/catalog/products/mine")
     assert (created.status_code, created.json()) == (503, {"detail": "catalog_unavailable"})

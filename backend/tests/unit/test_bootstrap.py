@@ -120,8 +120,8 @@ def test_fake_model_wires_scripted_model_and_store_scope(monkeypatch: pytest.Mon
 
 
 def test_build_agent_wires_catalog_admin(monkeypatch: pytest.MonkeyPatch) -> None:
+    from emporio.catalog.application.admin import CatalogAdminService
     from emporio.catalog.infrastructure.pg_catalog_writer import PgCatalogWriter
-    from emporio.support.infrastructure.catalog_admin import CatalogAdminService
 
     embedder = object()
     writers: list[tuple[object, object]] = []

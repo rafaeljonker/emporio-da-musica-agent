@@ -25,6 +25,9 @@ from emporio.catalog.application.get_product import GetProduct
 from emporio.catalog.application.list_promotions import ListPromotions
 from emporio.catalog.application.quote_installments import QuoteInstallments
 from emporio.catalog.application.search_products import SearchProducts
+from emporio.catalog.domain.errors import CatalogErrorCode
+from emporio.catalog.domain.installments import InstallmentPlan
+from emporio.catalog.domain.pricing import PriceQuote
 from emporio.catalog.domain.product import Product, ProductStatus
 from emporio.catalog.domain.search import Candidates, Exact, SearchResult
 from emporio.catalog.infrastructure.csv_catalog_repository import CsvCatalogRepository
@@ -45,6 +48,7 @@ from emporio.policies.infrastructure.pdf_sections import PdfPolicySource
 from emporio.policies.infrastructure.pg_policy_index import PgPolicyIndex
 from emporio.shared.clock import FixedClock, SystemClock
 from emporio.shared.money import Money
+from emporio.shared.result import Ok, Result
 from emporio.support.application.ports import Reply
 from emporio.support.domain.channel_identity import ChannelIdentity
 from emporio.support.domain.scope import Scope
@@ -62,6 +66,11 @@ ORDER_ID = 5
 REGRET_CUSTOMER = 14
 
 
+def _count(plan: Result[InstallmentPlan, CatalogErrorCode]) -> int:
+    assert isinstance(plan, Ok)
+    return plan.value.count
+
+
 def _products(found: SearchResult) -> tuple[Product, ...]:
     match found:
         case Exact(product):
@@ -77,7 +86,13 @@ def _derive_facts(pool: ConnectionPool, embedder: E5Embedder, settings: Settings
     catalog = PgCatalogRepository(pool, embedder)
     orders = CsvOrderRepository()
     customers = CsvCustomerRepository()
-    search, get_product = SearchProducts(catalog), GetProduct(catalog)
+    search, get = SearchProducts(catalog), GetProduct(catalog)
+
+    def get_product(product_id: int) -> tuple[Product, PriceQuote]:
+        found = get(product_id)
+        assert isinstance(found, Ok)
+        return found.value
+
     today = FixedClock(settings.store_today)
 
     def quote(product: Product) -> Money:
@@ -115,7 +130,7 @@ def _derive_facts(pool: ConnectionPool, embedder: E5Embedder, settings: Settings
         "gd20_pix": pix.format_brl(),
         "gd20_pix_whole": Money(pix.amount.to_integral_value(rounding="ROUND_DOWN")).format_brl(),
         "regret14": "yes" if regret14.regret_eligible or regret14.defect_eligible else "no",
-        "installments900": str(QuoteInstallments()(Money(Decimal(900))).count),
+        "installments900": str(_count(QuoteInstallments()(Money(Decimal(900))))),
         "order5_email": customer.email,
         "order5_status": order.status.value,
         "order5_tracking": order.tracking_code or "",

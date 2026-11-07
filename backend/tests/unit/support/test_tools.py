@@ -8,10 +8,7 @@ from emporio.catalog.application.list_promotions import ListPromotions
 from emporio.catalog.application.quote_installments import QuoteInstallments
 from emporio.catalog.application.recommend_products import RecommendProducts
 from emporio.catalog.application.search_products import SearchProducts
-from emporio.catalog.domain.errors import ProductNotFound
-from emporio.catalog.domain.installments import InvalidInstallments
 from emporio.catalog.domain.product import Product, ProductStatus
-from emporio.db import IndexUnavailable
 from emporio.orders.application.check_return_eligibility import CheckReturnEligibility
 from emporio.orders.application.get_order_status import GetOrderStatus
 from emporio.orders.application.list_customer_orders import ListCustomerOrders
@@ -20,7 +17,7 @@ from emporio.orders.domain.identity import IdentityMismatch
 from emporio.policies.application.search_policies import SearchPolicies
 from emporio.policies.application.store_now import StoreNow
 from emporio.shared.clock import FixedClock
-from emporio.shared.errors import DomainError
+from emporio.shared.errors import DomainError, StoreUnavailable
 from emporio.support.infrastructure.agent import tools
 from emporio.support.infrastructure.agent.context import TurnContext
 from emporio.support.infrastructure.agent.tools import Toolbox
@@ -130,17 +127,19 @@ def test_calc_installments_error_names_the_maximum() -> None:
     [
         (IdentityMismatch(), FOREIGN),
         (OrderNotFound(1), FOREIGN),
-        (InvalidInstallments(13), "Dado inválido."),
-        (IndexUnavailable(), "Busca indisponível agora; ofereça encaminhar para a equipe."),
-        (ProductNotFound(1), "Produto não encontrado."),
+        (StoreUnavailable(), "Busca indisponível agora; ofereça encaminhar para a equipe."),
     ],
 )
-def test_domain_errors_become_tool_text(error: DomainError, text: str) -> None:
+def test_domain_errors_become_tool_text(error: Exception, text: str) -> None:
     @tools._safe
     def boom() -> str:
         raise error
 
     assert str(boom()).startswith(text)
+
+
+def test_unknown_product_is_product_not_found_text() -> None:
+    assert tools.get_product(make_box(), ANON, product_id=99) == "Produto não encontrado."
 
 
 def test_calc_installments_huge_total_returns_text() -> None:
