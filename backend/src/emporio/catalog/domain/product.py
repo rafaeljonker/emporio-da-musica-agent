@@ -40,3 +40,28 @@ def search_document(
     """The text a product is found by (full text and embedding)."""
     joined = "; ".join(f"{k}: {v}" for k, v in specs)
     return f"{name}. {category}. {description} {joined}".strip()
+
+
+@dataclass(frozen=True, slots=True)
+class ProductDraft:
+    """A product as a demo user submits it; the store assigns the id."""
+
+    name: str
+    category_id: int
+    description: str
+    price: Money
+    stock: int
+    status: ProductStatus
+    specs: tuple[tuple[str, str], ...]
+
+    def with_id(self, product_id: int) -> Product:
+        return Product(
+            product_id,
+            self.name,
+            self.category_id,
+            self.description,
+            self.price,
+            self.stock,
+            self.status,
+            self.specs,
+        )

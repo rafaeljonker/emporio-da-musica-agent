@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from emporio.catalog.domain.pricing import Promotion
-from emporio.catalog.domain.product import Category, Product
+from emporio.catalog.domain.product import Category, Product, ProductDraft
 from emporio.shared.money import Money
 
 
@@ -34,3 +34,19 @@ class CatalogRepository(Protocol):
     def search(self, query: str, flt: CatalogFilter, k: int) -> Sequence[Product]:
         """At most `k` products passing `flt`, best first."""
         ...
+
+
+class CatalogWriter(Protocol):
+    """Demo-user writes; only `source='admin'` rows owned by `owner` are ever touched."""
+
+    def create(self, owner: str, draft: ProductDraft) -> Product: ...
+
+    def update(self, owner: str, product_id: int, draft: ProductDraft) -> Product | None:
+        """None when the row is missing, a seed row or another owner's."""
+        ...
+
+    def own(self, owner: str) -> Sequence[Product]:
+        """Newest first."""
+        ...
+
+    def admin_total(self) -> int: ...
