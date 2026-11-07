@@ -1,6 +1,7 @@
 // Pure helpers for the Catálogo dialog; the bounds mirror emporio.api.catalog.ProductIn.
 import type { Product, ProductBody, ProductStatus } from '@/client/shared/lib/apiTypes'
 import { copy } from '@/client/shared/lib/copy'
+import { z } from 'zod'
 
 export interface ProductFields {
   name: string
@@ -13,8 +14,6 @@ export interface ProductFields {
   /** One "Chave: valor" per line. */
   specs: string
 }
-
-export type FieldErrors = Partial<Record<keyof ProductFields, string>>
 
 export const EMPTY: ProductFields = {
   name: '',
@@ -33,7 +32,7 @@ const INVISIBLE = '\u200b-\u200f\u202a-\u202e\u2066-\u2069'
 const LINE = new RegExp(`^[^\\u0000-\\u001f\\u007f${INVISIBLE}]*$`)
 /** Free text: also keeps tab and line breaks. */
 const TEXT = new RegExp(`^[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f${INVISIBLE}]*$`)
-const STATUSES: readonly ProductStatus[] = ['active', 'discontinued', 'coming_soon']
+const STATUSES = ['active', 'discontinued', 'coming_soon'] as const satisfies readonly ProductStatus[]
 // Integer part with pt-BR thousand dots ("1.234") or plain ("1234"), then , or . and 1-2 cents digits.
 const PRICE = /^(\d{1,3}(?:\.\d{3})+|\d+)(?:[,.](\d{1,2}))?$/
 
@@ -69,26 +68,40 @@ export function parseSpecs(text: string): Record<string, string> | null {
   return specs
 }
 
-export function validate(fields: ProductFields): { body?: ProductBody; errors: FieldErrors } {
-  const e = copy.catalog.errors
-  const errors: FieldErrors = {}
-  const name = fields.name.trim()
-  const description = fields.description.trim()
-  const price = toPrice(fields.price)
-  const stock = Number(fields.stock)
-  const specs = parseSpecs(fields.specs)
-  if (name.length < 2 || name.length > 120 || !LINE.test(name)) errors.name = e.name
-  if (!/^[1-9]\d{0,8}$/.test(fields.categoryId)) errors.categoryId = e.categoryId
-  if (description.length > 2000 || !TEXT.test(description)) errors.description = e.description
-  if (price === null) errors.price = e.price
-  if (!/^\d{1,6}$/.test(fields.stock.trim()) || stock > 100_000) errors.stock = e.stock
-  if (specs === null) errors.specs = e.specs
-  if (Object.keys(errors).length || price === null || specs === null || !STATUSES.includes(fields.status)) {
-    return { errors }
-  }
-  const body = { name, category_id: Number(fields.categoryId), description, price, stock, status: fields.status, specs }
-  return { body, errors }
-}
+const e = copy.catalog.errors
+const trim = (s: string) => s.trim()
+
+/**
+ * The form's every rule and message: input strings in (`z.input`), the API body out. A bad
+ * `status` blocks with no message (the select offers only valid ones).
+ */
+export const productSchema = z
+  .object({
+    name: z
+      .string()
+      .transform(trim)
+      .refine((n) => n.length >= 2 && n.length <= 120 && LINE.test(n), e.name),
+    categoryId: z.string().regex(/^[1-9]\d{0,8}$/, e.categoryId),
+    description: z
+      .string()
+      .transform(trim)
+      .refine((d) => d.length <= 2000 && TEXT.test(d), e.description),
+    price: z.string().transform((s, ctx) => toPrice(s) ?? (ctx.addIssue({ code: 'custom', message: e.price }), z.NEVER)),
+    stock: z.string().refine((s) => /^\d{1,6}$/.test(s.trim()) && Number(s) <= 100_000, e.stock),
+    status: z.enum(STATUSES),
+    specs: z.string().transform((s, ctx) => parseSpecs(s) ?? (ctx.addIssue({ code: 'custom', message: e.specs }), z.NEVER)),
+  })
+  .transform(
+    (f): ProductBody => ({
+      name: f.name,
+      category_id: Number(f.categoryId),
+      description: f.description,
+      price: f.price,
+      stock: Number(f.stock),
+      status: f.status,
+      specs: f.specs,
+    }),
+  )
 
 /** A saved product back into the form, for "Editar". */
 export const toFields = (p: Product): ProductFields => ({

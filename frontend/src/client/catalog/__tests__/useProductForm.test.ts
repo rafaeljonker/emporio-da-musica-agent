@@ -85,18 +85,20 @@ describe('useProductForm', () => {
   })
 
   it('is saving while the request runs and ignores a second submit', async () => {
-    let answer = (_: Response) => {}
+    let answer: (res: Response) => void = () => {}
     const fetch = vi.fn(() => new Promise<Response>((resolve) => (answer = resolve)))
     vi.stubGlobal('fetch', fetch)
     const { result } = setup(product())
 
-    void act(() => result.current.onSubmit())
+    const first = result.current.onSubmit()
     await waitFor(() => expect(result.current.state).toBe('saving'))
     await submit(result.current)
     expect(fetch).toHaveBeenCalledTimes(1)
 
-    await act(async () => answer(jsonResponse(200, product())))
-    await waitFor(() => expect(result.current.state).toBe('editing'))
+    await act(async () => {
+      answer(jsonResponse(200, product()))
+      await first
+    })
+    expect(result.current.state).toBe('editing')
   })
-
 })

@@ -15,7 +15,7 @@ function routes(table: Record<string, (() => Promise<Response>)[]>) {
     vi.fn((path: string) => {
       const rs = table[path]
       const next = rs.length > 1 ? rs.shift() : rs[0]
-      return next()
+      return next ? next() : Promise.reject(new TypeError('Failed to fetch'))
     }),
   )
 }
@@ -60,7 +60,7 @@ describe('useCatalogDialog', () => {
   })
 
   it('a row saved before the list arrives beats the late server list', async () => {
-    let answer = (_: Response) => {}
+    let answer: (res: Response) => void = () => {}
     routes({
       '/api/catalog/categories': [json(200, CATEGORIES)],
       '/api/catalog/products/mine': [() => new Promise<Response>((resolve) => (answer = resolve))],

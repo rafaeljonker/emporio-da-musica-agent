@@ -54,7 +54,6 @@
       ],
       "excludeFiles": [
         "src/client/shared/components/ui/**",
-        "src/client/catalog/useCases/catalogDialog/CatalogDialog.tsx",
         "src/client/chat/useCases/chatShell/ChatShell.tsx",
         "src/client/chat/useCases/demoStrip/DemoStrip.tsx",
         "src/client/chat/useCases/metricsDetails/MetricsDetails.tsx",
