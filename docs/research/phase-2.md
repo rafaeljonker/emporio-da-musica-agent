@@ -31,12 +31,12 @@ Date: 2026-11-05. Local facts cite file paths; PyPI versions fetched 2026-11-05 
 
 ## 5. Customer identity
 - Phone: keep digits only; strip a leading `55` when length is 12 or 13; compare the last 10–11 digits (DDD + number). CSV format "(67) 98432-1098". Email: `strip().casefold()`.
-- Match when the order's `customer_id` matches the supplied phone OR email. On any mismatch raise `IdentityMismatch` with no data in the message, and the tool answer must not hint at which field failed or whether the order exists.
+- Match when the order's `customer_id` matches the supplied phone OR email. On any mismatch fail with no data (since the 2026-11-07 refactor: `Err(OrdersErrorCode.ORDER_NOT_FOUND)`, see ADR 0013), and the tool answer must not hint at which field failed or whether the order exists.
 
 ## 6. Domain modeling
 - Frozen `@dataclass(frozen=True, slots=True)`, per `.claude/rules/python-style.md`. Pydantic only at the edges. attrs is not needed (no deps).
 - `StrEnum` for `ProductStatus`, `OrderStatus`, `PaymentMethod` (`pix`, `credit_6x`, ... parsed in the repository).
-- Domain exceptions inherit from a shared `DomainError`: `ProductNotFound`, `OrderNotFound`, `IdentityMismatch`, `InvalidInstallments`. Ruff TRY requires them, and no bare `ValueError`.
+- Expected failures were domain exceptions at this phase; since the 2026-11-07 refactor they are `Result` values with one error-code enum per context ([ADR 0013](../decisions/0013-domain-errors-as-values.md)). No bare `ValueError`.
 - Ports: `typing.Protocol` in `application/`. Under basedpyright strict, annotate everything, avoid `Any`, and use `Sequence[Product]` returns. Tuple fields instead of lists keep the dataclasses truly immutable.
 
 ## 7. Testing
@@ -50,5 +50,5 @@ Date: 2026-11-05. Local facts cite file paths; PyPI versions fetched 2026-11-05 
 2. Add `rapidfuzz` (3.14.6) as the only new runtime dependency; normalize with NFKD plus casefold plus a small plural stemmer in `shared/text.py`; search returns `Exact | Candidates | NoMatch`.
 3. Money: `Decimal(str)` with ROUND_HALF_UP on 2 places; manual pt-BR formatting; installment rule per 3.1 (parcel minimum R$ 50 for 2–3x, 80 for 4–6x, 100 for 7–12x), documented as an interpretation; promos never combine with the PIX 5%.
 4. Clock Protocol with `ZoneInfo("America/Campo_Grande")`, `FixedClock` for tests, `STORE_TODAY` injected; delivery date for delivered orders = `estimated_delivery`, with an explicit caveat in the reply.
-5. Identity: digits-only phone (strip 55), casefolded email; opaque `IdentityMismatch`.
+5. Identity: digits-only phone (strip 55), casefolded email; one opaque not-found failure.
 6. Frozen dataclasses, `StrEnum`, domain exceptions, `Protocol` ports; add `--import-mode=importlib` and `tests/unit/<context>/` now; hypothesis (dev) only for money/installments.

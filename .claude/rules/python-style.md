@@ -6,7 +6,7 @@ paths:
 - Domain entities are `@dataclass(frozen=True)`, never loose `dict`s.
 - Pydantic only at the edges (API, tools, MCP, config).
 - No `typing.Any`, no `cast`; `# type: ignore` only with a justification on the same line.
-- Raise own domain exceptions (`OrderNotFound`, `IdentityMismatch`), not a generic `ValueError`.
+- Expected failures return `Result` with a domain error code (`OrdersErrorCode.ORDER_NOT_FOUND`), see `backend-errors.md`; raise only for the unexpected, never a generic `ValueError`.
 - Functions: explicit name, one responsibility, no boolean flag that changes behavior.
 - Date and time always via `emporio.shared.clock`, never `datetime.now()` directly.
 - Use `logging`, not `print`.
