@@ -1,7 +1,7 @@
 from pydantic import SecretStr
 
 from emporio.platform.config.errors import LangfuseRequired, MissingSetting, WebSettingsRequired
-from emporio.platform.config.settings import Provider, Settings, _read_settings, _secret_text
+from emporio.platform.config.settings import Provider, Settings, _read_settings, secret_text
 
 _REQUIRED_VARIABLES = {
     Provider.GEMMA: ("VLLM_BASE_URL", "VLLM_API_KEY"),
@@ -15,7 +15,7 @@ _REQUIRED_VARIABLES = {
 def _is_set(settings: Settings, variable: str) -> bool:
     value = getattr(settings, variable.lower())
     if isinstance(value, SecretStr):
-        value = value.get_secret_value()
+        value = secret_text(value)
     return value is not None and bool(value.strip())
 
 
@@ -79,7 +79,7 @@ def require_web_settings(settings: Settings) -> None:
     ]
     if not _is_set(settings, "SESSION_SECRET"):
         problems.append("SESSION_SECRET is not set (`make web-keys` writes one)")
-    elif len(_secret_text(settings.session_secret)) < _MIN_SESSION_SECRET:
+    elif len(secret_text(settings.session_secret)) < _MIN_SESSION_SECRET:
         problems.append(f"SESSION_SECRET must have at least {_MIN_SESSION_SECRET} characters")
     if settings.rate_limit_multiplier > 1 and not settings.fake_model:
         problems.append("RATE_LIMIT_MULTIPLIER > 1 needs EMPORIO_FAKE_MODEL=1")

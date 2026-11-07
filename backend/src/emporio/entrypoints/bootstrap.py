@@ -10,7 +10,6 @@ from contextlib import ExitStack
 from dataclasses import dataclass
 
 from psycopg_pool import ConnectionPool
-from pydantic import SecretStr
 from starlette.applications import Starlette
 
 from emporio.catalog.application.admin import CatalogAdmin, CatalogAdminService
@@ -31,7 +30,13 @@ from emporio.orders.infrastructure.csv_order_repository import (
     CsvOrderRepository,
 )
 from emporio.platform.clock import SystemClock
-from emporio.platform.config import ConfigError, Provider, Settings, mcp_token_identities
+from emporio.platform.config import (
+    ConfigError,
+    Provider,
+    Settings,
+    mcp_token_identities,
+    secret_text,
+)
 from emporio.platform.db import connect, database_url, make_pool
 from emporio.platform.embeddings import E5Embedder, TextEmbedder
 from emporio.platform.migrate import apply_migrations, setup_checkpointer
@@ -75,10 +80,6 @@ DEMO_CUSTOMER_IDS = (14, 5, 2, 8, 3, 7, 11, 19)
 class UnknownCustomer(ConfigError):
     def __init__(self, customer_id: int) -> None:
         super().__init__(f"cliente {customer_id} não encontrado")
-
-
-def _secret(value: SecretStr | None) -> str:
-    return value.get_secret_value() if value else ""  # load_settings guarantees it is set
 
 
 def _store_scope(_messages: object) -> Scope:
@@ -147,8 +148,8 @@ def build_agent(settings: Settings) -> Agent:
         stack.callback(shutdown_tracing)
         tracer = LangfuseTracerFactory(
             langfuse,
-            _secret(settings.langfuse_salt),
-            _secret(settings.langfuse_public_key),
+            secret_text(settings.langfuse_salt),
+            secret_text(settings.langfuse_public_key),
         )
 
         def first_name(customer_id: int) -> str | None:
@@ -204,7 +205,7 @@ def build_warmup(settings: Settings, reply_p50: Callable[[], float | None]) -> W
             ready_ttl_seconds=settings.warm_ready_ttl_seconds,
         )
     if settings.provider is Provider.GEMMA:
-        probe = vllm_health_probe(settings.vllm_base_url or "", _secret(settings.vllm_api_key))
+        probe = vllm_health_probe(settings.vllm_base_url or "", secret_text(settings.vllm_api_key))
         return ProbeWarmup(
             probe,
             WarmMode.MODAL_GPU,

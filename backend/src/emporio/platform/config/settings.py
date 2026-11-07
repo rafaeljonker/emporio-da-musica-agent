@@ -116,5 +116,5 @@ def load_mcp_settings() -> Settings:
     return _read_settings()
 
 
-def _secret_text(value: SecretStr | None) -> str:
+def secret_text(value: SecretStr | None) -> str:
     return value.get_secret_value() if value else ""

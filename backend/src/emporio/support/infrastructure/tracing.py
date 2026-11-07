@@ -25,9 +25,13 @@ from langfuse.types import (
     OtelSpanIdentifier,
     OtelSpanPatch,
 )
-from pydantic import SecretStr
 
-from emporio.platform.config import LangfuseUnreachable, Settings, require_langfuse_settings
+from emporio.platform.config import (
+    LangfuseUnreachable,
+    Settings,
+    require_langfuse_settings,
+    secret_text,
+)
 from emporio.support.domain.channel_identity import ChannelIdentity
 
 logger = logging.getLogger("emporio.support.tracing")
@@ -128,10 +132,6 @@ def pseudonym(salt: str, customer_id: int | None) -> str:
     return f"cust-{digest[:10]}"
 
 
-def _secret(value: SecretStr | None) -> str:
-    return value.get_secret_value() if value else ""
-
-
 class LangfuseTracerFactory:
     def __init__(self, client: Langfuse, salt: str, public_key: str) -> None:
         self._client = client
@@ -165,8 +165,8 @@ def make_langfuse(settings: Settings, customer_names: Sequence[str] = ()) -> Lan
     global _client
     require_langfuse_settings(settings)
     client = Langfuse(
-        public_key=_secret(settings.langfuse_public_key),
-        secret_key=_secret(settings.langfuse_secret_key),
+        public_key=secret_text(settings.langfuse_public_key),
+        secret_key=secret_text(settings.langfuse_secret_key),
         base_url=settings.langfuse_base_url,
         tracing_enabled=True,
         sample_rate=1.0,

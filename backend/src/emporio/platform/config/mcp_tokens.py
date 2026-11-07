@@ -1,5 +1,5 @@
 from emporio.platform.config.errors import ConfigError
-from emporio.platform.config.settings import Settings, _secret_text
+from emporio.platform.config.settings import Settings, secret_text
 
 _MIN_MCP_TOKEN = 32
 
@@ -14,7 +14,7 @@ class InvalidMcpTokens(ConfigError):
 def mcp_token_identities(settings: Settings) -> dict[str, int | None]:
     """Parse MCP_TOKENS into token -> customer id (None = anonymous)."""
     identities: dict[str, int | None] = {}
-    raw = _secret_text(settings.mcp_tokens).strip()
+    raw = secret_text(settings.mcp_tokens).strip()
     if not raw:
         return identities
     for position, pair in enumerate(raw.split(","), start=1):

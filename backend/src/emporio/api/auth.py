@@ -13,7 +13,7 @@ from emporio.api.guards import (
     require_json,
     require_session,
 )
-from emporio.platform.config import Settings
+from emporio.platform.config import Settings, secret_text
 from emporio.support.application.warmup import Warmup
 
 
@@ -32,7 +32,7 @@ def build_auth_router(settings: Settings, warmup: Warmup) -> APIRouter:
     # Without PROXY_SECRET every client shares the proxy IP, so keep an overall backstop.
     per_ip = SlidingWindow(5 * settings.rate_limit_multiplier, 60)
     overall = SlidingWindow(30 * settings.rate_limit_multiplier, 60)
-    demo_password = settings.demo_password.get_secret_value() if settings.demo_password else None
+    demo_password = secret_text(settings.demo_password) or None
 
     @router.post("/login", dependencies=[Depends(require_json)])
     def login(body: LoginIn, request: Request) -> dict[str, object]:

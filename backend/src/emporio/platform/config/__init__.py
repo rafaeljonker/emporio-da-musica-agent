@@ -17,7 +17,7 @@ from emporio.platform.config.errors import (
     WebSettingsRequired,
 )
 from emporio.platform.config.mcp_tokens import InvalidMcpTokens, mcp_token_identities
-from emporio.platform.config.settings import Provider, Settings, load_mcp_settings
+from emporio.platform.config.settings import Provider, Settings, load_mcp_settings, secret_text
 
 __all__ = [
     "ConfigError",
@@ -37,4 +37,5 @@ __all__ = [
     "require_langfuse_settings",
     "require_provider_settings",
     "require_web_settings",
+    "secret_text",
 ]

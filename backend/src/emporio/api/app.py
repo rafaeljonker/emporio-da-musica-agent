@@ -16,7 +16,12 @@ from emporio.api.identity import build_identity_router
 from emporio.api.mcp_auth import McpBearerAuth
 from emporio.api.warm import build_warm_router
 from emporio.catalog.application.admin import CatalogAdmin
-from emporio.platform.config import Settings, mcp_token_identities, require_web_settings
+from emporio.platform.config import (
+    Settings,
+    mcp_token_identities,
+    require_web_settings,
+    secret_text,
+)
 from emporio.support.application.ports import ChatAgent
 from emporio.support.application.warmup import Warmup
 
@@ -32,7 +37,7 @@ def create_app(
 ) -> FastAPI:
     """`mcp` (the streamable HTTP app at /mcp) is served only when MCP_TOKENS is set."""
     require_web_settings(settings)
-    secret = settings.session_secret.get_secret_value() if settings.session_secret else ""
+    secret = secret_text(settings.session_secret)
     identities = mcp_token_identities(settings)
     mcp = mcp if identities else None
 

@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from fastapi import Request
 
 from emporio.api.errors import ApiErrorCode, http_error
-from emporio.platform.config import Settings
+from emporio.platform.config import Settings, secret_text
 
 
 def require_json(request: Request) -> None:
@@ -22,7 +22,7 @@ def client_ip(request: Request, settings: Settings) -> str:
 
     The raw *.modal.run URL is public, so X-Client-IP or X-Forwarded-For alone could be forged.
     """
-    secret = settings.proxy_secret.get_secret_value() if settings.proxy_secret else ""
+    secret = secret_text(settings.proxy_secret)
     given = request.headers.get("x-proxy-auth", "")
     trusted = request.headers.get("x-client-ip", "").strip()
     if secret and trusted and hmac.compare_digest(given.encode(), secret.encode()):
