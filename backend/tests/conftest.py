@@ -8,8 +8,8 @@ from psycopg_pool import ConnectionPool
 from emporio.catalog.infrastructure.csv_catalog_repository import CsvCatalogRepository
 from emporio.catalog.infrastructure.pg_catalog_repository import PgCatalogRepository
 from emporio.catalog.infrastructure.pg_catalog_writer import PgCatalogWriter
-from emporio.db import connect, make_pool
-from emporio.migrate import apply_migrations
+from emporio.platform.db import connect, make_pool
+from emporio.platform.migrate import apply_migrations
 from tests.fakes.hash_embedder import HashEmbedder
 from tests.pg_guard import pg_skip_reason
 

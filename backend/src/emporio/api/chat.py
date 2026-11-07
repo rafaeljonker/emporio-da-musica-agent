@@ -15,7 +15,7 @@ from emporio.api.guards import (
     require_json,
     require_session,
 )
-from emporio.config import Settings
+from emporio.platform.config import Settings
 from emporio.support.application.ports import ChatAgent, TurnMetrics
 from emporio.support.domain.bubbles import pace_bubbles
 from emporio.support.domain.channel_identity import ChannelIdentity

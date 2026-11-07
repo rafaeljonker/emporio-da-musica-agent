@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
 from emporio.api.app import create_app
-from emporio.config import Settings
+from emporio.platform.config import Settings
 from emporio.support.application.warmup import WarmMode
 from emporio.support.infrastructure.warmup import ReadyWarmup
 from tests.fakes.fake_agent import FakeAgent

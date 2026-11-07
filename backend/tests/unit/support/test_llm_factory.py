@@ -1,7 +1,7 @@
 import pytest
 from pydantic import SecretStr
 
-from emporio.config import ConfigError, Provider, Settings
+from emporio.platform.config import ConfigError, Provider, Settings
 from emporio.support.infrastructure.llm.factory import make_chat_model, make_guard_model
 
 

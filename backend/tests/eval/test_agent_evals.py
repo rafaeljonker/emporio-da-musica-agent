@@ -33,8 +33,6 @@ from emporio.catalog.domain.search import Candidates, Exact, NoMatch, SearchResu
 from emporio.catalog.infrastructure.csv_catalog_repository import CsvCatalogRepository
 from emporio.catalog.infrastructure.pg_catalog_repository import PgCatalogRepository
 from emporio.catalog.infrastructure.pg_catalog_writer import PgCatalogWriter
-from emporio.config import Settings, load_mcp_settings, load_settings
-from emporio.embeddings import E5Embedder
 from emporio.orders.application.check_return_eligibility import CheckReturnEligibility
 from emporio.orders.application.list_customer_orders import ListCustomerOrders
 from emporio.orders.domain.errors import OrdersErrorCode
@@ -44,6 +42,8 @@ from emporio.orders.infrastructure.csv_order_repository import (
     CsvOrderRepository,
 )
 from emporio.platform.clock import SystemClock
+from emporio.platform.config import Settings, load_mcp_settings, load_settings
+from emporio.platform.embeddings import E5Embedder
 from emporio.policies.application.ingest_policies import IngestPolicies
 from emporio.policies.application.store_now import StoreNow
 from emporio.policies.infrastructure.holidays import STORE_HOLIDAYS

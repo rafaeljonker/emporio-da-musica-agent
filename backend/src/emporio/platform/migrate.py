@@ -5,8 +5,8 @@ import psycopg
 from langgraph.checkpoint.postgres import PostgresSaver
 from psycopg.rows import DictRow, dict_row
 
-from emporio.db import connect, database_url, register_vector_if_available
-from emporio.paths import MIGRATIONS_DIR
+from emporio.platform.db import connect, database_url, register_vector_if_available
+from emporio.platform.paths import MIGRATIONS_DIR
 
 log = logging.getLogger(__name__)
 

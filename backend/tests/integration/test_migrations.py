@@ -3,8 +3,8 @@ from pathlib import Path
 import psycopg
 import pytest
 
-from emporio.db import connect
-from emporio.migrate import apply_migrations
+from emporio.platform.db import connect
+from emporio.platform.migrate import apply_migrations
 
 pytestmark = pytest.mark.postgres
 

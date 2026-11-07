@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from fastapi import Request
 
 from emporio.api.errors import ApiErrorCode, http_error
-from emporio.config import Settings
+from emporio.platform.config import Settings
 
 
 def require_json(request: Request) -> None:

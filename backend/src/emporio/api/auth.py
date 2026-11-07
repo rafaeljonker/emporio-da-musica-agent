@@ -13,7 +13,7 @@ from emporio.api.guards import (
     require_json,
     require_session,
 )
-from emporio.config import Settings
+from emporio.platform.config import Settings
 from emporio.support.application.warmup import Warmup
 
 

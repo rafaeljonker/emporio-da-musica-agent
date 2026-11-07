@@ -2,7 +2,7 @@
 
 from decimal import Decimal
 
-from emporio.config import Provider, Settings
+from emporio.platform.config import Provider, Settings
 from emporio.support.infrastructure.agent.turn_probe import TurnProbe, to_ms
 
 

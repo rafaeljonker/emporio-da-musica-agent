@@ -2,7 +2,7 @@ import hashlib
 import math
 from collections.abc import Sequence
 
-from emporio.embeddings import EMBEDDING_DIM
+from emporio.platform.embeddings import EMBEDDING_DIM
 
 
 class HashEmbedder:

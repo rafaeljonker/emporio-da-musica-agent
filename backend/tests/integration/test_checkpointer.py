@@ -4,9 +4,9 @@ import pytest
 from langchain_core.messages import AIMessage
 from langgraph.checkpoint.postgres import PostgresSaver
 
-from emporio.config import Settings
-from emporio.db import database_url
-from emporio.migrate import setup_checkpointer
+from emporio.platform.config import Settings
+from emporio.platform.db import database_url
+from emporio.platform.migrate import setup_checkpointer
 from emporio.support.domain.channel_identity import ChannelIdentity
 from emporio.support.domain.scope import Scope
 from emporio.support.infrastructure.agent.graph import build_graph

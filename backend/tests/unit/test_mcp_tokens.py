@@ -1,7 +1,7 @@
 import pytest
 from pydantic import SecretStr
 
-from emporio.config import ConfigError, Settings, mcp_token_identities
+from emporio.platform.config import ConfigError, Settings, mcp_token_identities
 
 ANON = "a" * 32
 CUSTOMER = "c" * 40

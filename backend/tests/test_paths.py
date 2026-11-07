@@ -1,4 +1,4 @@
-from emporio import paths
+from emporio.platform import paths
 
 
 def test_case_data_files_are_present():

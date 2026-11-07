@@ -3,7 +3,7 @@ from collections.abc import Iterable
 
 import numpy as np
 
-from emporio.embeddings import EMBEDDING_DIM, E5Embedder
+from emporio.platform.embeddings import EMBEDDING_DIM, E5Embedder
 from tests.fakes.hash_embedder import HashEmbedder
 
 

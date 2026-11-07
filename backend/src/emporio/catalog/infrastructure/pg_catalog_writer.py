@@ -14,7 +14,7 @@ from emporio.catalog.infrastructure.pg_catalog_repository import (
     catalog_connection,
     product_from_row,
 )
-from emporio.embeddings import TextEmbedder
+from emporio.platform.embeddings import TextEmbedder
 from emporio.shared.errors import StoreUnavailable
 
 logger = logging.getLogger(__name__)

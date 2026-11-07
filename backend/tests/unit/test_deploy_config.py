@@ -2,7 +2,7 @@
 
 import ast
 
-from emporio.paths import REPO_ROOT
+from emporio.platform.paths import REPO_ROOT
 
 DEPLOY_DIR = REPO_ROOT / "deploy"
 

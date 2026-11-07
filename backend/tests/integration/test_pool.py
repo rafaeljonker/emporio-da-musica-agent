@@ -5,7 +5,7 @@ from psycopg_pool import ConnectionPool
 
 from emporio.catalog.application.ports import CatalogFilter
 from emporio.catalog.infrastructure.pg_catalog_repository import PgCatalogRepository
-from emporio.db import make_pool
+from emporio.platform.db import make_pool
 from emporio.policies.infrastructure.pdf_sections import read_policy_chunks
 from emporio.policies.infrastructure.pg_policy_index import PgPolicyIndex
 from emporio.shared.errors import StoreUnavailable

@@ -8,7 +8,7 @@ from emporio.api.errors import ApiErrorCode, http_error
 from emporio.api.guards import Session, SlidingWindow, client_ip, require_json, require_session
 from emporio.catalog.application.admin import CatalogAdmin, ProductInput, ProductView
 from emporio.catalog.domain.errors import CatalogErrorCode
-from emporio.config import Settings
+from emporio.platform.config import Settings
 from emporio.shared.result import Err, Ok, Result
 
 # Zero-width marks and bidi embeddings, overrides and isolates: text that renders unlike it reads.

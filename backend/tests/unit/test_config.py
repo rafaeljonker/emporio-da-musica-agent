@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 from pydantic import SecretStr
 
-from emporio.config import (
+from emporio.platform.config import (
     ConfigError,
     LangfuseRequired,
     Provider,
@@ -126,7 +126,7 @@ def test_mcp_settings_load_without_provider_vars():
 
 
 def test_provider_check_needs_the_provider_key_but_not_langfuse(monkeypatch: pytest.MonkeyPatch):
-    from emporio.config import load_provider_settings
+    from emporio.platform.config import load_provider_settings
 
     for name in _FAKE_LANGFUSE:
         monkeypatch.delenv(name)

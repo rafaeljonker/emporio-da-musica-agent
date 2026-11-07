@@ -18,7 +18,7 @@ def make_checkpointer(url: str, *, max_size: int = 4) -> PostgresSaver:
     """Saver on its own pool, opened at full size: it needs dict_row, which our positional
     adapters reject. Growing one connection at a time over a high-RTT proxy queues turns.
 
-    Tables come from `emporio.migrate`; close the pool through `saver.conn`.
+    Tables come from `emporio.platform.migrate`; close the pool through `saver.conn`.
     """
     pool = ConnectionPool(
         url,

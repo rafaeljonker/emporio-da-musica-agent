@@ -8,7 +8,7 @@ from emporio.catalog.application.ports import CatalogFilter
 from emporio.catalog.infrastructure.csv_catalog_repository import CsvCatalogRepository
 from emporio.catalog.infrastructure.pg_catalog_repository import PgCatalogRepository
 from emporio.catalog.infrastructure.pg_catalog_writer import PgCatalogWriter
-from emporio.embeddings import E5Embedder
+from emporio.platform.embeddings import E5Embedder
 
 pytestmark = [pytest.mark.eval, pytest.mark.postgres]
 

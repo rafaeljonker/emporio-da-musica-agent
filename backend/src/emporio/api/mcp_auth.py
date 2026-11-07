@@ -12,7 +12,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from emporio.api.errors import ApiErrorCode, error_response
 from emporio.api.guards import SlidingWindow, client_ip
-from emporio.config import Settings
+from emporio.platform.config import Settings
 
 _customer: ContextVar[int | None] = ContextVar("mcp_customer")
 _FAILURES_PER_MINUTE = 10

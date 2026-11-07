@@ -3,7 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from emporio.embeddings import EMBEDDING_DIM, E5Embedder
+from emporio.platform.embeddings import EMBEDDING_DIM, E5Embedder
 from emporio.policies.infrastructure.pdf_sections import read_policy_chunks
 
 pytestmark = pytest.mark.eval

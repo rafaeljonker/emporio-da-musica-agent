@@ -4,7 +4,7 @@ import pytest
 
 from emporio import cli
 from emporio.bootstrap import Agent
-from emporio.config import MissingSetting, Provider, Settings, WebSettingsRequired
+from emporio.platform.config import MissingSetting, Provider, Settings, WebSettingsRequired
 from emporio.support.application.ports import Reply
 from emporio.support.domain.channel_identity import ChannelIdentity
 from emporio.support.domain.scope import Scope

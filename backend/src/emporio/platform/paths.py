@@ -1,6 +1,6 @@
 from pathlib import Path
 
-REPO_ROOT: Path = Path(__file__).resolve().parents[3]
+REPO_ROOT: Path = Path(__file__).resolve().parents[4]
 DATA_DIR: Path = REPO_ROOT / "data"
 
 _CASE_CSV_KEYS = ("products", "promotions", "customers", "categories", "order_items", "orders")

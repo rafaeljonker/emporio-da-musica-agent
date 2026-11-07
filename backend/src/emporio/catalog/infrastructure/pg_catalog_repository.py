@@ -11,7 +11,7 @@ from psycopg_pool import ConnectionPool, PoolTimeout
 from emporio.catalog.application.ports import CatalogFilter
 from emporio.catalog.domain.pricing import Promotion
 from emporio.catalog.domain.product import Category, Product, ProductStatus
-from emporio.embeddings import TextEmbedder
+from emporio.platform.embeddings import TextEmbedder
 from emporio.shared.errors import StoreUnavailable
 from emporio.shared.money import Money
 

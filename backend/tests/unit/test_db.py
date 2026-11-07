@@ -1,6 +1,6 @@
 import pytest
 
-from emporio.db import DatabaseNotConfigured, database_url
+from emporio.platform.db import DatabaseNotConfigured, database_url
 
 
 def test_database_url_missing_raises_clear_error(monkeypatch: pytest.MonkeyPatch):

@@ -14,8 +14,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from emporio.config import ConfigError
-from emporio.paths import REPO_ROOT
+from emporio.platform.config import ConfigError
+from emporio.platform.paths import REPO_ROOT
 
 Route = Literal["native", "docker-nvidia", "docker-cpu"]
 NUM_CTX = 16384  # prompt plus tool schemas is about 3k tokens and grows with history

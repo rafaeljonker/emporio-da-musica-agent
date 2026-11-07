@@ -13,7 +13,7 @@ from collections.abc import Callable, Sequence
 from uuid import uuid4
 
 from emporio.bootstrap import build_agent, run_mcp
-from emporio.config import (
+from emporio.platform.config import (
     ConfigError,
     Provider,
     load_mcp_settings,
@@ -21,8 +21,8 @@ from emporio.config import (
     load_settings,
     require_web_settings,
 )
-from emporio.db import DatabaseNotConfigured
-from emporio.local_model import prepare_local_model
+from emporio.platform.db import DatabaseNotConfigured
+from emporio.platform.local_model import prepare_local_model
 from emporio.support.domain.channel_identity import ChannelIdentity
 
 logger = logging.getLogger("emporio.cli")

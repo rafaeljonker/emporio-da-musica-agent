@@ -10,8 +10,8 @@ from langfuse.types import MaskOtelSpansParams, OtelSpanData, OtelSpanIdentifier
 from langgraph.checkpoint.memory import InMemorySaver
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
-from emporio.config import ConfigError, Settings
 from emporio.orders.domain.identity import normalize_phone
+from emporio.platform.config import ConfigError, Settings
 from emporio.support.domain.channel_identity import ChannelIdentity
 from emporio.support.domain.scope import Scope
 from emporio.support.infrastructure.agent.graph import build_graph
@@ -153,7 +153,7 @@ def test_fake_tracer_records_one_trace_per_turn() -> None:
 def test_failed_auth_check_shuts_the_client_down(monkeypatch: pytest.MonkeyPatch) -> None:
     from types import SimpleNamespace
 
-    from emporio.config import LangfuseUnreachable, Settings
+    from emporio.platform.config import LangfuseUnreachable, Settings
     from emporio.support.infrastructure import tracing
 
     shut: list[bool] = []

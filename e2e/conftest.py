@@ -13,7 +13,7 @@ import httpx
 import pytest
 from playwright.sync_api import Browser, Page, StorageState, expect
 
-from emporio.paths import REPO_ROOT
+from emporio.platform.paths import REPO_ROOT
 
 # Test-only credentials, generated per run; never the owner's demo login.
 DEMO_EMAIL = "e2e@emporio.test"

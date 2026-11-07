@@ -6,8 +6,8 @@ import pytest
 
 from emporio import bootstrap
 from emporio.catalog.infrastructure.pg_catalog_repository import PgCatalogRepository
-from emporio.config import LangfuseUnreachable, Provider, Settings
 from emporio.orders.infrastructure.csv_order_repository import CsvCustomerRepository
+from emporio.platform.config import LangfuseUnreachable, Provider, Settings
 
 
 class FakePool:

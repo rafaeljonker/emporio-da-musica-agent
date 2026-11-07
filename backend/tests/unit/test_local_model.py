@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from emporio.local_model import LocalPlan, choose_local_model, setup_commands
+from emporio.platform.local_model import LocalPlan, choose_local_model, setup_commands
 
 
 def test_mac_32gb_gets_31b_native():

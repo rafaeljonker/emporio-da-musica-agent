@@ -67,7 +67,7 @@ known-first-party = ["emporio", "tests", "evals"]
 # Load-test traffic picks messages at random; nothing here is security-sensitive.
 "**/loadtest/*.py" = ["S311"]
 # Runs ollama/docker from fixed argument lists; the tag comes from a fixed table.
-"**/emporio/local_model.py" = ["S603"]
+"**/emporio/platform/local_model.py" = ["S603"]
 
 [tool.basedpyright]
 typeCheckingMode = "standard"
@@ -236,14 +236,13 @@ source_modules = [
     "emporio.policies.application", "emporio.support.application",
 ]
 forbidden_modules = [
-    "emporio.config", "emporio.paths", "emporio.db", "emporio.migrate", "emporio.embeddings", "emporio.ingest",
-    "emporio.bootstrap", "emporio.cli", "emporio.web",
+    "emporio.platform", "emporio.ingest", "emporio.bootstrap", "emporio.cli", "emporio.web",
 ]
 
 [[tool.importlinter.contracts]]
-name = "Technical modules never import a context"
+name = "Platform never imports a context"
 type = "forbidden"
-source_modules = ["emporio.db", "emporio.embeddings", "emporio.migrate"]
+source_modules = ["emporio.platform"]
 forbidden_modules = ["emporio.catalog", "emporio.orders", "emporio.policies", "emporio.support"]
 
 [[tool.importlinter.contracts]]
@@ -303,10 +302,19 @@ ignore_imports = [
 name = "API stays on the application layer"
 type = "forbidden"
 source_modules = ["emporio.api"]
+# Direct imports only: the application services api calls may read their own domain.
+allow_indirect_imports = true
 forbidden_modules = [
     "emporio.catalog.infrastructure", "emporio.orders.infrastructure",
     "emporio.policies.infrastructure", "emporio.support.infrastructure",
-    "emporio.bootstrap", "emporio.db", "emporio.migrate", "emporio.embeddings", "emporio.ingest",
+    "emporio.catalog.domain", "emporio.orders.domain", "emporio.policies.domain",
+    "emporio.orders.application", "emporio.policies.application",
+    "emporio.bootstrap", "emporio.platform.db", "emporio.platform.migrate",
+    "emporio.platform.embeddings", "emporio.platform.local_model", "emporio.ingest",
     "langchain", "langchain_core", "langgraph", "psycopg", "psycopg_pool", "langfuse",
     "langchain_openai", "langchain_anthropic", "langchain_google_genai",
+]
+# The error-code enums are the one domain module the HTTP maps read.
+ignore_imports = [
+    "emporio.api.* -> emporio.catalog.domain.errors",
 ]

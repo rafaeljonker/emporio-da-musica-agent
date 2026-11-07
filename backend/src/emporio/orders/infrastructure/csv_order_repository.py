@@ -6,7 +6,7 @@ from functools import cached_property
 from pathlib import Path
 
 from emporio.orders.domain.order import Customer, Order, OrderItem, OrderStatus
-from emporio.paths import CASE_CSV_FILES
+from emporio.platform.paths import CASE_CSV_FILES
 from emporio.shared.money import InvalidMoney, Money
 
 

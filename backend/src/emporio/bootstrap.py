@@ -23,10 +23,6 @@ from emporio.catalog.application.search_products import SearchProducts
 from emporio.catalog.application.update_product import UpdateProduct
 from emporio.catalog.infrastructure.pg_catalog_repository import PgCatalogRepository
 from emporio.catalog.infrastructure.pg_catalog_writer import PgCatalogWriter
-from emporio.config import Provider, Settings, UnknownCustomer, mcp_token_identities
-from emporio.db import connect, database_url, make_pool
-from emporio.embeddings import E5Embedder, TextEmbedder
-from emporio.migrate import apply_migrations, setup_checkpointer
 from emporio.orders.application.check_return_eligibility import CheckReturnEligibility
 from emporio.orders.application.get_order_status import GetOrderStatus
 from emporio.orders.application.list_customer_orders import ListCustomerOrders
@@ -35,6 +31,10 @@ from emporio.orders.infrastructure.csv_order_repository import (
     CsvOrderRepository,
 )
 from emporio.platform.clock import SystemClock
+from emporio.platform.config import ConfigError, Provider, Settings, mcp_token_identities
+from emporio.platform.db import connect, database_url, make_pool
+from emporio.platform.embeddings import E5Embedder, TextEmbedder
+from emporio.platform.migrate import apply_migrations, setup_checkpointer
 from emporio.policies.application.search_policies import SearchPolicies
 from emporio.policies.application.store_now import StoreNow
 from emporio.policies.infrastructure.holidays import STORE_HOLIDAYS
@@ -70,6 +70,11 @@ from emporio.support.infrastructure.warmup import (
 # Order 7 (in the regret window), order 5 (out of it), shipped, pending, two cancelled,
 # confirmed, and one customer with no orders.
 DEMO_CUSTOMER_IDS = (14, 5, 2, 8, 3, 7, 11, 19)
+
+
+class UnknownCustomer(ConfigError):
+    def __init__(self, customer_id: int) -> None:
+        super().__init__(f"cliente {customer_id} não encontrado")
 
 
 def _secret(value: SecretStr | None) -> str:
@@ -187,10 +192,11 @@ def build_warmup(settings: Settings, reply_p50: Callable[[], float | None]) -> W
                 began.append(time.monotonic())
             return time.monotonic() - began[0] >= settings.fake_warm_seconds
 
-        local = settings.fake_warm_mode is WarmMode.LOCAL_CPU
+        mode = WarmMode(settings.fake_warm_mode)
+        local = mode is WarmMode.LOCAL_CPU
         return ProbeWarmup(
             fake_probe,
-            settings.fake_warm_mode,
+            mode,
             settings.warm_expected_seconds_local if local else settings.warm_expected_seconds_gpu,
             reply_p50,
             stage=WarmStage.MODEL_LOADING if local else WarmStage.SERVER_STARTING,

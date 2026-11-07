@@ -5,8 +5,8 @@ from fastapi import FastAPI
 from emporio.api.app import create_app
 from emporio.api.mcp_auth import current_mcp_customer
 from emporio.bootstrap import build_agent, build_remote_mcp, build_warmup
-from emporio.config import load_web_settings
-from emporio.paths import REPO_ROOT
+from emporio.platform.config import load_web_settings
+from emporio.platform.paths import REPO_ROOT
 
 
 def create_web_app() -> FastAPI:

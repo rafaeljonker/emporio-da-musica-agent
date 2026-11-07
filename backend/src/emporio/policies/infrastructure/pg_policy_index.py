@@ -4,7 +4,7 @@ import psycopg
 from pgvector import Vector
 from psycopg_pool import ConnectionPool, PoolTimeout
 
-from emporio.embeddings import TextEmbedder
+from emporio.platform.embeddings import TextEmbedder
 from emporio.policies.domain.policy_chunk import PolicyChunk, PolicyHit
 from emporio.shared.errors import StoreUnavailable
 

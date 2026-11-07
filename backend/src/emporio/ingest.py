@@ -4,9 +4,9 @@ import sys
 
 from emporio.catalog.infrastructure.csv_catalog_repository import CsvCatalogRepository
 from emporio.catalog.infrastructure.pg_catalog_writer import PgCatalogWriter
-from emporio.db import DatabaseNotConfigured, connect, database_url, make_pool
-from emporio.embeddings import E5Embedder
-from emporio.migrate import apply_migrations
+from emporio.platform.db import DatabaseNotConfigured, connect, database_url, make_pool
+from emporio.platform.embeddings import E5Embedder
+from emporio.platform.migrate import apply_migrations
 from emporio.policies.application.ingest_policies import IngestPolicies
 from emporio.policies.infrastructure.pdf_sections import PdfPolicySource
 from emporio.policies.infrastructure.pg_policy_index import PgPolicyIndex

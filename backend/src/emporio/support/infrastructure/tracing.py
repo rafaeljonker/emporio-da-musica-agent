@@ -27,7 +27,7 @@ from langfuse.types import (
 )
 from pydantic import SecretStr
 
-from emporio.config import LangfuseUnreachable, Settings, require_langfuse_settings
+from emporio.platform.config import LangfuseUnreachable, Settings, require_langfuse_settings
 from emporio.support.domain.channel_identity import ChannelIdentity
 
 logger = logging.getLogger("emporio.support.tracing")

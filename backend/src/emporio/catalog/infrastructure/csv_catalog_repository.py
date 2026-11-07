@@ -7,7 +7,7 @@ from pathlib import Path
 
 from emporio.catalog.domain.pricing import Promotion
 from emporio.catalog.domain.product import Category, Product, ProductStatus
-from emporio.paths import CASE_CSV_FILES
+from emporio.platform.paths import CASE_CSV_FILES
 from emporio.shared.money import InvalidMoney, Money
 
 

@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from psycopg_pool import ConnectionPool
 
-from emporio.embeddings import E5Embedder
+from emporio.platform.embeddings import E5Embedder
 from emporio.policies.application.ingest_policies import IngestPolicies
 from emporio.policies.infrastructure.pdf_sections import PdfPolicySource
 from emporio.policies.infrastructure.pg_policy_index import PgPolicyIndex

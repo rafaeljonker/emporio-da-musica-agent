@@ -16,7 +16,7 @@ from emporio.api.identity import build_identity_router
 from emporio.api.mcp_auth import McpBearerAuth
 from emporio.api.warm import build_warm_router
 from emporio.catalog.application.admin import CatalogAdmin
-from emporio.config import Settings, mcp_token_identities, require_web_settings
+from emporio.platform.config import Settings, mcp_token_identities, require_web_settings
 from emporio.support.application.ports import ChatAgent
 from emporio.support.application.warmup import Warmup
 

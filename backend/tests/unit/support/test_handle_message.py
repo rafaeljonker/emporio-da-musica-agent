@@ -8,7 +8,7 @@ from langchain_core.outputs import ChatGeneration, LLMResult
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.errors import GraphRecursionError
 
-from emporio.config import Settings
+from emporio.platform.config import Settings
 from emporio.support.application.handle_message import CHAT_ERROR, HandleMessage
 from emporio.support.application.ports import TurnMetrics
 from emporio.support.domain.channel_identity import ChannelIdentity

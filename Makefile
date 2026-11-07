@@ -55,7 +55,7 @@ db-test: db-up
 	docker compose exec -T db psql -U emporio -d emporio -tc "SELECT 1 FROM pg_database WHERE datname='emporio_test'" | grep -q 1 || docker compose exec -T db createdb -U emporio emporio_test
 
 migrate:
-	cd backend && uv run python -m emporio.migrate
+	cd backend && uv run python -m emporio.platform.migrate
 
 ingest:
 	cd backend && uv run python -m emporio.ingest

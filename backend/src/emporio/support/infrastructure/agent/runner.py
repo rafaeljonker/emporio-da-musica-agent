@@ -8,7 +8,7 @@ from time import perf_counter
 from langchain_core.messages import HumanMessage
 from langgraph.errors import GraphRecursionError
 
-from emporio.config import Provider, Settings
+from emporio.platform.config import Provider, Settings
 from emporio.support.application.handle_message import CHAT_ERROR
 from emporio.support.application.ports import TurnMetrics
 from emporio.support.domain.channel_identity import ChannelIdentity

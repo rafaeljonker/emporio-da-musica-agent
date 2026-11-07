@@ -6,7 +6,7 @@ from emporio.orders.infrastructure.csv_order_repository import (
     CsvCustomerRepository,
     OrdersDataError,
 )
-from emporio.paths import CASE_CSV_FILES
+from emporio.platform.paths import CASE_CSV_FILES
 
 
 def test_short_row_raises_data_error_with_file_and_row(tmp_path: Path) -> None:

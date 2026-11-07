@@ -76,7 +76,7 @@ if LOADTEST:
 
 def bake_e5() -> None:
     """Build step: download e5 into FASTEMBED_CACHE with the same registration the app uses."""
-    from emporio.embeddings import E5Embedder
+    from emporio.platform.embeddings import E5Embedder
 
     E5Embedder().embed_query("violão")
 
@@ -95,16 +95,24 @@ image = (
             "EMPORIO_API_PROVIDER": API_PROVIDER,
         }
     )
-    # Only the embedder module, so the e5 layer is rebuilt when it changes and not on every edit.
+    # Only the embedder module (no sibling imports), so the e5 layer is rebuilt when it
+    # changes and not on every edit.
     .add_local_file(
         ROOT / "backend/src/emporio/__init__.py", "/bake/emporio/__init__.py", copy=True
     )
     .add_local_file(
-        ROOT / "backend/src/emporio/embeddings.py", "/bake/emporio/embeddings.py", copy=True
+        ROOT / "backend/src/emporio/platform/__init__.py",
+        "/bake/emporio/platform/__init__.py",
+        copy=True,
+    )
+    .add_local_file(
+        ROOT / "backend/src/emporio/platform/embeddings.py",
+        "/bake/emporio/platform/embeddings.py",
+        copy=True,
     )
     .run_function(bake_e5, env={"PYTHONPATH": "/bake"})
     .env(runtime_env)
-    # Under /app so emporio.paths.REPO_ROOT resolves to /app.
+    # Under /app so emporio.platform.paths.REPO_ROOT resolves to /app.
     .add_local_dir(ROOT / "backend/src", "/app/backend/src", ignore=NO_CACHE)
     .add_local_dir(ROOT / "backend/migrations", "/app/backend/migrations")
     .add_local_dir(ROOT / "data", "/app/data")
@@ -152,5 +160,5 @@ def web() -> object:  # the FastAPI app
 
 @app.function(image=image, secrets=[db_secret], timeout=30 * MINUTES)
 def ingest() -> None:
-    for module in ("emporio.migrate", "emporio.ingest"):
+    for module in ("emporio.platform.migrate", "emporio.ingest"):
         subprocess.run([sys.executable, "-m", module], check=True)
