@@ -11,6 +11,7 @@ Run from the repo root; all targets execute in `backend/`.
 - `make check`: lint + typecheck + import contracts + tests. Green before every commit, except the `(red)` commit of a TDD pair, where only the new test may fail.
 - `make test`: pytest only.
 - `make db`: start Postgres (host port 5434), migrate, ingest policies and products.
+- `make ingest` reseeds the catalog from the CSVs and deletes the products demo users created (the manual reset after an evaluation); orders stay on CSV.
 - `make test-pg`: Postgres integration tests on a separate `emporio_test` database; never touches dev data.
 - `make evals [PROVIDER=gemma|gemini|openai|anthropic|local]`: retrieval eval plus the agent golden cases (real model) on `emporio_test`; not part of `make check`.
 - `make chat [ARGS="--as-customer 14 --provider gemini"]`: interactive agent in the terminal (needs a provider key and Langfuse).
@@ -40,7 +41,7 @@ Enforced by `import-linter` (`make imports`).
 | `cli.py` | `bootstrap`, `config`, `local_model`, the `db` errors and `support.domain.channel_identity` (never an `infrastructure` module directly) |
 | `web.py` | a composition root like `bootstrap`: `api`, `bootstrap`, `config` and `paths` |
 
-`emporio.db`, `embeddings`, `migrate` are leaf technical modules usable only by infrastructure; The composition roots are `emporio.bootstrap` (the agent: wires use cases, tools, model, tracing) and `emporio.ingest` (the data: PDF and CSV into Postgres).
+`emporio.db`, `embeddings`, `migrate` are leaf technical modules usable only by infrastructure; The composition roots are `emporio.bootstrap` (the agent: wires use cases, tools, model, tracing) and `emporio.ingest` (the data: PDF and the catalog CSV seed into Postgres).
 
 Domain has no IO and no frameworks. One use case per file.
 

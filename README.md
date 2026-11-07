@@ -48,7 +48,7 @@ Outros comandos úteis:
 
 ## Arquitetura
 
-O princípio central: **dado estruturado vai por ferramenta determinística; texto vai por RAG.** Preço, estoque, pedido e promoção são consultas exatas em Python sobre os CSVs (o próprio manual pede "nunca fornecer preços, estoque ou prazos sem consultar o sistema"); só o manual de políticas passa por busca semântica.
+O princípio central: **dado estruturado vai por ferramenta determinística; texto vai por RAG.** Preço, estoque, pedido e promoção são consultas exatas (SQL no catálogo, Python nos pedidos) (o próprio manual pede "nunca fornecer preços, estoque ou prazos sem consultar o sistema"); só o manual de políticas passa por busca semântica.
 
 ```mermaid
 flowchart LR
@@ -58,13 +58,17 @@ flowchart LR
     guard --> agent["agente"]
     agent <--> tools["10 ferramentas"]
     agent --> LLM["Gemini 3.8 Flash (demo) · Gemma 4 31B vLLM no Modal · OpenAI/Anthropic/Ollama por flag"]
-    tools --> CSV[("CSVs: catálogo e pedidos, em memória")]
-    tools --> PG[("Postgres + pgvector: políticas, histórico, métricas")]
+    tools --> CSV[("CSVs: pedidos, em memória")]
+    tools --> PG[("Postgres + pgvector: catálogo, políticas, histórico, métricas")]
     MCP["servidor MCP"] --> tools
     API -.-> LF["Langfuse"]
 ```
 
 Cada mensagem passa primeiro por um classificador de escopo (o guard) e depois pelo agente, que chama as ferramentas quantas vezes precisar (até 5 voltas). O histórico fica num checkpointer do LangGraph no Postgres. As mesmas dez ferramentas são expostas por MCP, para qualquer outro cliente (Claude Desktop, outro agente).
+
+## Catálogo no Postgres
+
+Os produtos ficam no Postgres, e a busca combina texto, erro de digitação e significado numa consulta só. Na demo, entre e abra **Catálogo** (o back office da loja): cadastre um produto e pergunte por ele no chat. O agente continua só lendo; quem escreve é o usuário logado, e só nos próprios produtos. Com 50 mil produtos, a busca levou de 17 a 34 ms (mediana, testes locais; [pesquisa](docs/research/catalog-db.md), [ADR 0011](docs/decisions/0011-catalog-in-postgres-hybrid-search.md)).
 
 ## Domínios e organização
 

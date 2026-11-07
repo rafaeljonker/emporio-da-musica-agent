@@ -143,5 +143,17 @@ At 1k conversations a month an API model is one to two orders of magnitude cheap
 
 Langfuse Cloud (EU, Hobby plan: 50k units/month) traces every turn, and the load-test app shared the demo's project (no separate project was created). The test traffic sent to it was about 1,618 fake turns from Locust (35 + 249 + 1,334) plus three in-container probes of 20 parallel turns, on top of the eval runs and the demo smoke tests. Units per fake turn were **not counted**; at the research estimate of 5–15 observations plus one trace per turn, the load tests used roughly 10k–27k units (estimate). The upper bound exceeds the ≤ 20k units the phase plan allowed for load tests, and since units were not counted it may have done so; so check the usage page before any further load run, or point it at a separate project.
 
+## 7. Catalog search at scale
+
+Local probes on a shared Mac (it was also running Langfuse, Kafka and a k8s node, so absolute numbers are noisy), 50,065 rows: the 65 real products among synthetic near-duplicates, real e5-small embeddings. Details: [catalog research](research/catalog-db.md), section 6. Railway itself was not probed.
+
+- **Latency:** hybrid (FTS + trigram + vector) p50 17 to 34 ms and p95 47 to 105 ms at 50,065 rows. Add the ~80 ms Modal to Railway round trip per catalog query.
+- **Filtered HNSW pitfall:** with a selective filter (8.6% of rows) and no iterative scans the vector query returned 0 rows and recall was 0.06; with `relaxed_order` it returned at least 8 of 10 and recall was 0.62.
+- **Trigram:** code and typo queries reached hit@5 of 18/18 with it against 13/18 without.
+- **The old grader:** `difflib` over the whole 50k catalog took p50 1.5 s, which is why it only grades a pool of 40.
+- **Bulk load:** embedding 50k rows took 850 s, the HNSW build 14 s, table and indexes 260 MB.
+- **Write path:** about 9 ms to embed plus 7 ms to upsert one product.
+- **Past ~1M rows:** `halfvec` to shrink the vectors, BM25 instead of `ts_rank`, then a dedicated search engine. At 100k+ the broad-query tail of the FTS branch (p95 up to ~280 ms alone) is the first thing to fix (AND before OR).
+
 ## What was not measured
 Skipped by owner decision for budget ($8 of credit, no card): the BF16 baseline on H100, the GPU memory snapshot and the real-model load test. Not re-run after fixes: the H100 FP8 evals. Not recorded: tokens/s on either GPU. Built but not yet measured: `make up PROVIDER=local` on the owner's machine.
