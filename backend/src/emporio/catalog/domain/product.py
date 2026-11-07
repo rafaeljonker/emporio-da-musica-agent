@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -31,3 +32,11 @@ class Product:
     @property
     def is_available(self) -> bool:
         return self.status is ProductStatus.ACTIVE and self.stock > 0
+
+
+def search_document(
+    name: str, category: str, description: str, specs: Sequence[tuple[str, str]]
+) -> str:
+    """The text a product is found by (full text and embedding)."""
+    joined = "; ".join(f"{k}: {v}" for k, v in specs)
+    return f"{name}. {category}. {description} {joined}".strip()
