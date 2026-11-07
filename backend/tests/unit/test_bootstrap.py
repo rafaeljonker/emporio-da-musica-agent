@@ -117,3 +117,34 @@ def test_fake_model_wires_scripted_model_and_store_scope(monkeypatch: pytest.Mon
     assert seen_names == [CsvCustomerRepository().names()]
     assert callable(classify)
     assert classify([HumanMessage("vai se ferrar")]) is Scope.LOJA
+
+
+def test_build_agent_wires_catalog_admin(monkeypatch: pytest.MonkeyPatch) -> None:
+    from emporio.catalog.infrastructure.pg_catalog_writer import PgCatalogWriter
+    from emporio.support.infrastructure.catalog_admin import CatalogAdminService
+
+    embedder = object()
+    writers: list[tuple[object, object]] = []
+    monkeypatch.setenv("DATABASE_URL", "postgresql://unused")
+    patches = {
+        "connect": lambda url: _conn(),
+        "apply_migrations": lambda conn: [],
+        "setup_checkpointer": lambda url: None,
+        "make_pool": lambda url, **_: FakePool(),
+        "E5Embedder": lambda: embedder,
+        "PgPolicyIndex": lambda pool, embedder: object(),
+        "make_checkpointer": lambda url, **_: SimpleNamespace(conn=FakePool()),
+        "build_tools": lambda box: [],
+        "build_graph": lambda *args: object(),
+        "make_langfuse": lambda settings, names: None,
+        "LangfuseTracerFactory": lambda *args: object(),
+        "PgCatalogWriter": lambda pool, emb: (
+            writers.append((pool, emb)) or PgCatalogWriter(pool, emb)
+        ),
+    }
+    for name, fake in patches.items():
+        monkeypatch.setattr(bootstrap, name, fake)
+    agent = bootstrap.build_agent(Settings(fake_model=True))
+    agent.close()
+    assert isinstance(agent.catalog_admin, CatalogAdminService)
+    assert [emb for _, emb in writers] == [embedder]  # the toolbox's embedder, loaded once
