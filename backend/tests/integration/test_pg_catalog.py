@@ -84,6 +84,14 @@ def test_get_returns_the_csv_product(catalog_repo: PgCatalogRepository) -> None:
     assert catalog_repo.get(95) == expected
 
 
+def test_every_csv_product_reads_back_field_by_field(catalog_repo: PgCatalogRepository) -> None:
+    expected = {p.id: p for p in CSV.products()}
+    stored = {p.id: p for p in catalog_repo.get_many(expected)}
+    assert stored.keys() == expected.keys()
+    for product_id, want in expected.items():
+        assert stored[product_id] == want, product_id
+
+
 @pytest.mark.parametrize(
     ("query", "product_id"),
     [("takamine gd 20", 95), ("SN-7C", 113), ("telecastr", 134), ("yamah c70", 82)],
