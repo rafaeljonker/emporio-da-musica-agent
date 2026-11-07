@@ -2,7 +2,12 @@ import pytest
 
 from emporio.catalog.application.create_product import CreateProduct
 from emporio.catalog.application.update_product import UpdateProduct
-from emporio.catalog.domain.errors import CatalogFull, ProductNotOwned, UnknownCategory
+from emporio.catalog.domain.errors import (
+    CatalogFull,
+    NameTakenByStore,
+    ProductNotOwned,
+    UnknownCategory,
+)
 from emporio.catalog.domain.product import ProductDraft, ProductStatus
 from tests.unit.catalog.factories import category, m
 from tests.unit.catalog.fakes import FakeCatalogRepository, FakeCatalogWriter
@@ -10,8 +15,11 @@ from tests.unit.catalog.fakes import FakeCatalogRepository, FakeCatalogWriter
 REPO = FakeCatalogRepository((), (category(id=5, name="Violões"),))
 
 
-def draft(*, category_id: int = 5, price: str = "1000") -> ProductDraft:
-    return ProductDraft("Violão Teste", category_id, "", m(price), 3, ProductStatus.ACTIVE, ())
+SEED = "Violão Takamine GD20 Dreadnought Natural"
+
+
+def draft(*, name: str = "Violão Teste", category_id: int = 5, price: str = "1000") -> ProductDraft:
+    return ProductDraft(name, category_id, "", m(price), 3, ProductStatus.ACTIVE, ())
 
 
 def test_create_rejects_unknown_category() -> None:
@@ -57,3 +65,27 @@ def test_update_rejects_unknown_category() -> None:
     mine = CreateProduct(REPO, writer)("a", draft())
     with pytest.raises(UnknownCategory):
         UpdateProduct(REPO, writer)("a", mine.id, draft(category_id=99))
+
+
+def test_create_rejects_a_store_product_name_ignoring_case_and_accents() -> None:
+    writer = FakeCatalogWriter(seed_names=(SEED,))
+    with pytest.raises(NameTakenByStore):
+        CreateProduct(REPO, writer)("a", draft(name="VIOLAO takamine gd20 dreadnought natural"))
+    assert writer.rows == {}
+
+
+def test_update_rejects_a_store_product_name() -> None:
+    writer = FakeCatalogWriter(seed_names=(SEED,))
+    mine = CreateProduct(REPO, writer)("a", draft())
+    with pytest.raises(NameTakenByStore):
+        UpdateProduct(REPO, writer)("a", mine.id, draft(name=SEED, price="99"))
+    assert writer.rows[mine.id][1].price == m("1000")
+
+
+def test_own_name_and_another_demo_name_stay_allowed() -> None:
+    writer = FakeCatalogWriter(seed_names=(SEED,))
+    mine = CreateProduct(REPO, writer)("a", draft(name="Violão Rozini"))
+    assert CreateProduct(REPO, writer)("b", draft(name="violão rozini")).name == "violão rozini"
+    assert UpdateProduct(REPO, writer)(
+        "a", mine.id, draft(name="Violão Rozini", price="9")
+    ).price == m("9")

@@ -1,3 +1,4 @@
+import unicodedata
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass, field
 
@@ -52,9 +53,14 @@ class FakeCatalogRepository:
 
 @dataclass(slots=True)
 class FakeCatalogWriter:
-    """In-memory writer: `rows` maps id to (owner, product); ids start at 100000 like the DB."""
+    """In-memory writer: `rows` maps id to (owner, product); ids start at 100000 like the DB.
+    `seed_names` are the store's own product names."""
 
     rows: dict[int, tuple[str, Product]] = field(default_factory=dict)
+    seed_names: tuple[str, ...] = ()
+
+    def seed_name_taken(self, name: str) -> bool:
+        return _key(name) in {_key(n) for n in self.seed_names}
 
     def create(self, owner: str, draft: ProductDraft) -> Product:
         created = draft.with_id(100000 + len(self.rows))
@@ -73,3 +79,9 @@ class FakeCatalogWriter:
 
     def admin_total(self) -> int:
         return len(self.rows)
+
+
+def _key(name: str) -> str:
+    """Like the `name_key` column: lowercase, accents stripped."""
+    decomposed = unicodedata.normalize("NFKD", name)
+    return "".join(c for c in decomposed if not unicodedata.combining(c)).lower()

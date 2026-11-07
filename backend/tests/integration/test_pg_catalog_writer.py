@@ -143,3 +143,15 @@ def test_price_only_update_keeps_embedding(
     _, price, stock, no_vector, hash_after, _ = _row(pg_conn, mine.id)
     assert (price, stock, no_vector) == (Money.from_str("1000").amount, 9, False)
     assert hash_after == hash_before
+
+
+def test_seed_name_taken_compares_like_name_key(
+    catalog_repo: PgCatalogRepository, pg_pool: ConnectionPool
+) -> None:
+    writer = PgCatalogWriter(pg_pool, HashEmbedder())
+    writer.create("a", ROZINI)
+
+    assert writer.seed_name_taken("TAKAMINE gd20 dreadnought natural")
+    assert writer.seed_name_taken("Yamaha C40 Nylon Natural")
+    assert not writer.seed_name_taken("Takamine GD20")
+    assert not writer.seed_name_taken(ROZINI.name)  # an admin row, not the store's

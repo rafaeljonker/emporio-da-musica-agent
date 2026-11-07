@@ -44,5 +44,12 @@ def test_domain_errors_map_to_codes() -> None:
     assert (unknown.value.code, foreign.value.code) == ("unknown_category", "not_found")
 
 
+def test_store_name_maps_to_name_taken_by_store() -> None:
+    service = _service(FakeCatalogWriter(seed_names=("Cavaquinho",)))
+    with pytest.raises(CatalogWriteRejected) as err:
+        service.create("a", DATA)
+    assert err.value.code == "name_taken_by_store"
+
+
 def test_written_product_specs_are_sorted_like_the_stored_row() -> None:
     assert _service(FakeCatalogWriter()).create("a", DATA).specs == (("a", "1"), ("b", "2"))

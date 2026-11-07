@@ -5,7 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from emporio.api.app import create_app
-from emporio.support.application.ports import ProductInput
+from emporio.support.application.ports import ProductInput, RejectionCode
 from emporio.support.application.warmup import WarmMode
 from emporio.support.infrastructure.warmup import ReadyWarmup
 from tests.fakes.fake_agent import FakeAgent
@@ -206,6 +206,16 @@ def test_catalog_full_is_409(client: TestClient, catalog: FakeCatalogAdmin) -> N
     catalog.reject = "catalog_full"
     response = client.post("/api/catalog/products", json=BODY)
     assert (response.status_code, response.json()) == (409, {"detail": "catalog_full"})
+
+
+@pytest.mark.parametrize("code", ["name_taken_by_store", "promo_claim"])
+def test_product_text_rejections_are_422(
+    client: TestClient, catalog: FakeCatalogAdmin, code: RejectionCode
+) -> None:
+    login(client)
+    catalog.reject = code
+    response = client.post("/api/catalog/products", json=BODY)
+    assert (response.status_code, response.json()) == (422, {"detail": code})
 
 
 def test_eleventh_write_in_a_minute_is_429(client: TestClient, catalog: FakeCatalogAdmin) -> None:
