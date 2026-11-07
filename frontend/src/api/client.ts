@@ -8,9 +8,9 @@ export class InvalidCredentials extends Error {}
 
 export class HttpError extends Error {
   readonly status: number
-  /** The API's `{"detail": "<code>"}`, when it is a string (e.g. `catalog_full`). */
-  readonly detail?: string
-  constructor(status: number, detail?: string) {
+  /** The API's `detail`: a code (`catalog_full`) or FastAPI's list of field errors on a 422. */
+  readonly detail?: unknown
+  constructor(status: number, detail?: unknown) {
     super(`HTTP ${status}`)
     this.status = status
     this.detail = detail
@@ -38,8 +38,7 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
   const res = await send(method, path, body)
   if (!res.ok && res.status !== 401) {
     const json: unknown = await res.json().catch(() => null)
-    const detail = (json as { detail?: unknown } | null)?.detail
-    throw new HttpError(res.status, typeof detail === 'string' ? detail : undefined)
+    throw new HttpError(res.status, (json as { detail?: unknown } | null)?.detail)
   }
   return (await check(res).json()) as T
 }

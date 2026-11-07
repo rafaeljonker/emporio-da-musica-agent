@@ -1,5 +1,5 @@
 // Pure helpers for the Catálogo dialog; the bounds mirror emporio.api.catalog.ProductIn.
-import { HttpError } from '@/api/client'
+import { HttpError, SessionExpired } from '@/api/client'
 import type { Product, ProductBody, ProductStatus } from '@/api/types'
 import { copy } from '@/copy'
 
@@ -28,6 +28,12 @@ export const EMPTY: ProductFields = {
 }
 
 const MAX_SPECS = 20
+// Mirrors emporio.api.catalog: zero-width marks and bidi controls, which render unlike they read.
+const INVISIBLE = '\u200b-\u200f\u202a-\u202e\u2066-\u2069'
+/** One line: no C0 control, DEL or invisible mark. */
+const LINE = new RegExp(`^[^\\u0000-\\u001f\\u007f${INVISIBLE}]*$`)
+/** Free text: also keeps tab and line breaks. */
+const TEXT = new RegExp(`^[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f${INVISIBLE}]*$`)
 const STATUSES: readonly ProductStatus[] = ['active', 'discontinued', 'coming_soon']
 // Integer part with pt-BR thousand dots ("1.234") or plain ("1234"), then , or . and 1-2 cents digits.
 const PRICE = /^(\d{1,3}(?:\.\d{3})+|\d+)(?:[,.](\d{1,2}))?$/
@@ -50,7 +56,7 @@ export const formatPrice = (decimal: string) => `R$ ${priceInput(decimal)}`
 
 /** One "Chave: valor" per line, blank lines skipped; null past 20 lines or on a malformed line. */
 export function parseSpecs(text: string): Record<string, string> | null {
-  const lines = text.split('\n').filter((l) => l.trim())
+  const lines = text.split(/\r?\n/).filter((l) => l.trim())
   if (lines.length > MAX_SPECS) return null
   const specs: Record<string, string> = {}
   for (const line of lines) {
@@ -58,6 +64,7 @@ export function parseSpecs(text: string): Record<string, string> | null {
     const key = line.slice(0, at).trim()
     const value = line.slice(at + 1).trim()
     if (at < 0 || !key || !value || key.length > 40 || value.length > 120) return null
+    if (!LINE.test(key) || !LINE.test(value)) return null
     specs[key] = value
   }
   return specs
@@ -71,9 +78,9 @@ export function validate(fields: ProductFields): { body?: ProductBody; errors: F
   const price = toPrice(fields.price)
   const stock = Number(fields.stock)
   const specs = parseSpecs(fields.specs)
-  if (name.length < 2 || name.length > 120) errors.name = e.name
+  if (name.length < 2 || name.length > 120 || !LINE.test(name)) errors.name = e.name
   if (!/^[1-9]\d{0,8}$/.test(fields.categoryId)) errors.categoryId = e.categoryId
-  if (description.length > 2000) errors.description = e.description
+  if (description.length > 2000 || !TEXT.test(description)) errors.description = e.description
   if (price === null) errors.price = e.price
   if (!/^\d{1,6}$/.test(fields.stock.trim()) || stock > 100_000) errors.stock = e.stock
   if (specs === null) errors.specs = e.specs
@@ -97,13 +104,26 @@ export const toFields = (p: Product): ProductFields => ({
     .join('\n'),
 })
 
-/** A failed save (not a 401: the caller signs out) in plain pt-BR. */
+/** A failed request in plain pt-BR (a 401 also signs out: the caller does that). */
 export function errorCopy(err: unknown): string {
   const c = copy.catalog
+  if (err instanceof SessionExpired) return copy.login.expired
   if (!(err instanceof HttpError)) return c.failed
   if (err.status === 429) return c.tooMany
   if (err.status === 409) return c.full
   if (err.status === 404) return c.notFound
-  if (err.status === 422 && err.detail === 'unknown_category') return c.errors.categoryId
+  if (err.status === 503) return c.unavailable
+  // 422 is either {"detail": "unknown_category"} or FastAPI's list of field errors.
+  if (err.status === 422) return err.detail === 'unknown_category' ? c.errors.categoryId : c.invalid
   return c.failed
 }
+
+/** The open-time list arriving after a save: rows on screen win, new server rows go after them. */
+export function mergeById<T extends { id: number }>(local: T[], server: T[]): T[] {
+  const seen = new Set(local.map((p) => p.id))
+  return [...local, ...server.filter((p) => !seen.has(p.id))]
+}
+
+/** "Perguntar ao assistente" never discards a draft: the question goes on a new line after it. */
+export const appendQuestion = (draft: string, question: string) =>
+  draft.trim() ? `${draft.trimEnd()}\n${question}` : question

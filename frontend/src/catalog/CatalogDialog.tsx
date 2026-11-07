@@ -13,6 +13,7 @@ import {
   EMPTY,
   errorCopy,
   formatPrice,
+  mergeById,
   priceInput,
   toFields,
   toPrice,
@@ -67,13 +68,19 @@ function Field({ field, label, hint, error, children }: FieldProps) {
 export function CatalogDialog({ onAsk, onSessionExpired }: Props) {
   const [open, setOpen] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
-  const [mine, setMine] = useState<Product[]>([])
+  /** null until this opening's list arrives. */
+  const [mine, setMine] = useState<Product[] | null>(null)
+  const [loadFailure, setLoadFailure] = useState<string | null>(null)
+  const [loads, setLoads] = useState(0)
   const [fields, setFields] = useState<ProductFields>(EMPTY)
   const [errors, setErrors] = useState<FieldErrors>({})
   const [failure, setFailure] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [editing, setEditing] = useState<Product | null>(null)
   const [saved, setSaved] = useState<{ name: string; edited: boolean } | null>(null)
+  // After the re-render that shows the error, so the reader announces it with the field.
+  const focusField = (field: keyof ProductFields) =>
+    requestAnimationFrame(() => document.getElementById(id(field))?.focus())
   const savedHeading = useRef<HTMLHeadingElement>(null)
   const asking = useRef<string | null>(null)
 
@@ -84,10 +91,20 @@ export function CatalogDialog({ onAsk, onSessionExpired }: Props) {
 
   useEffect(() => {
     if (!open) return
-    const expired = (err: unknown) => err instanceof SessionExpired && onSessionExpired()
-    catalogCategories().then(setCategories, expired)
-    myProducts().then(setMine, expired)
-  }, [open, onSessionExpired])
+    let live = true
+    const failed = (err: unknown) => {
+      if (!live) return
+      if (err instanceof SessionExpired) onSessionExpired()
+      else setLoadFailure(errorCopy(err) === copy.catalog.unavailable ? copy.catalog.unavailable : copy.catalog.loadFailed)
+    }
+    setLoadFailure(null)
+    catalogCategories().then((list) => live && setCategories(list), failed)
+    // A save may land first: the rows it put on screen win over this (older) server list.
+    myProducts().then((list) => live && setMine((shown) => mergeById(shown ?? [], list)), failed)
+    return () => {
+      live = false
+    }
+  }, [open, loads, onSessionExpired])
 
   useEffect(() => savedHeading.current?.focus(), [saved])
 
@@ -119,13 +136,13 @@ export function CatalogDialog({ onAsk, onSessionExpired }: Props) {
     setFailure(null)
     if (!body) {
       const first = ORDER.find((f) => found[f])
-      if (first) document.getElementById(id(first))?.focus()
+      if (first) focusField(first)
       return
     }
     setSaving(true)
     try {
       const product = editing ? await updateProduct(editing.id, body) : await createProduct(body)
-      setMine((list) => [product, ...list.filter((p) => p.id !== product.id)])
+      setMine((list) => [product, ...(list ?? []).filter((p) => p.id !== product.id)])
       setSaved({ name: product.name, edited: !!editing })
       setEditing(null)
       setFields(EMPTY)
@@ -134,7 +151,7 @@ export function CatalogDialog({ onAsk, onSessionExpired }: Props) {
       const message = errorCopy(err)
       if (message === c.errors.categoryId) {
         setErrors({ categoryId: message })
-        document.getElementById(id('categoryId'))?.focus()
+        focusField('categoryId')
       } else setFailure(message)
     } finally {
       setSaving(false)
@@ -149,7 +166,10 @@ export function CatalogDialog({ onAsk, onSessionExpired }: Props) {
 
   const onOpenChange = (next: boolean) => {
     setOpen(next)
-    if (next) reset()
+    if (next) {
+      reset()
+      setMine(null)
+    }
   }
 
   return (
@@ -177,6 +197,14 @@ export function CatalogDialog({ onAsk, onSessionExpired }: Props) {
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto short:flex-none short:overflow-visible px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+          {loadFailure && (
+            <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg bg-card p-3 text-sm font-semibold">
+              <span className="flex-1">{loadFailure}</span>
+              <Button variant="secondary" onClick={() => setLoads((n) => n + 1)}>
+                {c.retry}
+              </Button>
+            </div>
+          )}
           {saved ? (
             <section aria-labelledby="catalog-saved" className="flex flex-col items-start gap-4 rounded-lg bg-card p-4">
               <div className="flex items-start gap-2">
@@ -333,7 +361,7 @@ export function CatalogDialog({ onAsk, onSessionExpired }: Props) {
             <h3 id="catalog-mine" className="text-base font-semibold">
               {c.mine}
             </h3>
-            {mine.length === 0 ? (
+            {mine === null ? null : mine.length === 0 ? (
               <p className="text-sm text-muted-foreground">{c.mineEmpty}</p>
             ) : (
               <ul className="flex flex-col divide-y divide-border">

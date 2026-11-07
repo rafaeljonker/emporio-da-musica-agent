@@ -4,6 +4,7 @@ import { logout } from '@/api/client'
 import type { WarmStatus } from '@/api/types'
 import avatar from '@/assets/avatar.jpg'
 import { CatalogDialog } from '@/catalog/CatalogDialog'
+import { appendQuestion } from '@/catalog/form'
 import { Button } from '@/components/ui/button'
 import { copy } from '@/copy'
 import { save } from '@/warmup/queue'
@@ -86,13 +87,14 @@ export function ChatShell({ warm, fromLogin, customerId: initialCustomer, onSign
   const [text, setText] = useState(queue.restored)
   const typing = entries.some((e) => isExchange(e) && e.turn.typing)
 
-  // "Perguntar ao assistente": the question waits in the composer, caret at the end; never sent.
+  // "Perguntar ao assistente": the question waits in the composer after any draft, caret at the
+  // end; never sent.
   const ask = useCallback((question: string) => {
-    setText(question)
+    setText((draft) => appendQuestion(draft, question))
     requestAnimationFrame(() => {
       const input = document.getElementById('composer-input') as HTMLTextAreaElement | null
       input?.focus()
-      input?.setSelectionRange(question.length, question.length)
+      input?.setSelectionRange(input.value.length, input.value.length)
     })
   }, [])
 

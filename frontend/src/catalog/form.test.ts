@@ -29,7 +29,7 @@ describe('parseSpecs', () => {
   })
   it('rejects a line without a colon', () => expect(parseSpecs('Cordas: nylon\nsem dois pontos')).toBeNull())
   it('rejects an empty key or value', () => expect(parseSpecs(': nylon')).toBeNull())
-  it.each(['Cor\u0007: preto', 'Cor: pre\u200bto', 'Cor: \u202epreto', 'Cor\t: preto'])(
+  it.each(['Cor\u0007: preto', 'Cor: pre\u200bto', 'Cor: \u202epreto', 'Co\tr: preto'])(
     'rejects control or invisible characters in %j',
     (line) => expect(parseSpecs(line)).toBeNull(),
   )
