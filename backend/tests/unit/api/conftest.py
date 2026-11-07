@@ -18,7 +18,9 @@ CREDENTIALS = {"email": EMAIL, "password": LOGIN_PHRASE}
 PROXY_PHRASE = "shh"
 
 
-def make_settings(rate_limit_multiplier: int = 1, proxy_secret: str | None = None) -> Settings:
+def make_settings(
+    rate_limit_multiplier: int = 1, proxy_secret: str | None = None, mcp_tokens: str = ""
+) -> Settings:
     return Settings(
         _env_file=None,  # pyright: ignore[reportCallIssue]  # pydantic-settings init kwarg
         demo_email=EMAIL,
@@ -28,6 +30,7 @@ def make_settings(rate_limit_multiplier: int = 1, proxy_secret: str | None = Non
         fake_model=True,
         rate_limit_multiplier=rate_limit_multiplier,
         proxy_secret=SecretStr(proxy_secret) if proxy_secret else None,
+        mcp_tokens=SecretStr(mcp_tokens),
     )
 
 
