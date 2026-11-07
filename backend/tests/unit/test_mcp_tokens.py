@@ -22,7 +22,7 @@ def test_empty_setting_means_no_tokens():
 
 
 def test_short_token_is_rejected_without_echoing_it():
-    with pytest.raises(ConfigError, match="at least 32") as exc:
+    with pytest.raises(ConfigError, match="at least 32 characters") as exc:
         _identities("short-token=anon")
     assert "short-token" not in str(exc.value)
 
