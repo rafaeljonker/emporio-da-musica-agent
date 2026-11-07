@@ -19,7 +19,10 @@ def pg_conn() -> Iterator[psycopg.Connection]:
     apply_migrations(conn)
     yield conn
     conn.rollback()
-    conn.execute("TRUNCATE policy_chunks, product_embeddings")
+    conn.execute(
+        "TRUNCATE policy_chunks, product_embeddings, promotions, products, categories,"
+        " catalog_audit RESTART IDENTITY CASCADE"
+    )
     conn.commit()
     conn.close()
 
