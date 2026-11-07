@@ -1,12 +1,16 @@
+from decimal import Decimal
+
 import pytest
 
 from emporio.catalog.application.get_product import GetProduct
 from emporio.catalog.application.list_promotions import ListPromotions
+from emporio.catalog.application.ports import CatalogFilter
 from emporio.catalog.application.quote_installments import QuoteInstallments
 from emporio.catalog.application.search_products import SearchProducts
 from emporio.catalog.domain.errors import ProductNotFound
 from emporio.catalog.domain.product import ProductStatus
 from emporio.catalog.domain.search import Exact
+from emporio.shared.money import Money
 from tests.unit.catalog.factories import category, m, product, promo
 from tests.unit.catalog.fakes import FakeCatalogRepository
 
@@ -108,3 +112,13 @@ def test_search_price_ceiling_uses_promotional_final_price() -> None:
     found = SearchProducts(repo)("violao", max_price=m("2000"))
     assert isinstance(found, Exact)
     assert found.product.id == 1
+
+
+def test_search_passes_named_category_and_ceiling() -> None:
+    repo = FakeCatalogRepository((), (category(id=5, name="Violões"),))
+
+    SearchProducts(repo)("violões até 1000", Money(Decimal(1000)))
+
+    assert repo.searches == [
+        ("violões até 1000", CatalogFilter(frozenset({5}), False, Money(Decimal(1000))), 40)
+    ]
