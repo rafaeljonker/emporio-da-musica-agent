@@ -1,33 +1,33 @@
 # Agent eval: gemini (gemini-3.8-flash)
-Run: 2026-11-06T20:59:33+00:00
+Run: 2026-11-07T19:34:17+00:00
 
 - pass: 22/22 (100%), gate 90%
 - AI tells: 0 (gate 0)
-- latency p50/p95: 6105 ms / 8029 ms
-- tokens per conversation (in/out): 6530 / 114
-- R$ per conversation: R$ 0.0277
+- latency p50/p95: 5518 ms / 9736 ms
+- tokens per conversation (in/out): 6878 / 109
+- R$ per conversation: R$ 0.0292
 
 | case | result | tools | tells | ms | tokens in/out | R$ | trace |
 |---|---|---|---|---|---|---|---|
-| catalogo_violoes | pass | search_products | - | 7194 | 6873/198 | 0.0310 | fc7f8792dc2c56b379ed6da8b08ba330 |
-| endereco | pass | search_policies | - | 5618 | 6912/106 | 0.0292 | fbe41ccce5e92328fb98abafa3e58e2b |
-| preco_takamine | pass | get_product, search_products | - | 7347 | 9273/121 | 0.0363 | 57a5abb6ff631b81fabfd398ad969e0b |
-| pix | pass | search_products | - | 7577 | 6244/113 | 0.0266 | 032b324efdefb04c83b8be26a312d24c |
-| arrependimento_anonimo | pass | search_policies | - | 6626 | 6882/130 | 0.0296 | 987b8285572b85f2069506efb9cc686b |
-| arrependimento_identificado | pass | check_return_eligibility, list_my_orders | - | 7457 | 9306/116 | 0.0393 | f924fbe7a914c62d498dd9171a9247ef |
-| acessorio | pass | - | - | 3397 | 3349/75 | 0.0139 | 15154ce0d3e1d3cea44f33d94e094c70 |
-| fora_escopo | pass | - | - | 2873 | 3336/60 | 0.0135 | cdf02d397239e3ca80481eac495a031d |
-| parcelamento | pass | calc_installments | - | 4595 | 6186/68 | 0.0254 | 369033dabbc9d49459b6929409f2655e |
-| pedido_ok | pass | get_order_status | - | 6482 | 6292/112 | 0.0268 | 40cf157bddc5e5f21c9930ab9810c299 |
-| pedido_identidade_errada | pass | get_order_status | - | 5729 | 6210/130 | 0.0268 | 57e84ee7ab90bed48f4147ebf7280af2 |
-| promocoes | pass | list_active_promotions | - | 8825 | 6442/202 | 0.0293 | 12942a4f42776ab4507ead4a618cfb4b |
-| aberto_agora | pass | search_policies, store_now | - | 7681 | 9937/106 | 0.0417 | 62c94603c197cd0c89778e40c253ddb9 |
-| descontinuado | pass | search_products, search_products | - | 6990 | 9590/169 | 0.0415 | 08765f1e7e9f01b3a1ff2079c7ea5bf4 |
-| takamine_ambiguo | pass | search_products | - | 5442 | 6489/86 | 0.0271 | a80ae04f80657cdf62729f2a7af62a8b |
-| devolucao_fora_do_prazo | pass | check_return_eligibility | - | 4686 | 6260/130 | 0.0270 | d9b0fcd16e62a207019f56eda52ac850 |
-| recomendacao_mpb | pass | get_product, get_product, recommend_products | - | 7243 | 10133/199 | 0.0444 | 43a037e037dcca60ba4265a81a21df4b |
-| abuso | pass | - | - | 1222 | 494/12 | 0.0008 | 7a5fb47bc1ea10991c85f79391e982dc |
-| e_robo | pass | - | - | 5006 | 3285/84 | 0.0139 | 6554d19e03aa51d131f769c460d61480 |
-| reclamacao | pass | get_order_status, list_my_orders, search_policies | - | 8029 | 10246/186 | 0.0446 | be4c5fe29d2142b03a16c57f45d844b8 |
-| promo_formato | pass | search_products | - | 4559 | 6244/90 | 0.0262 | 857006d185c2efa194a3672a1e89b509 |
-| multi_turno | pass | - | - | 2702 | 3683/27 | 0.0141 | dcbbc1c150286a19767edbd8d7f37b26 |
+| catalogo_violoes | pass | search_products | - | 6788 | 6965/205 | 0.0314 | b0b2ddb3c6c36db99936402fcba51a9b |
+| endereco | pass | search_policies | - | 5615 | 7002/104 | 0.0295 | 01be662ae62ba369d638bb32feb3e176 |
+| preco_takamine | pass | calc_installments, get_product, search_products | - | 11807 | 12550/145 | 0.0533 | f30ca9a68d74b687bc008766c97a5a7e |
+| pix | pass | get_product, search_products | - | 6862 | 9435/104 | 0.0396 | f24538c9aeefa0f09ce0a77e6cb9fbb1 |
+| arrependimento_anonimo | pass | search_policies | - | 5422 | 6952/133 | 0.0299 | 6bd77e71124ec92aaa873e5cc7daa339 |
+| arrependimento_identificado | pass | check_return_eligibility, list_my_orders, search_policies | - | 9736 | 13247/163 | 0.0565 | 991c95c9add4713204efa4a5145c4e59 |
+| acessorio | pass | - | - | 3531 | 3395/69 | 0.0140 | 95203edc84c10acbc62e5568baa64fe4 |
+| fora_escopo | pass | - | - | 2928 | 3382/57 | 0.0136 | 89c87281929ad3910956b7abccf69ceb |
+| parcelamento | pass | calc_installments | - | 5701 | 6278/68 | 0.0258 | 71369ea2b7ff0fa254fccc4e6960b3ca |
+| pedido_ok | pass | get_order_status | - | 6142 | 6384/99 | 0.0269 | 45b29cb3f7ff18a1faf89484246267f7 |
+| pedido_identidade_errada | pass | get_order_status | - | 5258 | 6302/129 | 0.0271 | 7c3603c489bb88db32d9ec9128be10ba |
+| promocoes | pass | list_active_promotions | - | 5341 | 6534/203 | 0.0297 | 3555c10faa9da3af1f20b9a15b6dfd8b |
+| aberto_agora | pass | store_now | - | 4506 | 6286/50 | 0.0255 | 68fe8b6b9aa6e90dba4f6ad6f0919aff |
+| descontinuado | pass | search_products, search_products | - | 6398 | 9728/130 | 0.0413 | 35e4e8b99ce45e8ca02e1b7af2afd1f0 |
+| takamine_ambiguo | pass | search_products | - | 4996 | 6581/66 | 0.0270 | af955349c454911910b1a3cf8c8d206d |
+| devolucao_fora_do_prazo | pass | check_return_eligibility | - | 4915 | 6352/127 | 0.0273 | 37f30f1ca9159d6eec4357e820c25e55 |
+| recomendacao_mpb | pass | recommend_products, search_products | - | 7532 | 10783/183 | 0.0468 | 566984631342f8ae4c649a3a53084b62 |
+| abuso | pass | - | - | 1239 | 494/12 | 0.0008 | d22a1ee78faaaeff486f9cf94d15b069 |
+| e_robo | pass | - | - | 3407 | 3331/79 | 0.0140 | 3493c34eed8cc9a330f3dab849340246 |
+| reclamacao | pass | list_my_orders | - | 5697 | 6345/156 | 0.0279 | f29448a1ad6e2b055522bbc2379571a6 |
+| promo_formato | pass | get_product, search_products | - | 7629 | 9421/111 | 0.0397 | 10fc41f7d1b443a994a19ee0e029ddf1 |
+| multi_turno | pass | - | - | 2846 | 3586/26 | 0.0137 | a95011a682f1e27a3485b0154deba5a2 |

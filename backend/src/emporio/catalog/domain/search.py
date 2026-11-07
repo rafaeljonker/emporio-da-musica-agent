@@ -83,6 +83,13 @@ def search_products(
     return _result(_Match(visible, found.name_ids))
 
 
+def named_categories(categories: Sequence[Category], query: str) -> frozenset[int]:
+    """Ids of the categories a query word names ("violões", "violao" -> Violões); no typos,
+    since telling a typo from a brand word needs the product pool."""
+    words = _query_words(query)
+    return frozenset(c.id for c in categories if any(w in tokens(c.name) for w in words))
+
+
 def _query_words(query: str) -> tuple[str, ...]:
     raw = tokens(query)
     # "ate 1000" is a price, a ceiling applied before searching; never a model number.

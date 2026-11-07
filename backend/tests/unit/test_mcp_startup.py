@@ -10,9 +10,8 @@ def _wire(monkeypatch: pytest.MonkeyPatch, known: set[int]) -> list[int | None]:
     served: list[int | None] = []
     customers = SimpleNamespace(by_id=lambda cid: object() if cid in known else None)
     monkeypatch.setenv("DATABASE_URL", "postgresql://unused")
-    monkeypatch.setattr(
-        bootstrap, "build_toolbox", lambda stack, url, settings: (object(), customers, object())
-    )
+    toolbox = (object(), customers, object(), object())
+    monkeypatch.setattr(bootstrap, "build_toolbox", lambda stack, url, settings: toolbox)
     monkeypatch.setattr(
         bootstrap,
         "build_mcp",

@@ -7,16 +7,22 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from emporio.api.auth import build_auth_router
+from emporio.api.catalog import build_catalog_router
 from emporio.api.chat import build_chat_router
 from emporio.api.identity import build_identity_router
 from emporio.api.warm import build_warm_router
 from emporio.config import Settings, require_web_settings
-from emporio.support.application.ports import ChatAgent
+from emporio.support.application.ports import CatalogAdmin, ChatAgent
 from emporio.support.application.warmup import Warmup
 
 
 def create_app(
-    agent: ChatAgent, warmup: Warmup, settings: Settings, *, static_dir: Path | None = None
+    agent: ChatAgent,
+    warmup: Warmup,
+    settings: Settings,
+    catalog: CatalogAdmin,
+    *,
+    static_dir: Path | None = None,
 ) -> FastAPI:
     require_web_settings(settings)
     secret = settings.session_secret.get_secret_value() if settings.session_secret else ""
@@ -42,6 +48,7 @@ def create_app(
     )
     app.include_router(build_auth_router(settings, warmup))
     app.include_router(build_chat_router(agent, settings))
+    app.include_router(build_catalog_router(catalog, settings))
     app.include_router(build_identity_router(agent))
     app.include_router(build_warm_router(warmup))
     # Mounted last so it never shadows /api.

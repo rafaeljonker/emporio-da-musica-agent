@@ -36,6 +36,15 @@ def register_vector_if_available(conn: psycopg.Connection) -> None:
         register_vector(conn)
 
 
+def configure_pool_connection(conn: psycopg.Connection) -> None:
+    """pgvector adapters plus HNSW iterative scans, so a filtered vector search still fills its
+    LIMIT; `ef_search = 100` is nearly free (catalog research §6) and only raises recall."""
+    register_vector_if_available(conn)
+    conn.execute("SET hnsw.iterative_scan = relaxed_order")
+    conn.execute("SET hnsw.ef_search = 100")
+    conn.commit()
+
+
 def connect(url: str | None = None) -> psycopg.Connection:
     conn = psycopg.connect(url or database_url())
     register_vector_if_available(conn)
@@ -52,7 +61,7 @@ def make_pool(
         max_size=max_size,
         timeout=timeout,
         kwargs={"autocommit": True},
-        configure=register_vector_if_available,
+        configure=configure_pool_connection,
         check=ConnectionPool.check_connection,
         open=True,
     )

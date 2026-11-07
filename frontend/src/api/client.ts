@@ -1,5 +1,5 @@
 import { createParser } from 'eventsource-parser'
-import type { ChatEvent, DemoCustomer, Me, WarmExpected, WarmStatus } from './types'
+import type { Category, ChatEvent, DemoCustomer, Me, Product, ProductBody, WarmExpected, WarmStatus } from './types'
 
 /** Any 401 on an authenticated route: the session cookie is gone or expired. */
 export class SessionExpired extends Error {}
@@ -8,9 +8,12 @@ export class InvalidCredentials extends Error {}
 
 export class HttpError extends Error {
   readonly status: number
-  constructor(status: number) {
+  /** The API's `detail`: a code (`catalog_full`) or FastAPI's list of field errors on a 422. */
+  readonly detail?: unknown
+  constructor(status: number, detail?: unknown) {
     super(`HTTP ${status}`)
     this.status = status
+    this.detail = detail
   }
 }
 
@@ -32,7 +35,12 @@ function check(res: Response): Response {
 }
 
 async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
-  return (await check(await send(method, path, body)).json()) as T
+  const res = await send(method, path, body)
+  if (!res.ok && res.status !== 401) {
+    const json: unknown = await res.json().catch(() => null)
+    throw new HttpError(res.status, (json as { detail?: unknown } | null)?.detail)
+  }
+  return (await check(res).json()) as T
 }
 
 export async function login(email: string, password: string): Promise<WarmStatus> {
@@ -53,6 +61,11 @@ export const setIdentity = (customerId: number | null) =>
 export const warmStatus = () => call<WarmStatus>('GET', '/api/warm/status')
 export const startWarm = () => call<WarmStatus>('POST', '/api/warm')
 export const warmExpected = () => call<WarmExpected>('GET', '/api/warm/expected')
+export const catalogCategories = () => call<Category[]>('GET', '/api/catalog/categories')
+export const myProducts = () => call<Product[]>('GET', '/api/catalog/products/mine')
+export const createProduct = (body: ProductBody) => call<Product>('POST', '/api/catalog/products', body)
+export const updateProduct = (id: number, body: ProductBody) =>
+  call<Product>('PUT', `/api/catalog/products/${id}`, body)
 
 /** POSTs one message and reports each SSE event; no reconnect (a dropped turn is an error). */
 export async function streamChat(

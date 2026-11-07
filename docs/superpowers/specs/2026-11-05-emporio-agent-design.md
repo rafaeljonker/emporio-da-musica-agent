@@ -46,7 +46,7 @@ They evaluate **"lógica, clareza e iniciativa"** (logic, clarity and initiative
 - **Login for the store's customer.** The customer is identified by the channel (see 7.3). The login that exists is only for **demo access**.
 - **Spending cap and quota alert.** The access login already protects the key.
 - (Removed: running the model locally is now a supported option; see 7.14.)
-- Writing store data: the agent reads and does not change orders or stock.
+- Writing store data: the agent reads and does not change orders or stock. The demo's Catálogo dialog is the store's back office, a separate actor from the agent: logged-in users create and edit their own products; the agent and MCP stay read-only (§7.2.6).
 - The full GSP pipeline: market research and launch are left out.
 
 ## 4. Anti-goals (a failure even if it "works")
@@ -122,7 +122,7 @@ They evaluate **"lógica, clareza e iniciativa"** (logic, clarity and initiative
 
 ### 7.1 Central principle (README argument)
 **Structured data uses a deterministic tool; text uses RAG.**
-- Price, stock, order and promotion are exact queries in Python over the CSVs. The policy itself requires: "nunca fornecer preços, estoque ou prazos sem consultar o sistema".
+- Price, stock and promotion are exact SQL columns in Postgres (hybrid retrieval, FTS + trigram + vector, only proposes candidates; facts never come from the vector side); orders are exact queries in Python over the CSVs. The policy itself requires: "nunca fornecer preços, estoque ou prazos sem consultar o sistema".
 - RAG (pgvector) is kept only for the policy PDF: about 20 chunks, one per section. It sits behind the `PolicyIndex` port, so it scales by swapping the adapter (Vertex AI Vector Search, Weaviate).
 
 ### 7.2 Domains (lean DDD)
@@ -150,7 +150,7 @@ The agent's tools are a thin layer in `support/` that calls the use cases. A rul
 - **Policy retrieval is hybrid** (owner decision): pgvector cosine + Postgres full-text (`portuguese`, over an immutable `f_unaccent`), fused with RRF `1/(60 + rank)`, k = 5. On a 20-question eval it scored hit@1/3/5 = 0.75/0.95/1.00 against 0.65/0.80/0.90 for vector only (`backend/evals/policies_retrieval.toml`, caveats in `docs/research/fase-3.md`). Hit@1 is 0.75, so the agent reads all five hits.
 - **Full-text query** is built as `replace(plainto_tsquery('portuguese', f_unaccent(q))::text, ' & ', ' | ')::tsquery`, so lexemes are stemmed once. The Portuguese stemmer splits singular and plural ("violão" → `viola`, "violões" → `violo`); the vector side covers those.
 - **Embeddings:** fastembed with `intfloat/multilingual-e5-small` ONNX (384 dims, `query:`/`passage:` prefixes), no torch. Lives in `emporio/embeddings.py`, usable only by infrastructure. The model revision is pinned when the phase 6 image bakes the model.
-- **Products:** `recommend_products` asks the vector index for 10 ids and filters availability after retrieval (never in SQL), returning at most `limit` (default 5) Candidates.
+- **Products:** `recommend_products` asks the vector index for 10 ids and filters availability after retrieval (never in SQL), returning at most `limit` (default 5) Candidates. **Superseded by §7.2.6** (the catalog is in Postgres and availability is filtered in SQL).
 - **"Open now"** uses the real wall clock in `America/Campo_Grande`; return windows keep `STORE_TODAY`. Mon–Fri 09:00–18:00, Sat 09:00–13:00, closed Sundays and holidays (hard-coded 2025–2026 list; the Campo Grande holiday on 08-26 is unconfirmed). Opening is inclusive, closing exclusive. `store_now` returns open + next opening.
 - **Database:** plain SQL migrations (`backend/migrations/NNN_*.sql`) with a small runner that commits each file; pgvector is registered on the connection after migrating, so a fresh database (the first Railway deploy) works. Local compose uses host port 5434; Postgres tests run on a separate `emporio_test` database.
 - **Contact data:** the agent quotes WhatsApp (67) 3341-4444 (cover and 1.2). Section 7 lists (67) 3321-4500 and 1.2 spells the e-mail with an accent; both are recorded as data quirks.
@@ -196,14 +196,31 @@ The agent's tools are a thin layer in `support/` that calls the use cases. A rul
 - **PostgresSaver lock fix:** the saver's single lock serialised every thread's checkpoint I/O although each call checks out its own pooled connection; it is a no-op on our pool, and both pools open at full size (`DB_POOL_MAX`). Fake-model chat p50 at 50 users went from 48 s to 1.7 s (§7.5).
 - **Cut or deferred:** the BF16 baseline on H100, the GPU memory snapshot and the real-model load test (budget); an LLM-as-judge in the evals (owner: facts stay with the deterministic verifier and the transcripts in each report); the H100 eval re-run after the voice and markup fixes. `PROVIDER=local` is built but not yet measured on the owner's machine.
 
+### 7.2.6 Catalog rulings
+Research: `docs/research/catalog-db.md`; decision record: ADR 0011.
+- **Owner decisions (2026-11-07):**
+  1. FTS + `pg_trgm` + pgvector fused with RRF k = 60 in one SQL statement.
+  2. The domain grader stays, over the hybrid pool.
+  3. Availability and price ceiling are filtered in SQL, with `hnsw.iterative_scan = relaxed_order` and `hnsw.ef_search = 100`.
+  4. Embedding on write is synchronous; bulk loads go through `make ingest`.
+  5. If the embedding fails the row is saved with `embedding NULL` and logged (found by text search).
+  6. Any logged-in demo user may create products.
+  7. Create and edit own rows only; seed rows are read-only; no delete.
+  8. One product per request; no CSV upload.
+  9. The hosted catalog is reset manually with `make ingest`.
+  10. `product_embeddings` is dropped.
+- **Retrieval:** the pool is 40 candidates, then the grader decides Exact or Candidates. The category filter comes from `named_categories`. There is no NoMatch fallback to a wider search.
+- **Caps:** 20 products per login, 500 admin-created in total, 10 writes/min per login; per IP 10 writes/min and 30 creates/hour.
+- **Reset:** `make ingest` reseeds and deletes every demo-created product.
+
 ### 7.3 Architecture
 ```
 React (Vite+TS, GSP design system) ──POST /api/chat (SSE)──► FastAPI (Python)
         │                                                  │ LangGraph: guard → agent ⇄ tools
-        └── bubbles via SSE ◄─────────────────────────────┤ catalog/orders → stdlib csv (in memory)
+        └── bubbles via SSE ◄─────────────────────────────┤ catalog → Postgres; orders → stdlib csv
                                                            ├ policies → pgvector
                                                            └ history/metrics → Postgres
-    python -m emporio.ingest: PDF → 25 section chunks → e5 embeddings (CPU) → pgvector (+ product embeddings)
+    python -m emporio.ingest: PDF → 25 section chunks → e5 embeddings (CPU) → pgvector (+ catalog seed and product embeddings)
 ```
 - **Graph:** `guard` (same model, structured output; routes `loja | acessorio | fora_de_escopo | abuso`) → `agent` (model + tools, ReAct; tool rules from the spike's prompt v2) → answer. The guard runs on every turn; `abuso` returns a fixed reply, a classifier failure routes to `loja`.
   - **Tool loop:** capped at 5 iterations; hitting the cap (or any graph recursion error) returns a contact-the-team reply. Any exception inside a tool becomes a short tool text, so no `tool_call` is left dangling.
@@ -246,7 +263,12 @@ All routes are JSON except the chat stream. Errors are `{"detail": "<code>"}`. R
 | `GET /api/warm/status` | session | none | `200 WarmStatus` | 401 |
 | `GET /api/warm/expected` | none | none | `200 {"mode": WarmMode, "expected_seconds": int}`; starts nothing | none |
 | `POST /api/chat` | session | `{"text": str}` | `200` `text/event-stream` (events below) | 401, 409 `turn_in_progress`, 415, 422, 429 `too_many_messages` (per `sid` or overall) |
+| `GET /api/catalog/categories` | session | none | `200 [{id, name}]` | 401, 503 `catalog_unavailable` |
+| `GET /api/catalog/products/mine` | session | none | `200 [product]`, newest first | 401, 503 |
+| `POST /api/catalog/products` | session | `ProductIn` | `201 product` | 401, 415, 422 (body or `unknown_category`), 409 `catalog_full`, 429 `too_many_writes`, 503 |
+| `PUT /api/catalog/products/{id}` (id ≥ 1) | session | `ProductIn` | `200 product` | 401, 415, 422, 404 `not_found` (missing, seed or foreign alike), 429, 503 |
 
+- **`ProductIn`:** `name` 2 to 120 characters; `category_id` a known category; `description` up to 2000; `price` a decimal string (`^[0-9]{1,6}(\.[0-9]{1,2})?$`, greater than 0, never a JSON number); `stock` 0 to 100,000; `status` `active | discontinued | coming_soon`; `specs` at most 20 flat string pairs. Control, zero-width and bidi characters are rejected (newlines allowed in `description`); extra keys are a 422. The owner is the session's login, never the body.
 - **`customer_id`** is a strict integer from 1 to 2147483647, or `null` for anonymous (a JSON string or float is a 422). `/api/customers` lists the curated demo customers, not the whole CSV.
 - **`text`** is trimmed and must be 1 to 1000 characters; extra keys are a 422. Identity never comes from the body, only from the session.
 - **`WarmStatus`:** `{mode, stage, started_at, elapsed_seconds, expected_seconds, reply_p50_seconds}`.

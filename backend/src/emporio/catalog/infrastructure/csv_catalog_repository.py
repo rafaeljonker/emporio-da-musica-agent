@@ -56,7 +56,7 @@ def _category(row: dict[str, str]) -> Category:
 
 
 class CsvCatalogRepository:
-    """Read-only catalog loaded lazily, once per file, from the case CSVs."""
+    """The case CSVs, loaded lazily once per file; only the seed of the Postgres catalog."""
 
     def __init__(self, files: Mapping[str, Path] = CASE_CSV_FILES) -> None:
         self._files = files

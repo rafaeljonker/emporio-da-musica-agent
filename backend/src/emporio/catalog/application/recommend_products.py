@@ -1,19 +1,13 @@
-from emporio.catalog.application.ports import CatalogRepository, ProductIndex
+from emporio.catalog.application.ports import CatalogFilter, CatalogRepository
 from emporio.catalog.domain.search import Candidates, NoMatch
-
-_POOL = 10
 
 
 class RecommendProducts:
-    def __init__(self, repo: CatalogRepository, index: ProductIndex) -> None:
+    def __init__(self, repo: CatalogRepository) -> None:
         self._repo = repo
-        self._index = index
 
     def __call__(self, need: str, limit: int = 5) -> Candidates | NoMatch:
         if limit <= 0 or not need.strip():
             return NoMatch()
-        by_id = {p.id: p for p in self._repo.products()}
-        # Availability is filtered here, after retrieval, never in the index query.
-        ranked = (by_id.get(i) for i in self._index.similar(need, max(_POOL, limit)))
-        found = tuple(p for p in ranked if p is not None and p.is_available)[:limit]
+        found = tuple(self._repo.search(need, CatalogFilter(available_only=True), limit))[:limit]
         return Candidates(found) if found else NoMatch()

@@ -1,4 +1,3 @@
-from collections.abc import Sequence
 from dataclasses import replace
 from datetime import date
 
@@ -38,14 +37,6 @@ FOREIGN = (
 ANON = TurnContext(customer_id=None)
 
 
-class _Index:
-    def similar(self, need: str, k: int) -> Sequence[int]:
-        return [1]
-
-    def replace_all(self, products: Sequence[Product], category_names: object) -> None:
-        raise NotImplementedError
-
-
 def make_box(*products: Product) -> Toolbox:
     repo = FakeCatalogRepository(products or (product(),), (category(),))
     orders = FakeOrderRepository(
@@ -58,7 +49,7 @@ def make_box(*products: Product) -> Toolbox:
     customers = FakeCustomerRepository((cust(id=3), cust(id=4, email="outra@jmail.com")))
     return Toolbox(
         SearchProducts(repo),
-        RecommendProducts(repo, _Index()),
+        RecommendProducts(repo),
         GetProduct(repo),
         ListPromotions(repo),
         QuoteInstallments(),

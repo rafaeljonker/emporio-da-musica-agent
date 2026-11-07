@@ -5,8 +5,13 @@ from emporio.catalog.application.search_products import SearchProducts
 from emporio.catalog.domain.search import Candidates, Exact
 from emporio.catalog.infrastructure.csv_catalog_repository import CsvCatalogRepository
 from emporio.shared.money import Money
+from tests.unit.catalog.fakes import FakeCatalogRepository
 
-repo = CsvCatalogRepository()
+CSV = CsvCatalogRepository()
+# The use cases over the real case data, through the in-memory port (no database).
+repo = FakeCatalogRepository(
+    tuple(CSV.products()), tuple(CSV.categories()), tuple(CSV.promotions())
+)
 
 
 def m(value: str) -> Money:
@@ -43,7 +48,7 @@ def test_crafter_ht100_promo() -> None:
 
 
 def test_discontinued_and_coming_soon_are_unavailable() -> None:
-    assert {p.id for p in repo.products() if not p.is_available} >= {113, 130, 136, 96}
+    assert {p.id for p in CSV.products() if not p.is_available} >= {113, 130, 136, 96}
 
 
 def test_c40_is_cheapest_beginner_violao_under_1000() -> None:

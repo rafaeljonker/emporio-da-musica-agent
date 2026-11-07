@@ -5,8 +5,12 @@ import psycopg
 import pytest
 from psycopg_pool import ConnectionPool
 
+from emporio.catalog.infrastructure.csv_catalog_repository import CsvCatalogRepository
+from emporio.catalog.infrastructure.pg_catalog_repository import PgCatalogRepository
+from emporio.catalog.infrastructure.pg_catalog_writer import PgCatalogWriter
 from emporio.db import connect, make_pool
 from emporio.migrate import apply_migrations
+from tests.fakes.hash_embedder import HashEmbedder
 from tests.pg_guard import pg_skip_reason
 
 
@@ -19,7 +23,12 @@ def pg_conn() -> Iterator[psycopg.Connection]:
     apply_migrations(conn)
     yield conn
     conn.rollback()
-    conn.execute("TRUNCATE policy_chunks, product_embeddings")
+    conn.execute(
+        "TRUNCATE policy_chunks, promotions, products, categories,"
+        " catalog_audit RESTART IDENTITY CASCADE"
+    )
+    # Not owned by a column, so RESTART IDENTITY leaves it alone.
+    conn.execute("ALTER SEQUENCE products_admin_id_seq RESTART")
     conn.commit()
     conn.close()
 
@@ -30,3 +39,12 @@ def pg_pool(pg_conn: psycopg.Connection) -> Iterator[ConnectionPool]:
     pool = make_pool()
     yield pool
     pool.close()
+
+
+@pytest.fixture
+def catalog_repo(pg_pool: ConnectionPool) -> PgCatalogRepository:
+    csv = CsvCatalogRepository()
+    PgCatalogWriter(pg_pool, HashEmbedder()).seed(
+        csv.categories(), csv.products(), csv.promotions()
+    )
+    return PgCatalogRepository(pg_pool, HashEmbedder())

@@ -1,0 +1,152 @@
+# Product retrieval: 30 labelled queries over the seeded catalog (research probe set).
+# A case hits@k when any expected id is in the top k of `search(query, CatalogFilter(), k)`.
+
+[[case]]
+group = "code"
+query = "Yamaha C40"
+expected = [81]
+
+[[case]]
+group = "code"
+query = "quanto custa o takamine gd20"
+expected = [95]
+
+[[case]]
+group = "code"
+query = "takamine gd 20"
+expected = [95]
+
+[[case]]
+group = "code"
+query = "SN-7C"
+expected = [113]
+
+[[case]]
+group = "code"
+query = "fg800"
+expected = [92]
+
+[[case]]
+group = "code"
+query = "martin d28"
+expected = [93, 108]
+
+[[case]]
+group = "code"
+query = "kala ka-15s"
+expected = [116]
+
+[[case]]
+group = "code"
+query = "apx600"
+expected = [104]
+
+[[case]]
+group = "code"
+query = "fender telecaster"
+expected = [134]
+
+[[case]]
+group = "code"
+query = "les paul"
+expected = [131]
+
+[[case]]
+group = "code"
+query = "gc5ce"
+expected = [100]
+
+[[case]]
+group = "typo"
+query = "yamah c70"
+expected = [82]
+
+[[case]]
+group = "typo"
+query = "takamine gd2o"
+expected = [95]
+
+[[case]]
+group = "typo"
+query = "telecastr"
+expected = [134]
+
+[[case]]
+group = "typo"
+query = "stratocastr"
+expected = [145]
+
+[[case]]
+group = "typo"
+query = "ukelele kala soprano"
+expected = [116]
+
+[[case]]
+group = "typo"
+query = "violao giannini gnf3"
+expected = [101]
+
+[[case]]
+group = "typo"
+query = "ibanes rg550"
+expected = [132]
+
+[[case]]
+group = "meaning"
+query = "violão de nylon para iniciante"
+expected = [81, 83, 84, 85]
+
+[[case]]
+group = "meaning"
+query = "instrumento pequeno de quatro cordas pra levar em viagem"
+expected = [116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130]
+
+[[case]]
+group = "meaning"
+query = "violão de 7 cordas para choro"
+expected = [109, 110, 111, 112, 113]
+
+[[case]]
+group = "meaning"
+query = "bateria para gravar em estúdio"
+expected = [139, 140, 141]
+
+[[case]]
+group = "meaning"
+query = "sintetizador para produzir música eletrônica"
+expected = [142, 143, 144]
+
+[[case]]
+group = "meaning"
+query = "contrabaixo de 5 cordas"
+expected = [137]
+
+[[case]]
+group = "meaning"
+query = "violão folk com captação para tocar ao vivo"
+expected = [94, 103, 104, 105, 106, 107, 108]
+
+[[case]]
+group = "meaning"
+query = "ukulele com som mais grave"
+expected = [124, 128, 129, 130]
+
+[[case]]
+group = "meaning"
+query = "guitarra para rock pesado com ponte tremolo"
+expected = [132]
+
+[[case]]
+group = "meaning"
+query = "violão com afinador embutido"
+expected = [86, 99, 107]
+
+[[case]]
+group = "meaning"
+query = "piano de palco"
+expected = [143]
+
+[[case]]
+group = "meaning"
+query = "violão eletroacústico de nylon"
+expected = [98, 99, 100, 101, 102, 115]

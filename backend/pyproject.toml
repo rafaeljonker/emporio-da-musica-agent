@@ -299,14 +299,19 @@ ignore_imports = [
     "emporio.support.infrastructure.agent.tools -> emporio.catalog.domain.errors",
     "emporio.support.infrastructure.agent.tools -> emporio.catalog.domain.installments",
     "emporio.support.infrastructure.agent.tools -> emporio.catalog.domain.pricing",
+    "emporio.support.infrastructure.agent.tools -> emporio.catalog.domain.product",
     "emporio.support.infrastructure.agent.tools -> emporio.catalog.domain.search",
     "emporio.support.infrastructure.agent.tools -> emporio.orders.application.check_return_eligibility",
     "emporio.support.infrastructure.agent.tools -> emporio.orders.application.get_order_status",
     "emporio.support.infrastructure.agent.tools -> emporio.orders.application.list_customer_orders",
     "emporio.support.infrastructure.agent.tools -> emporio.orders.domain.errors",
     "emporio.support.infrastructure.agent.tools -> emporio.orders.domain.identity",
+    "emporio.support.infrastructure.agent.tools -> emporio.orders.domain.order",
     "emporio.support.infrastructure.agent.tools -> emporio.policies.application.search_policies",
     "emporio.support.infrastructure.agent.tools -> emporio.policies.application.store_now",
+    # The catalog admin service maps the web DTOs to catalog drafts (write path).
+    "emporio.support.infrastructure.catalog_admin -> emporio.catalog.application.*",
+    "emporio.support.infrastructure.catalog_admin -> emporio.catalog.domain.*",
 ]
 
 [[tool.importlinter.contracts]]

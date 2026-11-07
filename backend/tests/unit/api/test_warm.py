@@ -7,6 +7,7 @@ from emporio.api.app import create_app
 from emporio.support.application.warmup import WarmMode
 from emporio.support.infrastructure.warmup import ProbeWarmup
 from tests.fakes.fake_agent import FakeAgent
+from tests.fakes.fake_catalog_admin import FakeCatalogAdmin
 from tests.unit.api.conftest import CREDENTIALS, make_settings
 
 
@@ -26,7 +27,9 @@ def pending(probes: list[int]) -> ProbeWarmup:
 
 @pytest.fixture
 def warm_client(pending: ProbeWarmup) -> Iterator[TestClient]:
-    with TestClient(create_app(FakeAgent(), pending, make_settings())) as client:
+    with TestClient(
+        create_app(FakeAgent(), pending, make_settings(), FakeCatalogAdmin())
+    ) as client:
         yield client
 
 

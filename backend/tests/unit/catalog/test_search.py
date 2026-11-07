@@ -1,5 +1,12 @@
 from emporio.catalog.domain.product import ProductStatus
-from emporio.catalog.domain.search import Candidates, Exact, NoMatch, SearchResult, search_products
+from emporio.catalog.domain.search import (
+    Candidates,
+    Exact,
+    NoMatch,
+    SearchResult,
+    named_categories,
+    search_products,
+)
 from emporio.shared.money import Money
 from tests.unit.catalog.factories import category, m, product
 
@@ -303,3 +310,11 @@ def test_category_typo_never_overrides_a_brand_or_unrelated_word() -> None:
     assert isinstance(search("violino"), NoMatch)
     assert isinstance(search("bateria eletronica roland"), NoMatch)
     assert isinstance(search("baixo"), Candidates)
+
+
+def test_named_categories_matches_plural_and_accent() -> None:
+    cats = (category(id=5, name="Violões"),)
+
+    assert named_categories(cats, "violões até 1000") == frozenset({5})
+    assert named_categories(cats, "violao") == frozenset({5})
+    assert named_categories(cats, "takamine gd20") == frozenset()
