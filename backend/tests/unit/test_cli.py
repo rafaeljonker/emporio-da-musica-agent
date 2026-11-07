@@ -2,8 +2,8 @@ from collections.abc import Callable
 
 import pytest
 
-from emporio import cli
-from emporio.bootstrap import Agent
+from emporio.entrypoints import cli
+from emporio.entrypoints.bootstrap import Agent
 from emporio.platform.config import MissingSetting, Provider, Settings, WebSettingsRequired
 from emporio.support.application.ports import Reply
 from emporio.support.domain.channel_identity import ChannelIdentity

@@ -28,7 +28,7 @@ dependencies = [
 ]
 
 [project.scripts]
-emporio = "emporio.cli:main"
+emporio = "emporio.entrypoints.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.12.3,<0.13.0"]
@@ -236,7 +236,7 @@ source_modules = [
     "emporio.policies.application", "emporio.support.application",
 ]
 forbidden_modules = [
-    "emporio.platform", "emporio.ingest", "emporio.bootstrap", "emporio.cli", "emporio.web",
+    "emporio.platform", "emporio.entrypoints",
 ]
 
 [[tool.importlinter.contracts]]
@@ -309,8 +309,8 @@ forbidden_modules = [
     "emporio.policies.infrastructure", "emporio.support.infrastructure",
     "emporio.catalog.domain", "emporio.orders.domain", "emporio.policies.domain",
     "emporio.orders.application", "emporio.policies.application",
-    "emporio.bootstrap", "emporio.platform.db", "emporio.platform.migrate",
-    "emporio.platform.embeddings", "emporio.platform.local_model", "emporio.ingest",
+    "emporio.entrypoints", "emporio.platform.db", "emporio.platform.migrate",
+    "emporio.platform.embeddings", "emporio.platform.local_model",
     "langchain", "langchain_core", "langgraph", "psycopg", "psycopg_pool", "langfuse",
     "langchain_openai", "langchain_anthropic", "langchain_google_genai",
 ]

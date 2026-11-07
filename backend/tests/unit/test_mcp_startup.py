@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import pytest
 from pydantic import SecretStr
 
-from emporio import bootstrap, cli
+from emporio.entrypoints import bootstrap, cli
 from emporio.platform.config import ConfigError, Settings
 from tests.fakes.fake_catalog_admin import FakeCatalogAdmin
 from tests.unit.support.test_tools import make_box

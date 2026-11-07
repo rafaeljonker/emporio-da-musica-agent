@@ -1,6 +1,6 @@
 import pytest
 
-from emporio.ingest import main
+from emporio.entrypoints.ingest import main
 
 
 def test_ingest_without_database_url_exits_2_with_message(

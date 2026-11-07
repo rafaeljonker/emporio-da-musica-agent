@@ -12,7 +12,7 @@ import time
 from collections.abc import Callable, Sequence
 from uuid import uuid4
 
-from emporio.bootstrap import build_agent, run_mcp
+from emporio.entrypoints.bootstrap import build_agent, run_mcp
 from emporio.platform.config import (
     ConfigError,
     Provider,

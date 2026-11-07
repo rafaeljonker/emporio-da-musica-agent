@@ -5,7 +5,7 @@ from urllib.parse import urlsplit, urlunsplit
 import psycopg
 import pytest
 
-from emporio import ingest
+from emporio.entrypoints import ingest
 from emporio.platform.db import connect, database_url
 from tests.fakes.hash_embedder import HashEmbedder
 from tests.pg_guard import pg_skip_reason

@@ -19,8 +19,6 @@ from langchain_core.messages import AIMessage
 from psycopg import Connection
 from psycopg_pool import ConnectionPool
 
-from emporio import bootstrap
-from emporio.bootstrap import Agent, build_agent
 from emporio.catalog.application.get_product import GetProduct
 from emporio.catalog.application.list_promotions import ListPromotions
 from emporio.catalog.application.quote_installments import QuoteInstallments
@@ -33,6 +31,8 @@ from emporio.catalog.domain.search import Candidates, Exact, NoMatch, SearchResu
 from emporio.catalog.infrastructure.csv_catalog_repository import CsvCatalogRepository
 from emporio.catalog.infrastructure.pg_catalog_repository import PgCatalogRepository
 from emporio.catalog.infrastructure.pg_catalog_writer import PgCatalogWriter
+from emporio.entrypoints import bootstrap
+from emporio.entrypoints.bootstrap import Agent, build_agent
 from emporio.orders.application.check_return_eligibility import CheckReturnEligibility
 from emporio.orders.application.list_customer_orders import ListCustomerOrders
 from emporio.orders.domain.errors import OrdersErrorCode

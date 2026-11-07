@@ -61,7 +61,7 @@ def start_server() -> Iterator[StartServer]:
         }
         log_fd, log_path = tempfile.mkstemp(prefix="emporio-e2e-", suffix=".log")
         process = subprocess.Popen(
-            [sys.executable, "-m", "uvicorn", "--factory", "emporio.web:create_web_app",
+            [sys.executable, "-m", "uvicorn", "--factory", "emporio.entrypoints.web:create_web_app",
              "--port", str(port)],
             cwd=REPO_ROOT / "backend", env=env, stdout=log_fd, stderr=subprocess.STDOUT,
         )  # fmt: skip

@@ -153,12 +153,12 @@ def web() -> object:  # the FastAPI app
         if not url:
             raise SystemExit(missing)
         os.environ["VLLM_BASE_URL"] = f"{url}/v1"
-    from emporio.web import create_web_app
+    from emporio.entrypoints.web import create_web_app
 
     return create_web_app()
 
 
 @app.function(image=image, secrets=[db_secret], timeout=30 * MINUTES)
 def ingest() -> None:
-    for module in ("emporio.platform.migrate", "emporio.ingest"):
+    for module in ("emporio.platform.migrate", "emporio.entrypoints.ingest"):
         subprocess.run([sys.executable, "-m", module], check=True)
