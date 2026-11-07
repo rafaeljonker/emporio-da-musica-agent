@@ -14,8 +14,9 @@ from emporio.support.application.ports import TurnMetrics
 from emporio.support.domain.channel_identity import ChannelIdentity
 from emporio.support.domain.scope import Scope
 from emporio.support.infrastructure.agent.graph import AgentGraph, build_graph
-from emporio.support.infrastructure.agent.runner import GraphRunner, TurnProbe
+from emporio.support.infrastructure.agent.runner import GraphRunner
 from emporio.support.infrastructure.agent.tools import build_tools
+from emporio.support.infrastructure.agent.turn_probe import TurnProbe
 from tests.fakes.fake_chat_model import FakeToolCallingModel
 from tests.fakes.recording_tracer import RecordingTracer
 from tests.unit.support.test_tools import make_box
