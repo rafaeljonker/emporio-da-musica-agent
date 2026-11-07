@@ -71,3 +71,19 @@ def test_mcp_schemas_match_what_the_agent_model_sees() -> None:
     mcp = {t.name: t.input_schema for t in _mcp_tools()}
 
     assert mcp == agent
+
+
+def test_identity_is_read_per_call_from_the_context_provider() -> None:
+    current: list[int | None] = [3]
+
+    async def run() -> tuple[object, object]:
+        async with Client(build_mcp(make_box(), lambda: TurnContext(customer_id=current[0]))) as c:
+            mine = await c.call_tool("list_my_orders", {})
+            current[0] = None
+            anon = await c.call_tool("list_my_orders", {})
+            return mine.structured_content, anon.structured_content
+
+    mine, anon = asyncio.run(run())
+
+    assert [o["id"] for o in mine["result"]] == [2, 1]  # pyright: ignore[reportIndexIssue, reportUnknownVariableType, reportCallIssue, reportArgumentType]
+    assert anon == {"result": tools.ASK_ORDER_IDENTITY}
