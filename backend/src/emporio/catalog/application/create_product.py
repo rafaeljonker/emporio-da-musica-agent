@@ -1,12 +1,19 @@
 from emporio.catalog.application.ports import CatalogRepository, CatalogWriter
-from emporio.catalog.domain.errors import CatalogFull, NameTakenByStore, UnknownCategory
-from emporio.catalog.domain.product import Product, ProductDraft
+from emporio.catalog.domain.errors import (
+    CatalogFull,
+    NameTakenByStore,
+    PromoClaim,
+    UnknownCategory,
+)
+from emporio.catalog.domain.product import Product, ProductDraft, claims_a_promotion
 
 
 def check_draft(repo: CatalogRepository, writer: CatalogWriter, draft: ProductDraft) -> None:
     """The write rules a create and an update share."""
     if draft.category_id not in {c.id for c in repo.categories()}:
         raise UnknownCategory(draft.category_id)
+    if claims_a_promotion(draft.name) or claims_a_promotion(draft.description):
+        raise PromoClaim
     # A twin of a store product at a fake price would sit next to the real one in every search.
     if writer.seed_name_taken(draft.name):
         raise NameTakenByStore

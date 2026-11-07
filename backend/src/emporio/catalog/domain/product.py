@@ -1,3 +1,5 @@
+import re
+import unicodedata
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
@@ -65,3 +67,16 @@ class ProductDraft:
             self.status,
             self.specs,
         )
+
+
+# Matched on lowercase text without accents: "50% OFF", "20 off", promoção, desconto, cupom...
+_PROMO_CLAIM = re.compile(
+    r"(\d\s*%?|%)\s*off\b|\bpromo(\b|c)|\bdesconto|\bblack\s*friday|\bliquidac|\bcupo(m|ns)\b"
+)
+
+
+def claims_a_promotion(text: str) -> bool:
+    """True when the text announces a discount; only promotion rows may carry one."""
+    decomposed = unicodedata.normalize("NFKD", text)
+    plain = "".join(c for c in decomposed if not unicodedata.combining(c)).lower()
+    return _PROMO_CLAIM.search(plain) is not None
