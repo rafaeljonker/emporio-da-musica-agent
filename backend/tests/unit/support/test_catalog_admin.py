@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from dataclasses import replace
 from decimal import Decimal
 
 import pytest
@@ -49,6 +50,12 @@ def test_store_name_maps_to_name_taken_by_store() -> None:
     with pytest.raises(CatalogWriteRejected) as err:
         service.create("a", DATA)
     assert err.value.code == "name_taken_by_store"
+
+
+def test_promotion_claim_maps_to_promo_claim() -> None:
+    with pytest.raises(CatalogWriteRejected) as err:
+        _service(FakeCatalogWriter()).create("a", replace(DATA, name="Cavaquinho 50% OFF"))
+    assert err.value.code == "promo_claim"
 
 
 def test_written_product_specs_are_sorted_like_the_stored_row() -> None:

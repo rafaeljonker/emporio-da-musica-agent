@@ -6,6 +6,7 @@ from emporio.catalog.domain.errors import (
     CatalogFull,
     NameTakenByStore,
     ProductNotOwned,
+    PromoClaim,
     UnknownCategory,
 )
 from emporio.catalog.domain.product import ProductDraft, ProductStatus
@@ -18,8 +19,14 @@ REPO = FakeCatalogRepository((), (category(id=5, name="Violões"),))
 SEED = "Violão Takamine GD20 Dreadnought Natural"
 
 
-def draft(*, name: str = "Violão Teste", category_id: int = 5, price: str = "1000") -> ProductDraft:
-    return ProductDraft(name, category_id, "", m(price), 3, ProductStatus.ACTIVE, ())
+def draft(
+    *,
+    name: str = "Violão Teste",
+    description: str = "",
+    category_id: int = 5,
+    price: str = "1000",
+) -> ProductDraft:
+    return ProductDraft(name, category_id, description, m(price), 3, ProductStatus.ACTIVE, ())
 
 
 def test_create_rejects_unknown_category() -> None:
@@ -89,3 +96,46 @@ def test_own_name_and_another_demo_name_stay_allowed() -> None:
     assert UpdateProduct(REPO, writer)(
         "a", mine.id, draft(name="Violão Rozini", price="9")
     ).price == m("9")
+
+
+PROMO_CLAIMS = [
+    "Guitarra Strinberg 50% OFF",
+    "Pedal 30%off",
+    "Baixo 20 off só hoje",
+    "Violão em PROMOÇÃO",
+    "violao promocao relampago",
+    "Teclado Promo",
+    "Teclado com Desconto",
+    "Ukulele Black Friday",
+    "ukulele blackfriday",
+    "Liquidação de cordas",
+    "Use o CUPOM ROCK10",
+]
+
+
+@pytest.mark.parametrize("text", PROMO_CLAIMS)
+def test_create_rejects_a_promotion_claim_in_the_name(text: str) -> None:
+    writer = FakeCatalogWriter()
+    with pytest.raises(PromoClaim):
+        CreateProduct(REPO, writer)("a", draft(name=text))
+    assert writer.rows == {}
+
+
+@pytest.mark.parametrize("text", ["Leve agora com 40 % off", "Últimas peças: liquidação!"])
+def test_create_rejects_a_promotion_claim_in_the_description(text: str) -> None:
+    with pytest.raises(PromoClaim):
+        CreateProduct(REPO, FakeCatalogWriter())("a", draft(description=text))
+
+
+def test_update_rejects_a_promotion_claim() -> None:
+    writer = FakeCatalogWriter()
+    mine = CreateProduct(REPO, writer)("a", draft())
+    with pytest.raises(PromoClaim):
+        UpdateProduct(REPO, writer)("a", mine.id, draft(description="Desconto de 10%"))
+
+
+@pytest.mark.parametrize(
+    "name", ["Pedal Overdrive Classic", "Pedal Offset Fuzz", "Cabo 10 metros Official"]
+)
+def test_plain_product_names_pass(name: str) -> None:
+    assert CreateProduct(REPO, FakeCatalogWriter())("a", draft(name=name)).name == name
