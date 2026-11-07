@@ -14,6 +14,7 @@ from emporio.platform.config import (
     load_web_settings,
     require_web_settings,
 )
+from emporio.platform.config.settings import secret_text
 
 _ENV_VARS = (
     "LLM_PROVIDER", "VLLM_BASE_URL", "VLLM_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY",
@@ -202,3 +203,9 @@ def test_rate_multiplier_requires_fake_model():
     with pytest.raises(WebSettingsRequired, match="RATE_LIMIT_MULTIPLIER > 1 needs EMPORIO_FAKE"):
         require_web_settings(settings)
     require_web_settings(settings.model_copy(update={"fake_model": True}))
+
+
+def test_secret_text_unwraps_and_defaults_empty():
+    assert secret_text(SecretStr("s3")) == "s3"
+    assert secret_text(SecretStr("")) == ""
+    assert secret_text(None) == ""
