@@ -71,3 +71,14 @@ def test_recommend_with_non_positive_limit_returns_no_match_without_searching(
 
     assert RecommendProducts(repo)("quero algo", limit) == NoMatch()
     assert repo.searches == []
+
+
+def test_recommend_searches_semantic_first() -> None:
+    from emporio.catalog.application.recommend_products import SEMANTIC_FIRST
+
+    repo = FakeCatalogRepository((product(id=1),))
+
+    RecommendProducts(repo)("algo pra tocar MPB em casa")
+
+    assert repo.weights == [SEMANTIC_FIRST]
+    assert SEMANTIC_FIRST.vector > max(SEMANTIC_FIRST.text, SEMANTIC_FIRST.trigram)

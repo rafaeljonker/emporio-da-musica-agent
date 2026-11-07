@@ -6,12 +6,14 @@ from psycopg import sql
 from psycopg_pool import ConnectionPool
 
 from emporio.catalog.application.ports import CatalogFilter
+from emporio.catalog.application.recommend_products import RecommendProducts
 from emporio.catalog.application.search_products import SearchProducts
 from emporio.catalog.domain.pricing import best_active_promotion, quote_price
 from emporio.catalog.domain.search import Candidates, Exact, NoMatch, SearchResult
 from emporio.catalog.infrastructure.csv_catalog_repository import CsvCatalogRepository
 from emporio.catalog.infrastructure.pg_catalog_repository import PgCatalogRepository
 from emporio.catalog.infrastructure.pg_catalog_writer import PgCatalogWriter
+from emporio.embeddings import E5Embedder
 from emporio.shared.money import Money
 from tests.fakes.hash_embedder import HashEmbedder
 from tests.unit.catalog.fakes import FakeCatalogRepository
@@ -194,3 +196,15 @@ def test_pool_connections_scan_hnsw_iteratively(pg_pool: ConnectionPool) -> None
         scan = conn.execute("SHOW hnsw.iterative_scan").fetchone()
         ef = conn.execute("SHOW hnsw.ef_search").fetchone()
     assert (scan, ef) == (("relaxed_order",), ("100",))
+
+
+def test_need_based_recommendation_is_semantic_first(pg_pool: ConnectionPool) -> None:
+    embedder = E5Embedder()  # meaning needs the real model; HashEmbedder vectors are noise
+    PgCatalogWriter(pg_pool, embedder).seed(CSV.categories(), CSV.products(), CSV.promotions())
+
+    found = RecommendProducts(PgCatalogRepository(pg_pool, embedder))("algo pra tocar MPB em casa")
+
+    assert isinstance(found, Candidates)
+    top = found.products
+    assert all(p.category_id == 5 for p in top[:3])  # violões
+    assert not {p.id for p in top} & {134, 135, 138}  # Telecaster, Music Man basses
