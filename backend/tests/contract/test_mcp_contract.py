@@ -3,8 +3,10 @@ import json
 from typing import Any
 
 from fastmcp import Client
+from fastmcp.client.client import CallToolResult
 from langchain.tools import BaseTool
 from langchain_core.utils.function_calling import convert_to_openai_tool
+from mcp.types import TextContent
 
 from emporio.support.infrastructure.agent import tools
 from emporio.support.infrastructure.agent.context import TurnContext
@@ -19,7 +21,7 @@ def _agent_schema(t: BaseTool) -> dict[str, Any]:
 
 def _mcp_tools() -> list[Any]:
     async def run() -> list[Any]:
-        async with Client(build_mcp(make_box(), customer_id=3)) as client:
+        async with Client(build_mcp(make_box(), lambda: TurnContext(customer_id=3))) as client:
             return await client.list_tools()
 
     return asyncio.run(run())
@@ -51,7 +53,7 @@ def test_mcp_call_returns_same_json() -> None:
     box, ctx = make_box(), TurnContext(customer_id=3)
 
     async def run() -> tuple[object, object]:
-        async with Client(build_mcp(box, customer_id=3)) as client:
+        async with Client(build_mcp(box, lambda: ctx)) as client:
             now = await client.call_tool("store_now", {})
             found = await client.call_tool("search_products", {"query": "violao"})
             return now.structured_content, found.structured_content
@@ -73,17 +75,23 @@ def test_mcp_schemas_match_what_the_agent_model_sees() -> None:
     assert mcp == agent
 
 
+def _text(result: CallToolResult) -> str:
+    block = result.content[0]
+    assert isinstance(block, TextContent)
+    return block.text
+
+
 def test_identity_is_read_per_call_from_the_context_provider() -> None:
     current: list[int | None] = [3]
 
-    async def run() -> tuple[object, object]:
+    async def run() -> tuple[str, str]:
         async with Client(build_mcp(make_box(), lambda: TurnContext(customer_id=current[0]))) as c:
             mine = await c.call_tool("list_my_orders", {})
             current[0] = None
             anon = await c.call_tool("list_my_orders", {})
-            return mine.structured_content, anon.structured_content
+            return _text(mine), _text(anon)
 
     mine, anon = asyncio.run(run())
 
-    assert [o["id"] for o in mine["result"]] == [2, 1]  # pyright: ignore[reportIndexIssue, reportUnknownVariableType, reportCallIssue, reportArgumentType]
-    assert anon == {"result": tools.ASK_ORDER_IDENTITY}
+    assert [o["id"] for o in json.loads(mine)] == [2, 1]
+    assert anon == tools.ASK_ORDER_IDENTITY

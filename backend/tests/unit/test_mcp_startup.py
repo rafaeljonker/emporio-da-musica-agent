@@ -15,7 +15,7 @@ def _wire(monkeypatch: pytest.MonkeyPatch, known: set[int]) -> list[int | None]:
     monkeypatch.setattr(
         bootstrap,
         "build_mcp",
-        lambda box, *, customer_id: SimpleNamespace(run=lambda: served.append(customer_id)),
+        lambda box, context: SimpleNamespace(run=lambda: served.append(context().customer_id)),
     )
     return served
 

@@ -42,6 +42,7 @@ from emporio.support.application.ports import CatalogAdmin, DemoCustomer, Reply
 from emporio.support.application.warmup import WarmMode, WarmStage, Warmup
 from emporio.support.domain.channel_identity import ChannelIdentity
 from emporio.support.domain.scope import Scope
+from emporio.support.infrastructure.agent.context import TurnContext
 from emporio.support.infrastructure.agent.graph import build_graph
 from emporio.support.infrastructure.agent.guard import make_classifier
 from emporio.support.infrastructure.agent.runner import GraphRunner
@@ -222,4 +223,4 @@ def run_mcp(settings: Settings, customer_id: int | None) -> None:
         box, customers, _, _ = build_toolbox(stack, database_url(), settings)
         if customer_id is not None and customers.by_id(customer_id) is None:
             raise UnknownCustomer(customer_id)
-        build_mcp(box, customer_id=customer_id).run()
+        build_mcp(box, lambda: TurnContext(customer_id=customer_id)).run()
