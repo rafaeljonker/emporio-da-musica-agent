@@ -34,11 +34,12 @@ from emporio.orders.infrastructure.csv_order_repository import (
     CsvCustomerRepository,
     CsvOrderRepository,
 )
+from emporio.platform.clock import SystemClock
 from emporio.policies.application.search_policies import SearchPolicies
 from emporio.policies.application.store_now import StoreNow
 from emporio.policies.infrastructure.holidays import STORE_HOLIDAYS
 from emporio.policies.infrastructure.pg_policy_index import PgPolicyIndex
-from emporio.shared.clock import FixedClock, SystemClock
+from emporio.shared.clock import FixedClock
 from emporio.support.application.handle_message import HandleMessage
 from emporio.support.application.ports import DemoCustomer, Reply
 from emporio.support.application.warmup import WarmMode, WarmStage, Warmup
