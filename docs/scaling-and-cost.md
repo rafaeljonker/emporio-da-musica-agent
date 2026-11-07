@@ -13,12 +13,12 @@ Gemma 4 31B on vLLM 0.33.0 (`deploy/modal_llm.py`): FP8 weights `RedHatAI/gemma-
 | H200 (spike baseline) | BF16 | 4.54 | 175 s (cache state not recorded) | 2.2 s median, 3.9 s max | 14/14 effective, on the 14-case spike suite | 0 |
 | H100 | FP8 | 3.95 | 381.7 s / 273.1 s (multimodal on); ~204 s observed later with multimodal off | 2.05 s / 4.11 s | 21/22 | 4 |
 | L40S | FP8 | 1.95 | 310.8 s / 214.9 s (multimodal off) | 4.93 s / 9.98 s | 21/22 (22/22 effective) | 0 |
-| Gemini 3.8 Flash (API) | n/a | per token | none for the model; the CPU API container's own cold start was 19 s on a first hit | 6.11 s / 8.03 s | 22/22 | 0 |
+| Gemini 3.8 Flash (API) | n/a | per token | none for the model; the CPU API container's own cold start was 19 s on a first hit | 5.52 s / 9.74 s | 22/22 | 0 |
 
 How to read the rows, honestly:
 - **The H100 run is from before the voice and markup fixes.** Its 4 AI tells were 3 `too_many_bubbles` and 1 `multiple_questions`, and most replies started with the raw Gemma thinking-channel marker (`<|channel>thought<channel|>`), visible to the customer. Its one fail (`arrependimento_identificado`) was a real miss: the model did not call `check_return_eligibility`. The fixes that followed (bubbles capped at three, one question per turn, regret checks eligibility first, `--reasoning-parser gemma4` plus a code-level strip of the channel markup) were never re-evaluated on the H100, because the hosted demo moved to Gemini before that run. The H100 row's quality numbers are therefore a lower bound; its latency numbers stand.
 - **The L40S run is after those fixes.** Its one fail (`devolucao_fora_do_prazo`) was a verifier false negative: the model wrote the plural "prazos ... já passaram", which the regex verifier did not accept. The verifier was fixed afterwards, so the effective score is 22/22. It was not re-run.
-- **The Gemini run** is the final one, on the delivered code, with the Flash-Lite guard: 22/22. It is a single run. The run before it (same model, before the partial-search prompt rule and the last verifier fix) passed 20/22: `recomendacao_mpb` recommended valid nylon guitars from the catalog that were not the recommend tool's picks (a divergence from the recommender, not a wrong fact), and `devolucao_fora_do_prazo` explained the expired window correctly in a phrasing the regex verifier did not accept.
+- **The Gemini run** is the final one, on the delivered code (catalog in Postgres, hybrid search, prompt-injection rule), with the Flash-Lite guard: 22/22. It is a single run. The run before it (same model, before the partial-search prompt rule and the last verifier fix) passed 20/22: `recomendacao_mpb` recommended valid nylon guitars from the catalog that were not the recommend tool's picks (a divergence from the recommender, not a wrong fact), and `devolucao_fora_do_prazo` explained the expired window correctly in a phrasing the regex verifier did not accept.
 - **The spike baseline** used a different suite (14 cases) and an older vLLM, so it is a reference point, not a like-for-like comparison. The BF16 baseline on H100 was skipped for budget (owner decision), so FP8 vs BF16 on the same GPU and suite was never measured.
 - **Tokens/s** were not recorded for either GPU run.
 - **Both committed Gemma reports are pre-fix runs.** `backend/evals/reports/gemma-h100-fp8.md` and `gemma-l40s-fp8.md` predate the final verifier and bubble code (the L40S transcripts still end sentences with a period); only `gemini.md` ran on the final code. Rerun `make evals PROVIDER=gemma` before citing them as proof of the fixes on Gemma.
@@ -61,7 +61,7 @@ What would meet 30 s, in order of expected payoff (none of it measured):
 
 Owner decision (2026-11-06): the hosted demo at https://emporio.fastmind.site runs `gemini-3.8-flash` (guard on Flash-Lite). Two reasons: no GPU cold start for an evaluator (about 3.5 min on H100), and the Modal credit ($8, no card) would not cover many evaluator sessions on a GPU (section 4). Gemini passed all 22 of the same cases with 0 AI tells.
 
-It **misses the spec's ≤ 3 s reply target**: p50 6.11 s, p95 8.03 s (the guard adds a second, sequential model call per turn). It was chosen anyway: an evaluator who meets a 3.5 min GPU cold start or a drained credit sees no reply at all, while a 6 s reply still works; the H100 is the option that meets 3 s once the GPU is warm.
+It **misses the spec's ≤ 3 s reply target**: p50 5.52 s, p95 9.74 s (the guard adds a second, sequential model call per turn). It was chosen anyway: an evaluator who meets a 3.5 min GPU cold start or a drained credit sees no reply at all, while a ~5.5 s reply still works; the H100 is the option that meets 3 s once the GPU is warm.
 
 Gemma stays one flag away, with no code change:
 
@@ -117,7 +117,7 @@ The real-model load test (10–20 users on the H100) was skipped for budget (own
 ## 5. Cost per conversation
 
 ### Gemini (measured)
-The final Gemini eval run reports **R$ 0.0277 per eval case** (about $0.0050; 6,530 input and 114 output tokens on average), with the guard's tokens priced at the Flash-Lite rate. Both rates are the list price valid until 2026-12-31 (from 2027-01-01 it doubles). A live turn on the hosted demo showed R$ 0.0255. Most eval cases are a single customer message, so a 4-turn conversation is about **R$ 0.11 ($0.020)** (estimate: 4 × the per-case cost; later turns carry more history, so this leans low).
+The final Gemini eval run reports **R$ 0.0292 per eval case** (about $0.0053; 6,878 input and 109 output tokens on average), with the guard's tokens priced at the Flash-Lite rate. Both rates are the list price valid until 2026-12-31 (from 2027-01-01 it doubles). A live turn on the hosted demo showed R$ 0.0255. Most eval cases are a single customer message, so a 4-turn conversation is about **R$ 0.11 ($0.020)** (estimate: 4 × the per-case cost; later turns carry more history, so this leans low).
 
 ### Gemma (upper bound vs real session)
 The metrics panel prices a Gemma turn as **GPU seconds × the GPU's hourly price** (`cost_basis` "Teto pelo tempo de GPU desta resposta"): an upper bound that assumes the GPU serves only this turn (concurrency 1).

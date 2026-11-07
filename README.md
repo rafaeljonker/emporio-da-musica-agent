@@ -142,7 +142,7 @@ A busca de produtos normaliza acento, caixa e plural e tolera erro de digitaçã
 
 | Provedor | Acerto | Marcas de IA | Tempo de resposta (mediana / p95) | Observação |
 |---|---|---|---|---|
-| Gemini 3.8 Flash ([relatório](backend/evals/reports/gemini.md)) | 22/22 | 0 | 6,1 s / 8,0 s | rodada final, no código entregue |
+| Gemini 3.8 Flash ([relatório](backend/evals/reports/gemini.md)) | 22/22 | 0 | 5,5 s / 9,7 s | rodada final, no código entregue (catálogo no Postgres) |
 | Gemma 4 31B, H100 FP8 ([relatório](backend/evals/reports/gemma-h100-fp8.md)) | 21/22 | 4 | 2,1 s / 4,1 s | anterior às correções de voz |
 | Gemma 4 31B, L40S FP8 ([relatório](backend/evals/reports/gemma-l40s-fp8.md)) | 21/22 (22/22 efetivo) | 0 | 4,9 s / 10,0 s | anterior à versão final do verificador |
 
@@ -157,7 +157,7 @@ Cada linha é uma rodada só. A rodada anterior do Gemini deu 20/22: uma diverg�
 
 ## Limitações e o que eu faria com mais tempo
 
-- **Latência do Gemini:** mediana de 6,1 s, acima da meta de 3 s. O Gemma numa H100 já ligada fica dentro, mas leva ~3,5 min para ligar ([como reduzir](docs/scaling-and-cost.md#2-cold-start)).
+- **Latência do Gemini:** mediana de 5,5 s, acima da meta de 3 s. O Gemma numa H100 já ligada fica dentro, mas leva ~3,5 min para ligar ([como reduzir](docs/scaling-and-cost.md#2-cold-start)).
 - **Ficou sem medir, pelo orçamento de GPU:** os evals do Gemma depois dos últimos ajustes de voz, o teste de carga com modelo real e os tempos do modo local.
 - **Uma instância só:** limites de uso e conversas em andamento ficam na memória do processo; escalar pede movê-los para o Postgres ou um Redis.
 - **Detalhes de tela:** recarregar a página apaga os balões (a conversa continua no servidor), e uma troca de cliente que falha não avisa.
