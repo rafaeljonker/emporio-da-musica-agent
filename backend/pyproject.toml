@@ -77,10 +77,12 @@ reportMatchNotExhaustive = "error"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = ["--import-mode=importlib", "-m", "not eval"]
+addopts = ["--import-mode=importlib", "--strict-markers", "-m", "not eval"]
 markers = [
     "postgres: needs DATABASE_URL",
     "eval: real model, run by make evals",
+    "files: reads the real data/ CSVs or the PDF, no database",
+    "contract: tool and MCP schema contracts",
 ]
 pythonpath = ["."]
 

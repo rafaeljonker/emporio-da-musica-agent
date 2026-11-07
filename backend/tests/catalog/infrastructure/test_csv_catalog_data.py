@@ -1,0 +1,86 @@
+import pytest
+
+from emporio.catalog.application.get_product import GetProduct
+from emporio.catalog.application.list_promotions import ListPromotions
+from emporio.catalog.application.quote_installments import QuoteInstallments
+from emporio.catalog.application.search_products import SearchProducts
+from emporio.catalog.domain.installments import InstallmentPlan
+from emporio.catalog.domain.pricing import PriceQuote
+from emporio.catalog.domain.search import Candidates, Exact
+from emporio.catalog.infrastructure.csv_catalog_repository import CsvCatalogRepository
+from emporio.shared.money import Money
+from emporio.shared.result import Ok
+from tests.catalog.fakes import FakeCatalogRepository
+
+pytestmark = pytest.mark.files
+
+CSV = CsvCatalogRepository()
+# The use cases over the real case data, through the in-memory port (no database).
+repo = FakeCatalogRepository(
+    tuple(CSV.products()), tuple(CSV.categories()), tuple(CSV.promotions())
+)
+
+
+def m(value: str) -> Money:
+    return Money.from_str(value)
+
+
+def quote(product_id: int) -> PriceQuote:
+    result = GetProduct(repo)(product_id)
+    assert isinstance(result, Ok)
+    return result.value[1]
+
+
+def test_takamine_returns_four_candidates() -> None:
+    r = SearchProducts(repo)("takamine")
+    assert isinstance(r, Candidates)
+    assert len(r.products) == 4
+
+
+def test_gd20_price_and_pix() -> None:
+    q = quote(95)
+    assert q.final == m("2199")
+    assert q.pix == m("2089.05")
+
+
+def test_gd20_installments_max_12x() -> None:
+    q = quote(95)
+    assert QuoteInstallments()(q.final) == Ok(InstallmentPlan(12, m("183.25")))
+
+
+def test_four_active_promotions() -> None:
+    assert {p.id for p, _ in ListPromotions(repo)()} == {127, 121, 90, 94}
+
+
+def test_crafter_ht100_promo() -> None:
+    q = quote(90)
+    assert q.final == m("1967.18")
+    assert q.pix is None
+
+
+def test_discontinued_and_coming_soon_are_unavailable() -> None:
+    assert {p.id for p in CSV.products() if not p.is_available} >= {113, 130, 136, 96}
+
+
+def test_c40_is_cheapest_beginner_violao_under_1000() -> None:
+    r = SearchProducts(repo)("violão", max_price=m("1000"))
+    assert isinstance(r, Candidates)
+    assert any(p.id == 81 for p in r.products)
+
+
+def test_typo_gd_2o_is_exact_95() -> None:
+    r = SearchProducts(repo)("takamine gd 2O")
+    assert isinstance(r, Exact)
+    assert r.product.id == 95
+
+
+def test_typo_violuao_finds_c40() -> None:
+    r = SearchProducts(repo)("violuao")
+    assert isinstance(r, Candidates)
+    assert any(p.id == 81 for p in r.products)
+
+
+def test_crafter_ht100_fits_2000_ceiling_at_promo_price() -> None:
+    r = SearchProducts(repo)("violão", max_price=m("2000"))
+    assert isinstance(r, Candidates)
+    assert any(p.id == 90 for p in r.products)
