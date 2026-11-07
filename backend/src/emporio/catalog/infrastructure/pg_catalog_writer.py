@@ -71,6 +71,11 @@ class PgCatalogWriter:
             with self._pool.connection() as conn, conn.transaction(), conn.cursor() as cur:
                 cur.execute("DELETE FROM promotions")
                 cur.execute("DELETE FROM products WHERE source = 'admin'")
+                # A product dropped from the CSV must not keep selling at its old price.
+                cur.execute(
+                    "DELETE FROM products WHERE source = 'seed' AND NOT (id = ANY(%s))",
+                    ([p.id for p in products],),
+                )
                 cur.executemany(
                     "INSERT INTO categories (id, name, description) VALUES (%s, %s, %s)"
                     " ON CONFLICT (id) DO UPDATE SET"
