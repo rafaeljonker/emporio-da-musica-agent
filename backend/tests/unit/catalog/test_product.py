@@ -1,4 +1,4 @@
-from emporio.catalog.domain.product import ProductStatus
+from emporio.catalog.domain.product import ProductStatus, search_document
 from tests.unit.catalog.factories import product
 
 
@@ -16,3 +16,8 @@ def test_unavailable_when_discontinued_even_with_stock() -> None:
 
 def test_coming_soon_is_unavailable() -> None:
     assert not product(stock=2, status=ProductStatus.COMING_SOON).is_available
+
+
+def test_search_document_joins_fields() -> None:
+    doc = search_document("Yamaha C40", "Violões", "Nylon.", (("cordas", "nylon"),))
+    assert doc == "Yamaha C40. Violões. Nylon. cordas: nylon"
