@@ -68,6 +68,15 @@ flowchart LR
 
 Cada mensagem passa primeiro por um classificador de escopo (o guard) e depois pelo agente, que chama as ferramentas quantas vezes precisar (até 5 voltas). O histórico fica num checkpointer do LangGraph no Postgres. As mesmas dez ferramentas são expostas por MCP, para qualquer outro cliente (Claude Desktop, outro agente).
 
+## MCP
+
+As dez ferramentas da loja, para qualquer cliente MCP. A identidade vem do servidor, nunca do modelo.
+
+- **Local (stdio):** `make mcp`; `EMPORIO_MCP_CUSTOMER_ID=14` fixa a cliente, sem ele é anônimo.
+- **Remoto:** `https://emporio.fastmind.site/mcp` com `Authorization: Bearer <token>`; cada token é anônimo ou uma cliente. O token vai junto com as credenciais da demo, nunca no git.
+- **Claude Code:** `claude mcp add --transport http emporio https://emporio.fastmind.site/mcp --header "Authorization: Bearer $EMPORIO_MCP_TOKEN"`
+- **Claude Desktop:** `npx mcp-remote https://emporio.fastmind.site/mcp --header "Authorization: Bearer ${EMPORIO_MCP_TOKEN}"`, com o token no bloco `env`.
+
 ## Catálogo no Postgres
 
 Os produtos ficam no Postgres, e a busca combina texto, erro de digitação e significado numa consulta só. Na demo, entre e abra **Catálogo** (o back office da loja): cadastre um produto e pergunte por ele no chat. O agente continua só lendo; quem escreve é o usuário logado, e só nos próprios produtos. Com 50 mil produtos, a busca levou de 17 a 34 ms (mediana, testes locais; [pesquisa](docs/research/catalog-db.md), [ADR 0011](docs/decisions/0011-catalog-in-postgres-hybrid-search.md)).
@@ -163,6 +172,7 @@ Cada linha é uma rodada só. A rodada anterior do Gemini deu 20/22: uma diverg�
 - **Ficou sem medir, pelo orçamento de GPU:** os evals do Gemma depois dos últimos ajustes de voz, o teste de carga com modelo real e os tempos do modo local.
 - **Uma instância só:** limites de uso e conversas em andamento ficam na memória do processo; escalar pede movê-los para o Postgres ou um Redis.
 - **Detalhes de tela:** recarregar a página apaga os balões (a conversa continua no servidor), e uma troca de cliente que falha não avisa.
+- **OAuth no MCP remoto (conectores do claude.ai):** hoje é token bearer ([ADR 0012](docs/decisions/0012-remote-mcp-bearer-token.md)).
 - **Com mais tempo:** WhatsApp oficial, passagem para atendente humano, reranking na busca de políticas, cartões de produto nos balões e mais proteção de dados pessoais.
 
 ## Uso de assistentes de IA

@@ -74,6 +74,7 @@ Never write keys or real values in any file. Use `.env` (git-ignored); `.env.exa
 - Web demo: on plain-http localhost set `SESSION_HTTPS_ONLY=false` or the browser drops the session cookie (`make up`, `make dev` and `make e2e` do it). `make e2e` needs Docker and Langfuse running.
 - Web state is per process: rate limits, thread locks and the warm-up status live in memory; run one API process (one container on Modal) until they move to a shared store.
 - Proxy: `make deploy-proxy` deploys the Cloudflare Worker; its secret is set once with `cd deploy/cloudflare && npx wrangler secret put PROXY_SECRET`, and the same value goes in the Modal secret `emporio-proxy` (key `PROXY_SECRET`) that `deploy/modal_api.py` needs for the non-loadtest app.
+- Remote MCP: `/mcp` is served only when `MCP_TOKENS` is set (Modal secret `emporio-mcp`, demo app only): comma-separated `token=identity`, identity a customer id or `anon`, tokens 32+ chars. Rotate by replacing the secret's value and redeploying (`make deploy-api`); never log or commit a token.
 - Paid steps: `make deploy-llm`, any request that wakes the GPU app, `make evals PROVIDER=gemma` and `deploy/cold_start.py` spend Modal credit; ask the owner first and stop GPU containers afterwards.
 - Never recreate the Modal secret `emporio-langfuse`: its `LANGFUSE_SALT` keys the trace pseudonyms.
 - The API image sets `HF_HUB_OFFLINE=1` with e5 baked in: a change to the embedder needs a redeploy, never a runtime download.
