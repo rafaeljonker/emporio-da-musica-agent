@@ -71,6 +71,20 @@ def test_seed_removes_admin_rows(
     assert catalog_repo.get(100000) is None
 
 
+def test_reseed_deletes_seed_rows_gone_from_the_csv(
+    catalog_repo: PgCatalogRepository, pg_pool: ConnectionPool, pg_conn: psycopg.Connection
+) -> None:
+    kept = [p for p in CSV.products() if p.id != 95]
+    promotions = [x for x in CSV.promotions() if x.product_id != 95]
+
+    writer = PgCatalogWriter(pg_pool, HashEmbedder())
+    writer.seed(CSV.categories(), kept, promotions)
+
+    assert catalog_repo.get(95) is None
+    assert _count(pg_conn, "products") == len(kept)
+    assert writer.seed(CSV.categories(), kept, promotions) == 0
+
+
 def test_get_many_and_get(catalog_repo: PgCatalogRepository) -> None:
     found = catalog_repo.get(95)
     assert found is not None
