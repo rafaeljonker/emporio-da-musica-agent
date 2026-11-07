@@ -67,7 +67,7 @@ export function Transcript({ entries, queued, typing, onUndo, onResend }: Props)
           if (nearBottom.current) setUnseen(false)
         }}
         // An empty log needs no 12rem floor (set on the wrapper): during warm-up the panel gets that room.
-        className="min-h-0 flex-1 overflow-y-auto focus-visible:-outline-offset-2"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain focus-visible:-outline-offset-2"
       >
         <div className="mx-auto flex w-full max-w-2xl flex-col px-4 pb-4">
           {entries.map((entry) => {
