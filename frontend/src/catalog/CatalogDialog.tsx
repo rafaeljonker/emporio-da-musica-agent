@@ -116,6 +116,8 @@ export function CatalogDialog({ onAsk, onSessionExpired }: Props) {
     setFailure(null)
     setSaved(null)
     setEditing(product)
+    // "Cadastrar outro" and "Cancelar edição" unmount the button that had focus.
+    focusField('name')
   }
 
   const startEdit = (p: Product) => {
