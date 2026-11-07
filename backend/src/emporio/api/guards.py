@@ -5,15 +5,16 @@ from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from fastapi import HTTPException, Request
+from fastapi import Request
 
+from emporio.api.errors import ApiErrorCode, http_error
 from emporio.config import Settings
 
 
 def require_json(request: Request) -> None:
     media_type = request.headers.get("content-type", "").split(";")[0].strip().lower()
     if media_type != "application/json":
-        raise HTTPException(status_code=415, detail="json_required")
+        raise http_error(ApiErrorCode.JSON_REQUIRED)
 
 
 def client_ip(request: Request, settings: Settings) -> str:
@@ -107,6 +108,6 @@ class Session:
 def require_session(request: Request) -> Session:
     sid = request.session.get("sid")
     if not isinstance(sid, str) or not sid:
-        raise HTTPException(status_code=401, detail="unauthenticated")
+        raise http_error(ApiErrorCode.UNAUTHENTICATED)
     customer_id = request.session.get("customer_id")
     return Session(sid, customer_id if isinstance(customer_id, int) else None)

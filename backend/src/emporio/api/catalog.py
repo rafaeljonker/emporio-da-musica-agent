@@ -1,23 +1,15 @@
 from decimal import Decimal
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Request
+from fastapi import APIRouter, Depends, Path, Request
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StringConstraints, field_validator
 
+from emporio.api.errors import ApiErrorCode, http_error
 from emporio.api.guards import Session, SlidingWindow, client_ip, require_json, require_session
 from emporio.catalog.application.admin import CatalogAdmin, ProductInput, ProductView
 from emporio.catalog.domain.errors import CatalogErrorCode
 from emporio.config import Settings
 from emporio.shared.result import Err, Ok, Result
-
-_STATUS = {
-    "unknown_category": 422,
-    "not_found": 404,
-    "catalog_full": 409,
-    "catalog_unavailable": 503,
-    "name_taken_by_store": 422,
-    "promo_claim": 422,
-}
 
 # Zero-width marks and bidi embeddings, overrides and isolates: text that renders unlike it reads.
 _INVISIBLE = "\u200b-\u200f\u202a-\u202e\u2066-\u2069"
@@ -77,7 +69,7 @@ def _product_json(p: ProductView) -> dict[str, object]:
 def _owner(request: Request, _: Annotated[Session, Depends(require_session)]) -> str:
     lid = request.session.get("lid")
     if not isinstance(lid, str) or not lid:
-        raise HTTPException(status_code=401, detail="unauthenticated")
+        raise http_error(ApiErrorCode.UNAUTHENTICATED)
     return lid
 
 
@@ -89,7 +81,7 @@ def _unwrap[T](result: Result[T, CatalogErrorCode]) -> T:
         case Ok(value):
             return value
         case Err(code):
-            raise HTTPException(status_code=_STATUS[code], detail=code.value)
+            raise http_error(code)
 
 
 def build_catalog_router(catalog: CatalogAdmin, settings: Settings) -> APIRouter:
@@ -103,12 +95,12 @@ def build_catalog_router(catalog: CatalogAdmin, settings: Settings) -> APIRouter
     def write_slot(owner: Owner, request: Request) -> str:
         # Keyed by the login, not the sid: a customer switch rotates sid but not lid.
         if not (per_login.allow(owner) and per_ip.allow(client_ip(request, settings))):
-            raise HTTPException(status_code=429, detail="too_many_writes")
+            raise http_error(ApiErrorCode.TOO_MANY_WRITES)
         return owner
 
     def create_slot(owner: Annotated[str, Depends(write_slot)], request: Request) -> str:
         if not creates_per_ip.allow(client_ip(request, settings)):
-            raise HTTPException(status_code=429, detail="too_many_writes")
+            raise http_error(ApiErrorCode.TOO_MANY_WRITES)
         return owner
 
     @router.get("/categories")

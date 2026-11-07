@@ -3,10 +3,11 @@ from collections.abc import Iterator, Sequence
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from pydantic import BaseModel, ConfigDict, StringConstraints
 
+from emporio.api.errors import ApiErrorCode, http_error
 from emporio.api.guards import (
     Session,
     SlidingWindow,
@@ -96,12 +97,12 @@ def build_chat_router(agent: ChatAgent, settings: Settings) -> APIRouter:
         # A yield dependency also runs when body validation fails or the client drops
         # before the stream starts, so the lock cannot leak.
         if not (per_session.allow(session.sid) and overall.allow("*")):
-            raise HTTPException(status_code=429, detail="too_many_messages")
+            raise http_error(ApiErrorCode.TOO_MANY_MESSAGES)
         identity = ChannelIdentity("web", session.customer_id, session.sid)
         thread_id = identity.thread_id()
         token = locks.try_acquire(thread_id)
         if token is None:
-            raise HTTPException(status_code=409, detail="turn_in_progress")
+            raise http_error(ApiErrorCode.TURN_IN_PROGRESS)
         try:
             yield identity
         finally:
