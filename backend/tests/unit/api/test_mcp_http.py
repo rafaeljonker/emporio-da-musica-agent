@@ -78,6 +78,12 @@ def test_eleventh_failure_from_one_ip_is_429(client: TestClient):
     assert _rpc(client, LIST_TOOLS, "Bearer nope").status_code == 429
 
 
+def test_a_locked_out_ip_is_429_even_with_a_valid_token(client: TestClient):
+    for _ in range(10):
+        _rpc(client, LIST_TOOLS, "Bearer nope")
+    assert _rpc(client, LIST_TOOLS, f"Bearer {ANON}").status_code == 429
+
+
 def test_sixty_first_call_on_one_token_is_429(client: TestClient):
     for _ in range(60):
         assert _rpc(client, LIST_TOOLS, f"Bearer {ANON}").status_code == 200
