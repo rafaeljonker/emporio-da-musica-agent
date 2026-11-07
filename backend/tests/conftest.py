@@ -24,7 +24,7 @@ def pg_conn() -> Iterator[psycopg.Connection]:
     yield conn
     conn.rollback()
     conn.execute(
-        "TRUNCATE policy_chunks, product_embeddings, promotions, products, categories,"
+        "TRUNCATE policy_chunks, promotions, products, categories,"
         " catalog_audit RESTART IDENTITY CASCADE"
     )
     # Not owned by a column, so RESTART IDENTITY leaves it alone.

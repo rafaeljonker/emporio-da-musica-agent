@@ -1,9 +1,9 @@
-"""Composition root: apply migrations, then index policies and products."""
+"""Composition root: apply migrations, then index policies and seed the catalog."""
 
 import sys
 
 from emporio.catalog.infrastructure.csv_catalog_repository import CsvCatalogRepository
-from emporio.catalog.infrastructure.pg_product_index import PgProductIndex
+from emporio.catalog.infrastructure.pg_catalog_writer import PgCatalogWriter
 from emporio.db import DatabaseNotConfigured, connect, database_url, make_pool
 from emporio.embeddings import E5Embedder
 from emporio.migrate import apply_migrations
@@ -19,16 +19,15 @@ def main() -> None:
         print(err, file=sys.stderr)
         raise SystemExit(2) from err
     embedder = E5Embedder()
-    catalog = CsvCatalogRepository()
+    csv = CsvCatalogRepository()
     with connect(url) as conn:
         apply_migrations(conn)
     with make_pool(url) as pool:
         policies = IngestPolicies(PdfPolicySource(), PgPolicyIndex(pool, embedder))()
-        products = catalog.products()
-        PgProductIndex(pool, embedder).replace_all(
-            products, {c.id: c.name for c in catalog.categories()}
+        embedded = PgCatalogWriter(pool, embedder).seed(
+            csv.categories(), csv.products(), csv.promotions()
         )
-    print(f"policies: {policies}, products: {len(products)}")
+    print(f"policies: {policies}, products: {len(csv.products())} (embedded {embedded})")
 
 
 if __name__ == "__main__":

@@ -14,10 +14,14 @@ from emporio.catalog.infrastructure.pg_catalog_repository import PgCatalogReposi
 from emporio.catalog.infrastructure.pg_catalog_writer import PgCatalogWriter
 from emporio.shared.money import Money
 from tests.fakes.hash_embedder import HashEmbedder
+from tests.unit.catalog.fakes import FakeCatalogRepository
 
 pytestmark = pytest.mark.postgres
 
 CSV = CsvCatalogRepository()
+MEMORY = FakeCatalogRepository(
+    tuple(CSV.products()), tuple(CSV.categories()), tuple(CSV.promotions())
+)
 
 
 def _seed(pool: ConnectionPool) -> int:
@@ -101,7 +105,7 @@ def test_max_price_uses_promotional_final_price(catalog_repo: PgCatalogRepositor
     p, best = next(
         (p, best)
         for p in CSV.products()
-        if (best := best_active_promotion(CSV.promotions_for([p.id]))) is not None
+        if (best := best_active_promotion(MEMORY.promotions_for([p.id]))) is not None
     )
     final = quote_price(p, best).final.amount
 
@@ -136,7 +140,7 @@ def test_promoted_matches_csv(catalog_repo: PgCatalogRepository) -> None:
     expected = {
         p.id
         for p in CSV.products()
-        if p.is_available and best_active_promotion(CSV.promotions_for([p.id])) is not None
+        if p.is_available and best_active_promotion(MEMORY.promotions_for([p.id])) is not None
     }
     assert {p.id for p in catalog_repo.promoted()} == expected
 
@@ -155,7 +159,7 @@ def test_seven_strings_finds_shelby_outside_its_named_category(
 
 def test_violoes_under_ceiling_matches_csv(catalog_repo: PgCatalogRepository) -> None:
     ceiling = Money(Decimal(1000))
-    expected = SearchProducts(CSV)("violões até 1000", ceiling)
+    expected = SearchProducts(MEMORY)("violões até 1000", ceiling)
     found = SearchProducts(catalog_repo)("violões até 1000", ceiling)
     assert isinstance(found, Candidates)
     assert _ids(found) == _ids(expected)

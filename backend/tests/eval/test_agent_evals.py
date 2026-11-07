@@ -29,7 +29,8 @@ from emporio.catalog.application.search_products import SearchProducts
 from emporio.catalog.domain.product import Product, ProductStatus
 from emporio.catalog.domain.search import Candidates, Exact, SearchResult
 from emporio.catalog.infrastructure.csv_catalog_repository import CsvCatalogRepository
-from emporio.catalog.infrastructure.pg_product_index import PgProductIndex
+from emporio.catalog.infrastructure.pg_catalog_repository import PgCatalogRepository
+from emporio.catalog.infrastructure.pg_catalog_writer import PgCatalogWriter
 from emporio.config import Settings, load_mcp_settings, load_settings
 from emporio.embeddings import E5Embedder
 from emporio.orders.application.check_return_eligibility import CheckReturnEligibility
@@ -74,8 +75,10 @@ def _short(product: Product) -> str:
     return " ".join(product.name.split()[:2])  # brand + model, as the spike matched names
 
 
-def _derive_facts(pool: ConnectionPool, settings: Settings) -> Facts:
-    catalog = CsvCatalogRepository()
+def _derive_facts(pool: ConnectionPool, embedder: E5Embedder, settings: Settings) -> Facts:
+    # Use cases read the Postgres catalog the agent reads; raw lists come from the CSV seed.
+    seed = CsvCatalogRepository()
+    catalog = PgCatalogRepository(pool, embedder)
     orders = CsvOrderRepository()
     customers = CsvCustomerRepository()
     search, get_product = SearchProducts(catalog), GetProduct(catalog)
@@ -85,7 +88,7 @@ def _derive_facts(pool: ConnectionPool, settings: Settings) -> Facts:
         return get_product(product.id)[1].final
 
     violoes = _products(search("violões", Money(Decimal(1000)), include_unavailable=True))
-    gd20 = next(p for p in catalog.products() if "GD20" in p.name)
+    gd20 = next(p for p in seed.products() if "GD20" in p.name)
     _, gd20_quote = get_product(gd20.id)
     pix = gd20_quote.pix or gd20_quote.final
     order = orders.by_id(ORDER_ID)
@@ -97,9 +100,9 @@ def _derive_facts(pool: ConnectionPool, settings: Settings) -> Facts:
     eligibility5 = CheckReturnEligibility(orders, today)(ORDER_ID, order.customer_id)
     returnable5 = eligibility5.regret_eligible or eligibility5.defect_eligible
     open_now = StoreNow(SystemClock(), STORE_HOLIDAYS)().open
-    discontinued = next(p for p in catalog.products() if p.status is ProductStatus.DISCONTINUED)
+    discontinued = next(p for p in seed.products() if p.status is ProductStatus.DISCONTINUED)
     recommended = RecommendProducts(catalog)("algo pra tocar MPB em casa")
-    c40 = next(p for p in catalog.products() if "C40" in p.name)
+    c40 = next(p for p in seed.products() if "C40" in p.name)
     c40_quote = get_product(c40.id)[1]
     promo_product, promo_quote = ListPromotions(catalog)()[0]
     assert promo_quote.promotion is not None
@@ -127,12 +130,12 @@ def _derive_facts(pool: ConnectionPool, settings: Settings) -> Facts:
         "discontinued_name": discontinued.name,
         "takamine_prices": tuple(
             quote(p).format_brl()
-            for p in catalog.products()
+            for p in seed.products()
             if "takamine" in p.name.lower() and p.is_available
         ),
         "regret14_other": "no" if regret14.regret_eligible or regret14.defect_eligible else "yes",
         "takamine_models": tuple(
-            p.name.split()[1] for p in catalog.products() if "takamine" in p.name.lower()
+            p.name.split()[1] for p in seed.products() if "takamine" in p.name.lower()
         ),
         "return5_other": "no" if returnable5 else "yes",
         "return5": "yes" if returnable5 else "no",
@@ -261,11 +264,9 @@ def test_agent_golden_cases(
     settings = _agent_settings(fake)
     embedder = E5Embedder()
     IngestPolicies(PdfPolicySource(), PgPolicyIndex(pg_pool, embedder))()
-    PgProductIndex(pg_pool, embedder).replace_all(
-        CsvCatalogRepository().products(),
-        {c.id: c.name for c in CsvCatalogRepository().categories()},
-    )
-    facts = _derive_facts(pg_pool, settings)
+    seed = CsvCatalogRepository()
+    PgCatalogWriter(pg_pool, embedder).seed(seed.categories(), seed.products(), seed.promotions())
+    facts = _derive_facts(pg_pool, embedder, settings)
     if fake:
         monkeypatch.setattr(bootstrap, "make_chat_model", _fake_model)
         monkeypatch.setattr(bootstrap, "make_classifier", lambda model: lambda messages: Scope.LOJA)

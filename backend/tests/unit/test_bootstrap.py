@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from emporio import bootstrap
+from emporio.catalog.infrastructure.pg_catalog_repository import PgCatalogRepository
 from emporio.config import LangfuseUnreachable, Provider, Settings
 from emporio.orders.infrastructure.csv_order_repository import CsvCustomerRepository
 
@@ -36,6 +37,18 @@ def test_toolbox_pool_opens_at_the_settings_size(monkeypatch: pytest.MonkeyPatch
     with ExitStack() as stack:
         bootstrap.build_toolbox(stack, "postgresql://unused", Settings(db_pool_max=20))
     assert sizes == [(20, 20)]  # opened at full size, not grown under load
+
+
+def test_toolbox_serves_the_postgres_catalog_and_shares_the_embedder(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    embedder = object()
+    monkeypatch.setattr(bootstrap, "make_pool", lambda url, **_: FakePool())
+    monkeypatch.setattr(bootstrap, "E5Embedder", lambda: embedder)
+    with ExitStack() as stack:
+        box, _, _, shared = bootstrap.build_toolbox(stack, "postgresql://unused", Settings())
+    assert isinstance(box.catalog, PgCatalogRepository)
+    assert shared is embedder  # the writer reuses it, so e5 loads once
 
 
 def test_failed_langfuse_check_closes_what_was_opened(monkeypatch: pytest.MonkeyPatch) -> None:

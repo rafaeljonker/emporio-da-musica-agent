@@ -17,10 +17,10 @@ from emporio.catalog.application.list_promotions import ListPromotions
 from emporio.catalog.application.quote_installments import QuoteInstallments
 from emporio.catalog.application.recommend_products import RecommendProducts
 from emporio.catalog.application.search_products import SearchProducts
-from emporio.catalog.infrastructure.csv_catalog_repository import CsvCatalogRepository
+from emporio.catalog.infrastructure.pg_catalog_repository import PgCatalogRepository
 from emporio.config import Provider, Settings, UnknownCustomer
 from emporio.db import connect, database_url, make_pool
-from emporio.embeddings import E5Embedder
+from emporio.embeddings import E5Embedder, TextEmbedder
 from emporio.migrate import apply_migrations, setup_checkpointer
 from emporio.orders.application.check_return_eligibility import CheckReturnEligibility
 from emporio.orders.application.get_order_status import GetOrderStatus
@@ -85,12 +85,15 @@ class Agent:
 
 def build_toolbox(
     stack: ExitStack, url: str, settings: Settings
-) -> tuple[Toolbox, CsvCustomerRepository, ConnectionPool]:
-    """Wire the ten tools' dependencies; shared by the agent and the MCP server."""
+) -> tuple[Toolbox, CsvCustomerRepository, ConnectionPool, TextEmbedder]:
+    """Wire the ten tools' dependencies; shared by the agent and the MCP server.
+
+    The embedder is returned so a writer can reuse it: the e5 model loads once.
+    """
     size = settings.db_pool_max  # opened at full size: growing under load queued turns
     pool = stack.enter_context(make_pool(url, min_size=size, max_size=size))
     embedder = E5Embedder()
-    catalog = CsvCatalogRepository()
+    catalog = PgCatalogRepository(pool, embedder)
     orders = CsvOrderRepository()
     customers = CsvCustomerRepository()
     box = Toolbox(
@@ -106,7 +109,7 @@ def build_toolbox(
         SearchPolicies(PgPolicyIndex(pool, embedder)),
         catalog,
     )
-    return box, customers, pool
+    return box, customers, pool, embedder
 
 
 def build_agent(settings: Settings) -> Agent:
@@ -116,7 +119,7 @@ def build_agent(settings: Settings) -> Agent:
         apply_migrations(conn)
     setup_checkpointer(url)
     with ExitStack() as stack:
-        box, customers, pool = build_toolbox(stack, url, settings)
+        box, customers, pool, _ = build_toolbox(stack, url, settings)
         if settings.fake_model:
             model = ScriptedChatModel()
             classify = _store_scope
@@ -203,7 +206,7 @@ def run_mcp(settings: Settings, customer_id: int | None) -> None:
     Migrations are not applied here: the schema is expected to exist (`make mcp` runs `make db`).
     """
     with ExitStack() as stack:
-        box, customers, _ = build_toolbox(stack, database_url(), settings)
+        box, customers, _, _ = build_toolbox(stack, database_url(), settings)
         if customer_id is not None and customers.by_id(customer_id) is None:
             raise UnknownCustomer(customer_id)
         build_mcp(box, customer_id=customer_id).run()

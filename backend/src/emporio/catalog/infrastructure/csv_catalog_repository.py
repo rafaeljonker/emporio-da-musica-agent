@@ -1,12 +1,11 @@
 import csv
 import json
-from collections.abc import Callable, Collection, Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from decimal import Decimal, InvalidOperation
 from functools import cached_property
 from pathlib import Path
 
-from emporio.catalog.application.ports import CatalogFilter
-from emporio.catalog.domain.pricing import Promotion, best_active_promotion, quote_price
+from emporio.catalog.domain.pricing import Promotion
 from emporio.catalog.domain.product import Category, Product, ProductStatus
 from emporio.paths import CASE_CSV_FILES
 from emporio.shared.errors import DomainError
@@ -57,7 +56,7 @@ def _category(row: dict[str, str]) -> Category:
 
 
 class CsvCatalogRepository:
-    """Read-only catalog loaded lazily, once per file, from the case CSVs."""
+    """The case CSVs, loaded lazily once per file; only the seed of the Postgres catalog."""
 
     def __init__(self, files: Mapping[str, Path] = CASE_CSV_FILES) -> None:
         self._files = files
@@ -97,34 +96,3 @@ class CsvCatalogRepository:
 
     def promotions(self) -> Sequence[Promotion]:
         return self._promotions
-
-    # ponytail: in-memory shim of the search port so the app runs until PgCatalogRepository
-    # replaces it (Task 4); `search` ignores the query and returns the filtered catalog in order.
-    def get(self, product_id: int) -> Product | None:
-        return next((p for p in self._products if p.id == product_id), None)
-
-    def get_many(self, ids: Collection[int]) -> Sequence[Product]:
-        return tuple(p for p in self._products if p.id in ids)
-
-    def promotions_for(self, ids: Collection[int]) -> Sequence[Promotion]:
-        return tuple(x for x in self._promotions if x.product_id in ids)
-
-    def promoted(self) -> Sequence[Product]:
-        return tuple(
-            p
-            for p in self._products
-            if p.is_available and best_active_promotion(self.promotions_for([p.id])) is not None
-        )
-
-    def search(self, query: str, flt: CatalogFilter, k: int) -> Sequence[Product]:
-        return tuple(p for p in self._products if self._passes(p, flt))[:k]
-
-    def _passes(self, p: Product, flt: CatalogFilter) -> bool:
-        if flt.category_ids is not None and p.category_id not in flt.category_ids:
-            return False
-        if flt.available_only and not p.is_available:
-            return False
-        if flt.max_price is None:
-            return True
-        best = best_active_promotion(self.promotions_for([p.id]))
-        return quote_price(p, best).final <= flt.max_price

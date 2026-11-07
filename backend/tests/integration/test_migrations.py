@@ -10,19 +10,18 @@ pytestmark = pytest.mark.postgres
 
 
 def test_apply_migrations_creates_tables_and_is_idempotent(pg_conn: psycopg.Connection):
-    pg_conn.execute(
-        "DROP TABLE IF EXISTS policy_chunks, product_embeddings, turn_metrics, schema_migrations"
-    )
+    pg_conn.execute("DROP TABLE IF EXISTS policy_chunks, turn_metrics, schema_migrations")
     pg_conn.commit()
 
-    assert apply_migrations(pg_conn) == ["001", "002", "003", "004", "005", "006"]
+    assert apply_migrations(pg_conn) == ["001", "002", "003", "004", "005", "006", "007"]
     assert apply_migrations(pg_conn) == []
 
     rows = pg_conn.execute(
         "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
     ).fetchall()
     names = {r[0] for r in rows}
-    assert {"policy_chunks", "product_embeddings"} <= names
+    assert "policy_chunks" in names
+    assert "product_embeddings" not in names
 
 
 def test_f_unaccent_strips_accents(pg_conn: psycopg.Connection):
