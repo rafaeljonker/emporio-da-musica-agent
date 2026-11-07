@@ -257,6 +257,7 @@ If time runs short, cut in this order: task 6 (use the API from curl / Swagger i
 - **Hosted demo integrity.** An evaluator with the admin credential can still add junk products that the agent will then recommend. Mitigation: seed rows protected, row cap, audit, reset command; hand out the admin credential separately.
 - **Latency on Modal** is one extra ~80 ms round trip per catalog read that used to be in memory; a turn with three catalog tool calls adds ~0.25 s. Acceptable against a 6 s Gemini turn; co-locating the DB is the fix already listed in `scaling-and-cost.md`.
 - **Embedding failures on write** (model not loaded, OOM): with the recommended option the row is still written with `embedding NULL` and found by FTS/trigram, and an `ingest` run back-fills it (decision 5).
+- **Known semantic limit of e5-small:** "algo pra tocar MPB em casa" lands near electric instruments (Telecaster, Music Man bass), with the old pure-vector index too, and down-weighting FTS/trigram makes it worse. The `recomendacao_mpb` golden case is therefore graded on store knowledge (any available nylon violão, no electric guitar or bass). Candidate fixes later: a reranker, or category hints in the product embedding text.
 - **Spec scope creep.** The admin screen is new surface area two days before delivery; it must be explained in the README as the store's back office, not as an agent capability.
 
 ## Owner decisions

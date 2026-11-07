@@ -111,11 +111,16 @@ expect_tools = ["check_return_eligibility"]
 all_of = ["@return_{return5}", "@legal_warranty"]
 none_of = ["@return_{return5_other}"]
 
+# Graded on store knowledge from data/, not on what recommend_products returns for the raw
+# phrase: e5-small maps "MPB em casa" near electric instruments, so a list derived from the tool
+# tied the golden answer to embedding noise (it passed before by chance). Any available nylon
+# violão is a right answer; an electric guitar or bass is a wrong one.
 [[case]]
 name = "recomendacao_mpb"
 message = "Queria algo pra tocar MPB em casa"
-expect_tools = ["recommend_products"]
-any_of = ["{recommend_names}"]
+expect_tools = ["recommend_products|search_products"]
+any_of = ["{nylon_violao_names}"]
+none_of = ["{electric_names}"]
 
 # Phase 5 additions (PR-5 backlog row 11). `messages` are sent in order on one identity and only
 # the last reply is verified. The abuse reply is the guard's fixed text, so it must call no tool.

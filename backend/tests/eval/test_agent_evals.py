@@ -24,7 +24,6 @@ from emporio.bootstrap import Agent, build_agent
 from emporio.catalog.application.get_product import GetProduct
 from emporio.catalog.application.list_promotions import ListPromotions
 from emporio.catalog.application.quote_installments import QuoteInstallments
-from emporio.catalog.application.recommend_products import RecommendProducts
 from emporio.catalog.application.search_products import SearchProducts
 from emporio.catalog.domain.product import Product, ProductStatus
 from emporio.catalog.domain.search import Candidates, Exact, SearchResult
@@ -50,6 +49,7 @@ from emporio.support.application.ports import Reply
 from emporio.support.domain.channel_identity import ChannelIdentity
 from emporio.support.domain.scope import Scope
 from emporio.support.infrastructure.agent.graph import ABUSE_REPLY
+from evals.facts import recommendation_facts, short_name
 from evals.verify import Expect, Facts, Verdict, expand, verify
 from tests.fakes.fake_chat_model import FakeToolCallingModel
 
@@ -69,10 +69,6 @@ def _products(found: SearchResult) -> tuple[Product, ...]:
         case Candidates(products):
             return products
     return ()
-
-
-def _short(product: Product) -> str:
-    return " ".join(product.name.split()[:2])  # brand + model, as the spike matched names
 
 
 def _derive_facts(pool: ConnectionPool, embedder: E5Embedder, settings: Settings) -> Facts:
@@ -101,7 +97,6 @@ def _derive_facts(pool: ConnectionPool, embedder: E5Embedder, settings: Settings
     returnable5 = eligibility5.regret_eligible or eligibility5.defect_eligible
     open_now = StoreNow(SystemClock(), STORE_HOLIDAYS)().open
     discontinued = next(p for p in seed.products() if p.status is ProductStatus.DISCONTINUED)
-    recommended = RecommendProducts(catalog)("algo pra tocar MPB em casa")
     c40 = next(p for p in seed.products() if "C40" in p.name)
     c40_quote = get_product(c40.id)[1]
     promo_product, promo_quote = ListPromotions(catalog)()[0]
@@ -114,8 +109,8 @@ def _derive_facts(pool: ConnectionPool, embedder: E5Embedder, settings: Settings
         "promo_percent": f"{promo_quote.promotion.percent.normalize():f}%",
         "promo_final": promo_quote.final.format_brl(),
         "abuse_reply": ABUSE_REPLY.split(".")[0],
-        "viol_ok": tuple(_short(p) for p in violoes if p.is_available),
-        "viol_bad": tuple(_short(p) for p in violoes if not p.is_available),
+        "viol_ok": tuple(short_name(p) for p in violoes if p.is_available),
+        "viol_bad": tuple(short_name(p) for p in violoes if not p.is_available),
         "gd20_final": gd20_quote.final.format_brl(),
         "gd20_pix": pix.format_brl(),
         "gd20_pix_whole": Money(pix.amount.to_integral_value(rounding="ROUND_DOWN")).format_brl(),
@@ -124,7 +119,7 @@ def _derive_facts(pool: ConnectionPool, embedder: E5Embedder, settings: Settings
         "order5_email": customer.email,
         "order5_status": order.status.value,
         "order5_tracking": order.tracking_code or "",
-        "promo_names": tuple(_short(p) for p, _ in ListPromotions(catalog)()),
+        "promo_names": tuple(short_name(p) for p, _ in ListPromotions(catalog)()),
         "store_state": "open" if open_now else "closed",
         "store_other": "closed" if open_now else "open",
         "discontinued_name": discontinued.name,
@@ -139,7 +134,7 @@ def _derive_facts(pool: ConnectionPool, embedder: E5Embedder, settings: Settings
         ),
         "return5_other": "no" if returnable5 else "yes",
         "return5": "yes" if returnable5 else "no",
-        "recommend_names": tuple(_short(p) for p in _products(recommended)),
+        **recommendation_facts(seed.products(), seed.categories()),
     }
 
 
