@@ -304,8 +304,6 @@ ignore_imports = [
     "emporio.support.infrastructure.agent.tools -> emporio.orders.application.check_return_eligibility",
     "emporio.support.infrastructure.agent.tools -> emporio.orders.application.get_order_status",
     "emporio.support.infrastructure.agent.tools -> emporio.orders.application.list_customer_orders",
-    "emporio.support.infrastructure.agent.tools -> emporio.orders.domain.errors",
-    "emporio.support.infrastructure.agent.tools -> emporio.orders.domain.identity",
     "emporio.support.infrastructure.agent.tools -> emporio.orders.domain.order",
     "emporio.support.infrastructure.agent.tools -> emporio.policies.application.search_policies",
     "emporio.support.infrastructure.agent.tools -> emporio.policies.application.store_now",

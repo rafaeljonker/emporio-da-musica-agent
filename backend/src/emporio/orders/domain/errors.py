@@ -1,8 +1,9 @@
-from emporio.shared.errors import DomainError
+from enum import StrEnum
 
 
-class OrderNotFound(DomainError):
-    """Raised when an order id does not exist."""
+class OrdersErrorCode(StrEnum):
+    """Expected order failures."""
 
-    def __init__(self, order_id: int) -> None:
-        super().__init__(f"order {order_id} not found")
+    # Unknown order, another customer's order and a wrong e-mail or phone all look the same:
+    # one code, so no answer tells an order id exists (anti-enumeration).
+    ORDER_NOT_FOUND = "order_not_found"

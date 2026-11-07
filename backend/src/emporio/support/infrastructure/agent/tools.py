@@ -39,8 +39,6 @@ from emporio.catalog.domain.search import Candidates, Exact, NoMatch
 from emporio.orders.application.check_return_eligibility import CheckReturnEligibility
 from emporio.orders.application.get_order_status import GetOrderStatus
 from emporio.orders.application.list_customer_orders import ListCustomerOrders
-from emporio.orders.domain.errors import OrderNotFound
-from emporio.orders.domain.identity import IdentityMismatch
 from emporio.orders.domain.order import Order
 from emporio.policies.application.search_policies import SearchPolicies
 from emporio.policies.application.store_now import StoreNow
@@ -145,8 +143,6 @@ def _safe[**P](fn: Callable[P, ToolOutput]) -> Callable[P, ToolOutput]:
     def run(*args: P.args, **kwargs: P.kwargs) -> ToolOutput:
         try:
             return fn(*args, **kwargs)
-        except (IdentityMismatch, OrderNotFound):
-            return ORDER_NOT_FOUND
         except StoreUnavailable:
             return INDEX_UNAVAILABLE
         except DomainError as err:  # e.g. InvalidMoney
@@ -261,12 +257,15 @@ def get_order_status(
             (o for o in box.list_customer_orders(ctx.customer_id) if o.id == order_id), None
         )
         if mine is None:
-            raise OrderNotFound(order_id)
+            return ORDER_NOT_FOUND
         return order_json(mine, _product_names(box, (mine,)))
     if not email_or_phone:
         return ASK_EMAIL_OR_PHONE
-    found = box.get_order_status(order_id, email_or_phone)
-    return order_json(found, _product_names(box, (found,)))
+    match box.get_order_status(order_id, email_or_phone):
+        case Ok(found):
+            return order_json(found, _product_names(box, (found,)))
+        case Err():
+            return ORDER_NOT_FOUND
 
 
 @_safe
@@ -277,8 +276,16 @@ def check_return_eligibility(
     if owner is None:
         if not email_or_phone:
             return ASK_EMAIL_OR_PHONE
-        owner = box.get_order_status(order_id, email_or_phone).customer_id
-    return eligibility_json(box.check_return_eligibility(order_id, owner))
+        match box.get_order_status(order_id, email_or_phone):
+            case Ok(found):
+                owner = found.customer_id
+            case Err():
+                return ORDER_NOT_FOUND
+    match box.check_return_eligibility(order_id, owner):
+        case Ok(eligibility):
+            return eligibility_json(eligibility)
+        case Err():
+            return ORDER_NOT_FOUND
 
 
 @_safe
