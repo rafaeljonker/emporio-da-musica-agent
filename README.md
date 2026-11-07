@@ -1,5 +1,7 @@
 # Empório da Música: agente de atendimento
 
+*English version: [README.en.md](README.en.md).*
+
 Um assistente de atendimento para a loja de instrumentos Empório da Música: responde no tom de um vendedor que entende de música, consulta catálogo, promoções e pedidos em ferramentas determinísticas e busca as regras da loja no manual de políticas. Tudo em Python, num chat web que simula o WhatsApp.
 
 **Demo:** https://emporio.fastmind.site (as credenciais foram enviadas por e-mail, fora do repositório).
@@ -114,7 +116,7 @@ E a voz é medida, não só prometida: [`ai_tells.py`](backend/src/emporio/suppo
 
 ## Tratamento de dados e armadilhas
 
-A busca de produtos normaliza acento, caixa e plural e tolera erro de digitação com `difflib` ("violuao" acha o violão), separando resultado exato de candidatos: na dúvida, o agente pergunta. Cada armadilha encontrada nos dados virou teste:
+A busca de produtos no Postgres ignora acento e caixa e tolera erro de digitação com trigram ("violuao" acha o violão), separando resultado exato de candidatos: na dúvida, o agente pergunta. Cada armadilha encontrada nos dados virou teste:
 
 | Armadilha | Teste |
 |---|---|
@@ -137,7 +139,7 @@ A busca de produtos normaliza acento, caixa e plural e tolera erro de digitaçã
 
 ## Qualidade
 
-- **Testes:** 703 testes determinísticos, sem modelo, escritos antes do código (cada comportamento é um par de commits `test(...) (red)` → `feat(...)` no histórico). O `make check` (ruff, basedpyright, import-linter e pytest) e a varredura de segredos rodam também no CI.
+- **Testes:** 800 testes determinísticos (mais os de Postgres, em `make test-pg`), sem modelo, escritos antes do código (cada comportamento é um par de commits `test(...) (red)` → `feat(...)` no histórico). O `make check` (ruff, basedpyright, import-linter e pytest) e a varredura de segredos rodam também no CI.
 - **Evals:** 22 casos de ouro rodando o grafo real (ferramenta esperada, fato esperado e detector de voz); meta de 90% de acerto e zero marcas de IA. Cada relatório traz as transcrições completas para auditoria.
 
 | Provedor | Acerto | Marcas de IA | Tempo de resposta (mediana / p95) | Observação |
