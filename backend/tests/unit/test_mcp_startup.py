@@ -71,7 +71,7 @@ def _agent_knowing(known: set[int]) -> bootstrap.Agent:
         lambda: None,
         lambda cid: cid in known,
         FakeCatalogAdmin(),
-        toolbox=make_box(),
+        make_box(),
     )
 
 

@@ -9,6 +9,7 @@ from emporio.support.application.ports import Reply
 from emporio.support.domain.channel_identity import ChannelIdentity
 from emporio.support.domain.scope import Scope
 from tests.fakes.fake_catalog_admin import FakeCatalogAdmin
+from tests.unit.support.test_tools import make_box
 
 
 class FakeHandle:
@@ -33,7 +34,7 @@ def _wire(monkeypatch: pytest.MonkeyPatch, handle: FakeHandle) -> Closed:
     monkeypatch.setattr(
         cli,
         "build_agent",
-        lambda settings: Agent(handle, closed, lambda _id: True, FakeCatalogAdmin()),
+        lambda settings: Agent(handle, closed, lambda _id: True, FakeCatalogAdmin(), make_box()),
     )
     return closed
 
@@ -98,14 +99,16 @@ def test_cli_maps_provider_flag(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         cli,
         "build_agent",
-        lambda s: Agent(FakeHandle(), lambda: None, lambda _id: True, FakeCatalogAdmin()),
+        lambda s: Agent(
+            FakeHandle(), lambda: None, lambda _id: True, FakeCatalogAdmin(), make_box()
+        ),
     )
     cli.main(["chat", "--provider", "gemini"], read=_typing(), sleep=lambda _: None)
     assert seen == [Provider.GEMINI]
 
 
 def _agent(handle: object, closed: Closed, exists: bool = True) -> Agent:
-    return Agent(handle, closed, lambda _id: exists, FakeCatalogAdmin())  # pyright: ignore[reportArgumentType]
+    return Agent(handle, closed, lambda _id: exists, FakeCatalogAdmin(), make_box())  # pyright: ignore[reportArgumentType]
 
 
 class Exploding(FakeHandle):
