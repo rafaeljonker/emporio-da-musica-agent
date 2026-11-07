@@ -197,6 +197,8 @@
   }
   html {
     font-size: 100%;
+    /* The app shell is one screen: no rubber-band past it on trackpads. */
+    overscroll-behavior: none;
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
