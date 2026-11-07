@@ -1,19 +1,17 @@
 import os
 from collections.abc import Iterator
-from typing import TYPE_CHECKING
 
 import psycopg
 import pytest
 from psycopg_pool import ConnectionPool
 
 from emporio.catalog.infrastructure.csv_catalog_repository import CsvCatalogRepository
+from emporio.catalog.infrastructure.pg_catalog_repository import PgCatalogRepository
+from emporio.catalog.infrastructure.pg_catalog_writer import PgCatalogWriter
 from emporio.db import connect, make_pool
 from emporio.migrate import apply_migrations
 from tests.fakes.hash_embedder import HashEmbedder
 from tests.pg_guard import pg_skip_reason
-
-if TYPE_CHECKING:
-    from emporio.catalog.infrastructure.pg_catalog_repository import PgCatalogRepository
 
 
 @pytest.fixture
@@ -44,10 +42,7 @@ def pg_pool(pg_conn: psycopg.Connection) -> Iterator[ConnectionPool]:
 
 
 @pytest.fixture
-def catalog_repo(pg_pool: ConnectionPool) -> "PgCatalogRepository":
-    from emporio.catalog.infrastructure.pg_catalog_repository import PgCatalogRepository
-    from emporio.catalog.infrastructure.pg_catalog_writer import PgCatalogWriter
-
+def catalog_repo(pg_pool: ConnectionPool) -> PgCatalogRepository:
     csv = CsvCatalogRepository()
     PgCatalogWriter(pg_pool, HashEmbedder()).seed(
         csv.categories(), csv.products(), csv.promotions()

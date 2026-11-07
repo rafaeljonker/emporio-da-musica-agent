@@ -159,3 +159,34 @@ def test_violoes_under_ceiling_matches_csv(catalog_repo: PgCatalogRepository) ->
     found = SearchProducts(catalog_repo)("violões até 1000", ceiling)
     assert isinstance(found, Candidates)
     assert _ids(found) == _ids(expected)
+
+
+def test_max_price_rounds_the_final_price_like_money(
+    catalog_repo: PgCatalogRepository, pg_conn: psycopg.Connection
+) -> None:
+    # 10.02 with 30% off is 7.014, quoted as R$ 7,01: a R$ 7,01 ceiling must include it.
+    pg_conn.execute("UPDATE products SET price = 10.02 WHERE id = 95")
+    pg_conn.execute("UPDATE promotions SET active = false WHERE product_id = 95")
+    pg_conn.execute("INSERT INTO promotions VALUES (999, 95, 30, 'Teste', true)")
+    pg_conn.commit()
+    product = catalog_repo.get(95)
+    assert product is not None
+    final = quote_price(product, best_active_promotion(catalog_repo.promotions_for([95]))).final
+    assert final == Money(Decimal("7.01"))
+
+    found = catalog_repo.search("takamine gd20", CatalogFilter(max_price=final), 10)
+
+    assert 95 in {p.id for p in found}
+
+
+def test_vector_branch_alone_honours_the_filter(catalog_repo: PgCatalogRepository) -> None:
+    found = catalog_repo.search("zzqx", CatalogFilter(available_only=True), 40)
+    assert found
+    assert all(p.is_available for p in found)
+
+
+def test_pool_connections_scan_hnsw_iteratively(pg_pool: ConnectionPool) -> None:
+    with pg_pool.connection() as conn:
+        scan = conn.execute("SHOW hnsw.iterative_scan").fetchone()
+        ef = conn.execute("SHOW hnsw.ef_search").fetchone()
+    assert (scan, ef) == (("relaxed_order",), ("100",))
