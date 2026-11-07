@@ -23,3 +23,17 @@ class ProductNotOwned(DomainError):
 class CatalogFull(DomainError):
     def __init__(self) -> None:
         super().__init__("catalog write cap reached")
+
+
+class NameTakenByStore(DomainError):
+    """A demo product may not reuse a store product's name (case and accents ignored)."""
+
+    def __init__(self) -> None:
+        super().__init__("name taken by a store product")
+
+
+class PromoClaim(DomainError):
+    """Name or description claims a discount; only promotion rows carry one."""
+
+    def __init__(self) -> None:
+        super().__init__("promotion claim in product text")
