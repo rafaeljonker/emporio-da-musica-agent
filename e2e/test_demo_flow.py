@@ -283,8 +283,12 @@ def test_typing_dots_sit_under_the_last_bubble(signed_in_page: Page) -> None:
 def test_catalog_create_then_ask(signed_in_page: Page, real_model: bool) -> None:
     page = signed_in_page
     name = f"Cavaquinho Teste {uuid4().hex[:6]}"
+    composer = page.get_by_label("Mensagem", exact=True)
+    composer.fill("Oi")  # a draft the question must not discard
     trigger = page.get_by_role("button", name="Catálogo")
-    trigger.click()
+    # The list loads on open; fill the form only after it arrived.
+    with page.expect_response("**/api/catalog/products/mine"):
+        trigger.click()
     dialog = page.get_by_role("dialog", name="Cadastrar produto")
     expect(dialog).to_be_visible()
     dialog.get_by_label("Nome").fill(name)
@@ -304,12 +308,12 @@ def test_catalog_create_then_ask(signed_in_page: Page, real_model: bool) -> None
 
     dialog.get_by_role("button", name="Perguntar ao assistente").click()
     expect(dialog).to_have_count(0)
-    composer = page.get_by_label("Mensagem", exact=True)
-    expect(composer).to_have_value(f"Vocês têm o {name}?")
+    expect(composer).to_have_value(f"Oi\nVocês têm o {name}?")
     expect(composer).to_be_focused()
     log = page.get_by_role("log")
     expect(log.locator("p", has_text="Você: ")).to_have_count(0)  # filled, never sent
 
+    composer.fill(f"Vocês têm o {name}?")
     composer.press("Enter")
     agent = log.locator("p", has_text="Assistente: ")
     expect(agent.first).to_be_visible(timeout=AGENT_TIMEOUT_MS)
@@ -322,17 +326,38 @@ def test_catalog_create_then_ask(signed_in_page: Page, real_model: bool) -> None
 def test_catalog_dialog_shows_field_errors(signed_in_page: Page) -> None:
     page = signed_in_page
     trigger = page.get_by_role("button", name="Catálogo")
-    trigger.click()
+    with page.expect_response("**/api/catalog/products/mine"):
+        trigger.click()
     dialog = page.get_by_role("dialog", name="Cadastrar produto")
     dialog.get_by_role("button", name="Cadastrar", exact=True).click()
 
     name = dialog.get_by_label("Nome")
     expect(name).to_have_attribute("aria-invalid", "true")
     expect(name).to_be_focused()
-    expect(name).to_have_accessible_description("Escreve o nome do produto, de 2 a 120 caracteres.")
+    expect(name).to_have_accessible_description(
+        "Escreve o nome do produto, de 2 a 120 caracteres, sem caracteres invisíveis."
+    )
     expect(dialog.get_by_label("Preço (R$)")).to_have_attribute("aria-invalid", "true")
 
     # Escape closes it and focus returns to the trigger.
     page.keyboard.press("Escape")
     expect(dialog).to_have_count(0)
     expect(trigger).to_be_focused()
+
+
+def test_catalog_load_failure_offers_retry(signed_in_page: Page) -> None:
+    page = signed_in_page
+    page.route(
+        "**/api/catalog/categories",
+        lambda route: route.fulfill(status=503, json={"detail": "catalog_unavailable"}),
+        times=1,
+    )
+    page.get_by_role("button", name="Catálogo").click()
+    dialog = page.get_by_role("dialog", name="Cadastrar produto")
+    alert = dialog.get_by_role("alert")
+    expect(alert).to_contain_text("O catálogo está fora do ar agora.")
+    with page.expect_response("**/api/catalog/categories"):
+        alert.get_by_role("button", name="Tentar de novo").click()
+    expect(alert).to_have_count(0)
+    dialog.get_by_role("combobox", name="Categoria").click()
+    expect(page.get_by_role("option", name="Violões", exact=True)).to_be_visible()
