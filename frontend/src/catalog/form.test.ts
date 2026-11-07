@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { HttpError } from '@/api/client'
+import { HttpError, SessionExpired } from '@/api/client'
 import { copy } from '@/copy'
-import { errorCopy, parseSpecs, toPrice, validate, type ProductFields } from './form'
+import { appendQuestion, errorCopy, mergeById, parseSpecs, toPrice, validate, type ProductFields } from './form'
 
 describe('toPrice', () => {
   it.each([
@@ -29,6 +29,10 @@ describe('parseSpecs', () => {
   })
   it('rejects a line without a colon', () => expect(parseSpecs('Cordas: nylon\nsem dois pontos')).toBeNull())
   it('rejects an empty key or value', () => expect(parseSpecs(': nylon')).toBeNull())
+  it.each(['Cor\u0007: preto', 'Cor: pre\u200bto', 'Cor: \u202epreto', 'Cor\t: preto'])(
+    'rejects control or invisible characters in %j',
+    (line) => expect(parseSpecs(line)).toBeNull(),
+  )
 })
 
 const valid: ProductFields = {
@@ -51,6 +55,15 @@ describe('validate', () => {
     const { errors } = validate({ ...valid, categoryId: '', price: '0', stock: '-1', specs: 'x' })
     expect(Object.keys(errors).sort()).toEqual(['categoryId', 'price', 'specs', 'stock'])
   })
+  it.each(['Violão\u0000', 'Vio\u200blão', 'Violão\u2066x', 'Violão\nx', 'Vio\u007flão'])(
+    'flags a name with %j',
+    (name) => expect(validate({ ...valid, name }).errors.name).toBe(copy.catalog.errors.name),
+  )
+  it('keeps line breaks and tabs in the description but not other controls', () => {
+    expect(validate({ ...valid, description: 'Linha 1\nLinha 2\r\n\tfim' }).errors).toEqual({})
+    expect(validate({ ...valid, description: 'bip\u0007' }).errors.description).toBe(copy.catalog.errors.description)
+    expect(validate({ ...valid, description: 'oi\u200f' }).errors.description).toBe(copy.catalog.errors.description)
+  })
   it('builds the body with the price as a decimal string', () => {
     const { body, errors } = validate(valid)
     expect(errors).toEqual({})
@@ -72,7 +85,26 @@ describe('errorCopy', () => {
     [new HttpError(409, 'catalog_full'), copy.catalog.full],
     [new HttpError(422, 'unknown_category'), copy.catalog.errors.categoryId],
     [new HttpError(404, 'not_found'), copy.catalog.notFound],
+    [new HttpError(422, [{ type: 'string_pattern_mismatch', loc: ['body', 'name'] }]), copy.catalog.invalid],
+    [new HttpError(422), copy.catalog.invalid],
+    [new HttpError(503, 'catalog_unavailable'), copy.catalog.unavailable],
+    [new SessionExpired(), copy.login.expired],
     [new HttpError(500), copy.catalog.failed],
     [new TypeError('Failed to fetch'), copy.catalog.failed],
   ])('maps %s', (err, want) => expect(errorCopy(err)).toBe(want))
+})
+
+describe('mergeById', () => {
+  const row = (id: number, name = `P${id}`) => ({ id, name })
+  it('keeps the rows already on screen and adds only new server rows after them', () => {
+    const local = [row(3, 'just saved'), row(1, 'edited')]
+    expect(mergeById(local, [row(2), row(1, 'stale')])).toEqual([row(3, 'just saved'), row(1, 'edited'), row(2)])
+  })
+  it('takes the server list when nothing is on screen', () => expect(mergeById([], [row(2), row(1)])).toEqual([row(2), row(1)]))
+})
+
+describe('appendQuestion', () => {
+  it('fills an empty composer', () => expect(appendQuestion('  ', 'Vocês têm?')).toBe('Vocês têm?'))
+  it('keeps a draft and adds the question on a new line', () =>
+    expect(appendQuestion('Oi, tudo bem?', 'Vocês têm?')).toBe('Oi, tudo bem?\nVocês têm?'))
 })
