@@ -309,6 +309,9 @@ ignore_imports = [
     "emporio.support.infrastructure.agent.tools -> emporio.orders.domain.order",
     "emporio.support.infrastructure.agent.tools -> emporio.policies.application.search_policies",
     "emporio.support.infrastructure.agent.tools -> emporio.policies.application.store_now",
+    # The catalog admin service maps the web DTOs to catalog drafts (write path).
+    "emporio.support.infrastructure.catalog_admin -> emporio.catalog.application.*",
+    "emporio.support.infrastructure.catalog_admin -> emporio.catalog.domain.*",
 ]
 
 [[tool.importlinter.contracts]]

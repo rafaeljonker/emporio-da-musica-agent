@@ -8,6 +8,7 @@ from emporio.config import MissingSetting, Provider, Settings, WebSettingsRequir
 from emporio.support.application.ports import Reply
 from emporio.support.domain.channel_identity import ChannelIdentity
 from emporio.support.domain.scope import Scope
+from tests.fakes.fake_catalog_admin import FakeCatalogAdmin
 
 
 class FakeHandle:
@@ -30,7 +31,9 @@ def _wire(monkeypatch: pytest.MonkeyPatch, handle: FakeHandle) -> Closed:
     closed = Closed()
     monkeypatch.setattr(cli, "load_settings", lambda provider=None: provider)
     monkeypatch.setattr(
-        cli, "build_agent", lambda settings: Agent(handle, closed, lambda _id: True)
+        cli,
+        "build_agent",
+        lambda settings: Agent(handle, closed, lambda _id: True, FakeCatalogAdmin()),
     )
     return closed
 
@@ -93,14 +96,16 @@ def test_cli_maps_provider_flag(monkeypatch: pytest.MonkeyPatch) -> None:
     seen: list[Provider | None] = []
     monkeypatch.setattr(cli, "load_settings", lambda provider=None: seen.append(provider))
     monkeypatch.setattr(
-        cli, "build_agent", lambda s: Agent(FakeHandle(), lambda: None, lambda _id: True)
+        cli,
+        "build_agent",
+        lambda s: Agent(FakeHandle(), lambda: None, lambda _id: True, FakeCatalogAdmin()),
     )
     cli.main(["chat", "--provider", "gemini"], read=_typing(), sleep=lambda _: None)
     assert seen == [Provider.GEMINI]
 
 
 def _agent(handle: object, closed: Closed, exists: bool = True) -> Agent:
-    return Agent(handle, closed, lambda _id: exists)  # pyright: ignore[reportArgumentType]
+    return Agent(handle, closed, lambda _id: exists, FakeCatalogAdmin())  # pyright: ignore[reportArgumentType]
 
 
 class Exploding(FakeHandle):

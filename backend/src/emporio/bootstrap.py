@@ -12,12 +12,15 @@ from dataclasses import dataclass
 from psycopg_pool import ConnectionPool
 from pydantic import SecretStr
 
+from emporio.catalog.application.create_product import CreateProduct
 from emporio.catalog.application.get_product import GetProduct
 from emporio.catalog.application.list_promotions import ListPromotions
 from emporio.catalog.application.quote_installments import QuoteInstallments
 from emporio.catalog.application.recommend_products import RecommendProducts
 from emporio.catalog.application.search_products import SearchProducts
+from emporio.catalog.application.update_product import UpdateProduct
 from emporio.catalog.infrastructure.pg_catalog_repository import PgCatalogRepository
+from emporio.catalog.infrastructure.pg_catalog_writer import PgCatalogWriter
 from emporio.config import Provider, Settings, UnknownCustomer
 from emporio.db import connect, database_url, make_pool
 from emporio.embeddings import E5Embedder, TextEmbedder
@@ -35,7 +38,7 @@ from emporio.policies.infrastructure.holidays import STORE_HOLIDAYS
 from emporio.policies.infrastructure.pg_policy_index import PgPolicyIndex
 from emporio.shared.clock import FixedClock, SystemClock
 from emporio.support.application.handle_message import HandleMessage
-from emporio.support.application.ports import DemoCustomer, Reply
+from emporio.support.application.ports import CatalogAdmin, DemoCustomer, Reply
 from emporio.support.application.warmup import WarmMode, WarmStage, Warmup
 from emporio.support.domain.channel_identity import ChannelIdentity
 from emporio.support.domain.scope import Scope
@@ -43,6 +46,7 @@ from emporio.support.infrastructure.agent.graph import build_graph
 from emporio.support.infrastructure.agent.guard import make_classifier
 from emporio.support.infrastructure.agent.runner import GraphRunner
 from emporio.support.infrastructure.agent.tools import Toolbox, build_tools
+from emporio.support.infrastructure.catalog_admin import CatalogAdminService
 from emporio.support.infrastructure.checkpointer import make_checkpointer
 from emporio.support.infrastructure.llm.factory import make_chat_model, make_guard_model
 from emporio.support.infrastructure.llm.scripted import ScriptedChatModel
@@ -79,6 +83,7 @@ class Agent:
     handle: Callable[[ChannelIdentity, str], Reply]  # a HandleMessage; callable keeps tests easy
     close: Callable[[], None]
     customer_exists: Callable[[int], bool]
+    catalog_admin: CatalogAdmin
     demo_customers: tuple[DemoCustomer, ...] = ()
     reply_p50_seconds: Callable[[], float | None] = lambda: None
 
@@ -119,7 +124,7 @@ def build_agent(settings: Settings) -> Agent:
         apply_migrations(conn)
     setup_checkpointer(url)
     with ExitStack() as stack:
-        box, customers, pool, _ = build_toolbox(stack, url, settings)
+        box, customers, pool, embedder = build_toolbox(stack, url, settings)
         if settings.fake_model:
             model = ScriptedChatModel()
             classify = _store_scope
@@ -148,10 +153,18 @@ def build_agent(settings: Settings) -> Agent:
             for c in (customers.by_id(i) for i in DEMO_CUSTOMER_IDS)
             if c is not None
         )
+        writer = PgCatalogWriter(pool, embedder)
+        catalog_admin = CatalogAdminService(
+            box.catalog,
+            writer,
+            CreateProduct(box.catalog, writer),
+            UpdateProduct(box.catalog, writer),
+        )
         return Agent(
             handle,
             stack.pop_all().close,
             lambda cid: customers.by_id(cid) is not None,
+            catalog_admin,
             demo,
             lambda: store.reply_p50_seconds(settings.provider_name),
         )

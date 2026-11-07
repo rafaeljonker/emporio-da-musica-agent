@@ -10,6 +10,7 @@ from emporio.config import Settings
 from emporio.support.application.warmup import WarmMode
 from emporio.support.infrastructure.warmup import ReadyWarmup
 from tests.fakes.fake_agent import FakeAgent
+from tests.fakes.fake_catalog_admin import FakeCatalogAdmin
 
 EMAIL = "demo@emporio.test"
 LOGIN_PHRASE = "correct-horse"
@@ -38,20 +39,24 @@ def agent() -> FakeAgent:
 @pytest.fixture
 def client(agent: FakeAgent) -> Iterator[TestClient]:
     warmup = ReadyWarmup(WarmMode.PROVIDER_API, lambda: None)
-    with TestClient(create_app(agent, warmup, make_settings())) as test_client:
+    with TestClient(create_app(agent, warmup, make_settings(), FakeCatalogAdmin())) as test_client:
         yield test_client
 
 
 def client_with_multiplier(agent: FakeAgent, multiplier: int) -> TestClient:
     warmup = ReadyWarmup(WarmMode.PROVIDER_API, lambda: None)
-    return TestClient(create_app(agent, warmup, make_settings(multiplier)))
+    return TestClient(create_app(agent, warmup, make_settings(multiplier), FakeCatalogAdmin()))
 
 
 def client_with_static(agent: FakeAgent, static_dir: Path) -> TestClient:
     warmup = ReadyWarmup(WarmMode.PROVIDER_API, lambda: None)
-    return TestClient(create_app(agent, warmup, make_settings(), static_dir=static_dir))
+    return TestClient(
+        create_app(agent, warmup, make_settings(), FakeCatalogAdmin(), static_dir=static_dir)
+    )
 
 
 def client_behind_proxy(agent: FakeAgent, proxy_secret: str) -> TestClient:
     warmup = ReadyWarmup(WarmMode.PROVIDER_API, lambda: None)
-    return TestClient(create_app(agent, warmup, make_settings(proxy_secret=proxy_secret)))
+    return TestClient(
+        create_app(agent, warmup, make_settings(proxy_secret=proxy_secret), FakeCatalogAdmin())
+    )

@@ -90,6 +90,7 @@ def test_create_returns_201_with_decimal_string_price(
         "active",
         (("cordas", "aço"),),
     )
+    assert data is not None
     assert isinstance(data.price, Decimal)
 
 

@@ -12,4 +12,6 @@ def create_web_app() -> FastAPI:
     settings = load_web_settings()
     agent = build_agent(settings)
     warmup = build_warmup(settings, agent.reply_p50_seconds)
-    return create_app(agent, warmup, settings, static_dir=REPO_ROOT / "frontend" / "dist")
+    return create_app(
+        agent, warmup, settings, agent.catalog_admin, static_dir=REPO_ROOT / "frontend" / "dist"
+    )
