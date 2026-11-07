@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { logout } from '@/api/client'
 import type { WarmStatus } from '@/api/types'
 import avatar from '@/assets/avatar.jpg'
+import { CatalogDialog } from '@/catalog/CatalogDialog'
 import { Button } from '@/components/ui/button'
 import { copy } from '@/copy'
 import { save } from '@/warmup/queue'
@@ -85,6 +86,16 @@ export function ChatShell({ warm, fromLogin, customerId: initialCustomer, onSign
   const [text, setText] = useState(queue.restored)
   const typing = entries.some((e) => isExchange(e) && e.turn.typing)
 
+  // "Perguntar ao assistente": the question waits in the composer, caret at the end; never sent.
+  const ask = useCallback((question: string) => {
+    setText(question)
+    requestAnimationFrame(() => {
+      const input = document.getElementById('composer-input') as HTMLTextAreaElement | null
+      input?.focus()
+      input?.setSelectionRange(question.length, question.length)
+    })
+  }, [])
+
   const undo = () => {
     const back = queue.take()
     setText(text ? `${back}\n${text}` : back)
@@ -130,6 +141,7 @@ export function ChatShell({ warm, fromLogin, customerId: initialCustomer, onSign
         onSessionExpired={onExpired}
       >
         <MetricsDetails turns={turns} warmupSeconds={warmupSeconds} local={local} />
+        <CatalogDialog onAsk={ask} onSessionExpired={onExpired} />
       </DemoStrip>
       {!warming && status?.mode === 'local_cpu' && (
         <p className="border-b border-border">

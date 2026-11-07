@@ -35,7 +35,7 @@ function Item({ value, name, note }: { value: string; name: string; note: string
   )
 }
 
-/** `<aside aria-label="Demonstração">`: demo tools kept apart from store content. Children: the Métricas toggle. */
+/** `<aside aria-label="Demonstração">`: demo tools kept apart from store content. Children: the Métricas toggle and the Catálogo dialog. */
 export function DemoStrip({ customerId, onSwitched, onSessionExpired, children }: Props) {
   const [list, setList] = useState<DemoCustomer[]>([])
   useEffect(() => {

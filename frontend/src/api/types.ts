@@ -46,3 +46,27 @@ export type ChatEvent =
   | ({ type: 'metrics' } & TurnMetricsView)
   | { type: 'done'; trace_id: string }
   | { type: 'error'; partial: boolean }
+
+// emporio.api.catalog: demo users add and edit their own products.
+export type ProductStatus = 'active' | 'discontinued' | 'coming_soon'
+
+export interface Category {
+  id: number
+  name: string
+}
+
+export interface ProductBody {
+  name: string
+  category_id: number
+  description: string
+  /** A decimal string ("1234.50"), never a number: floats lose cents. */
+  price: string
+  stock: number
+  status: ProductStatus
+  specs: Record<string, string>
+}
+
+export interface Product extends ProductBody {
+  id: number
+  category: string
+}
