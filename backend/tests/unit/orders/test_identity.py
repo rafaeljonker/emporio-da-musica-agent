@@ -1,6 +1,7 @@
 import pytest
 
-from emporio.orders.domain.identity import IdentityMismatch, matches_identity, normalize_phone
+from emporio.orders.domain.errors import OrdersErrorCode
+from emporio.orders.domain.identity import matches_identity, normalize_phone
 from tests.unit.orders.factories import cust
 
 
@@ -33,8 +34,8 @@ def test_normalize_phone_keeps_digits_and_strips_country_code():
     assert normalize_phone("55123456789") == "55123456789"  # 11 digits: not a country code
 
 
-def test_identity_mismatch_message_carries_no_data():
-    assert str(IdentityMismatch()) == "identity does not match the order's customer"
+def test_order_errors_are_one_bare_code_with_no_data():
+    assert [c.value for c in OrdersErrorCode] == ["order_not_found"]
 
 
 def test_phone_without_ddd_never_matches():

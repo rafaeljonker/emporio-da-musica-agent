@@ -1,19 +1,18 @@
 from datetime import date
 
-import pytest
-
 from emporio.orders.application.check_return_eligibility import CheckReturnEligibility
 from emporio.orders.application.get_order_status import GetOrderStatus
 from emporio.orders.application.list_customer_orders import ListCustomerOrders
-from emporio.orders.domain.errors import OrderNotFound
-from emporio.orders.domain.identity import IdentityMismatch
+from emporio.orders.domain.errors import OrdersErrorCode
 from emporio.orders.domain.return_policy import ReturnEligibility, ReturnReason
 from emporio.shared.clock import FixedClock
+from emporio.shared.result import Err, Ok
 from tests.unit.orders.factories import cust, order
 from tests.unit.orders.fakes import FakeCustomerRepository, FakeOrderRepository
 
 PEDRO = cust()
 OTHER = cust(id=2, phone="(67) 91111-2222", email="ana@jmail.com")
+NOT_FOUND = Err(OrdersErrorCode.ORDER_NOT_FOUND)
 
 
 def _status() -> GetOrderStatus:
@@ -22,25 +21,23 @@ def _status() -> GetOrderStatus:
 
 
 def test_get_order_status_returns_order_for_matching_identity() -> None:
-    assert _status()(10, "pedro.oliveira@jmail.com").id == 10
+    found = _status()(10, "pedro.oliveira@jmail.com")
+    assert isinstance(found, Ok)
+    assert found.value.id == 10
 
 
 def test_get_order_status_rejects_other_customers_order() -> None:
-    with pytest.raises(IdentityMismatch):
-        _status()(11, "pedro.oliveira@jmail.com")
+    assert _status()(11, "pedro.oliveira@jmail.com") == NOT_FOUND
 
 
 def test_get_order_status_rejects_wrong_identity() -> None:
-    with pytest.raises(IdentityMismatch):
-        _status()(10, "ana@jmail.com")
+    assert _status()(10, "ana@jmail.com") == NOT_FOUND
 
 
 def test_unknown_order_and_wrong_identity_are_indistinguishable() -> None:
-    with pytest.raises(IdentityMismatch) as unknown:
-        _status()(999, "pedro.oliveira@jmail.com")
-    with pytest.raises(IdentityMismatch) as wrong:
-        _status()(10, "ana@jmail.com")
-    assert str(unknown.value) == str(wrong.value)
+    unknown = _status()(999, "pedro.oliveira@jmail.com")
+    wrong = _status()(10, "ana@jmail.com")
+    assert unknown == wrong == NOT_FOUND
 
 
 def test_list_customer_orders_newest_first() -> None:
@@ -54,33 +51,35 @@ def test_return_eligibility_hides_other_customers_order_as_not_found() -> None:
     use_case = CheckReturnEligibility(
         FakeOrderRepository((order(id=10, customer_id=1),)), FixedClock(date(2026, 2, 12))
     )
-    with pytest.raises(OrderNotFound):
-        use_case(10, 2)
+    assert use_case(10, 2) == NOT_FOUND
 
 
-def test_return_eligibility_raises_not_found_for_unknown_order() -> None:
+def test_return_eligibility_is_not_found_for_unknown_order() -> None:
     use_case = CheckReturnEligibility(FakeOrderRepository(), FixedClock(date(2026, 2, 12)))
-    with pytest.raises(OrderNotFound):
-        use_case(10, 1)
+    assert use_case(10, 1) == NOT_FOUND
 
 
 def test_return_eligibility_uses_injected_clock() -> None:
     orders = FakeOrderRepository((order(id=10, customer_id=1),))
     early = CheckReturnEligibility(orders, FixedClock(date(2026, 2, 12)))(10, 1)
     late = CheckReturnEligibility(orders, FixedClock(date(2026, 6, 1)))(10, 1)
-    assert early == ReturnEligibility(
-        True,
-        True,
-        date(2026, 2, 10),
-        date(2026, 2, 17),
-        date(2026, 3, 3),
-        ReturnReason.WITHIN_REGRET_WINDOW,
+    assert early == Ok(
+        ReturnEligibility(
+            True,
+            True,
+            date(2026, 2, 10),
+            date(2026, 2, 17),
+            date(2026, 3, 3),
+            ReturnReason.WITHIN_REGRET_WINDOW,
+        )
     )
-    assert late == ReturnEligibility(
-        False,
-        False,
-        date(2026, 2, 10),
-        date(2026, 2, 17),
-        date(2026, 3, 3),
-        ReturnReason.DEFECT_WINDOW_CLOSED,
+    assert late == Ok(
+        ReturnEligibility(
+            False,
+            False,
+            date(2026, 2, 10),
+            date(2026, 2, 17),
+            date(2026, 3, 3),
+            ReturnReason.DEFECT_WINDOW_CLOSED,
+        )
     )

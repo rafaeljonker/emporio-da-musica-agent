@@ -12,8 +12,6 @@ from emporio.catalog.domain.product import Product, ProductStatus
 from emporio.orders.application.check_return_eligibility import CheckReturnEligibility
 from emporio.orders.application.get_order_status import GetOrderStatus
 from emporio.orders.application.list_customer_orders import ListCustomerOrders
-from emporio.orders.domain.errors import OrderNotFound
-from emporio.orders.domain.identity import IdentityMismatch
 from emporio.policies.application.search_policies import SearchPolicies
 from emporio.policies.application.store_now import StoreNow
 from emporio.shared.clock import FixedClock
@@ -125,8 +123,6 @@ def test_calc_installments_error_names_the_maximum() -> None:
 @pytest.mark.parametrize(
     ("error", "text"),
     [
-        (IdentityMismatch(), FOREIGN),
-        (OrderNotFound(1), FOREIGN),
         (StoreUnavailable(), "Busca indisponível agora; ofereça encaminhar para a equipe."),
     ],
 )

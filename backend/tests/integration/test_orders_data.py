@@ -1,40 +1,45 @@
 from datetime import date
 
-import pytest
-
 from emporio.orders.application.check_return_eligibility import CheckReturnEligibility
 from emporio.orders.application.get_order_status import GetOrderStatus
 from emporio.orders.application.list_customer_orders import ListCustomerOrders
-from emporio.orders.domain.identity import IdentityMismatch
+from emporio.orders.domain.errors import OrdersErrorCode
 from emporio.orders.domain.order import OrderStatus
-from emporio.orders.domain.return_policy import ReturnReason
+from emporio.orders.domain.return_policy import ReturnEligibility, ReturnReason
 from emporio.orders.infrastructure.csv_order_repository import (
     CsvCustomerRepository,
     CsvOrderRepository,
 )
 from emporio.shared.clock import FixedClock
+from emporio.shared.result import Err, Ok
 
 repo = CsvOrderRepository()
 customers = CsvCustomerRepository()
 clock = FixedClock(date(2026, 2, 20))
 
 
+def eligibility(order_id: int, customer_id: int) -> ReturnEligibility:
+    result = CheckReturnEligibility(repo, clock)(order_id, customer_id)
+    assert isinstance(result, Ok)
+    return result.value
+
+
 def test_order_7_is_regret_eligible() -> None:
-    assert CheckReturnEligibility(repo, clock)(7, 14).regret_eligible
+    assert eligibility(7, 14).regret_eligible
 
 
 def test_order_5_is_not_regret_eligible() -> None:
-    assert not CheckReturnEligibility(repo, clock)(5, 5).regret_eligible
+    assert not eligibility(5, 5).regret_eligible
 
 
 def test_cancelled_order_17_is_not_eligible() -> None:
-    r = CheckReturnEligibility(repo, clock)(17, 15)
+    r = eligibility(17, 15)
     assert not r.regret_eligible
     assert not r.defect_eligible
 
 
 def test_order_6_defect_window_closed_on_feb_20() -> None:
-    r = CheckReturnEligibility(repo, clock)(6, 9)
+    r = eligibility(6, 9)
     assert not r.regret_eligible
     assert not r.defect_eligible
     assert r.reason is ReturnReason.DEFECT_WINDOW_CLOSED
@@ -42,12 +47,13 @@ def test_order_6_defect_window_closed_on_feb_20() -> None:
 
 def test_order_5_status_with_owner_email() -> None:
     order = GetOrderStatus(repo, customers)(5, "rafael.pereira@jmail.com")
-    assert order.status is OrderStatus.DELIVERED
+    assert isinstance(order, Ok)
+    assert order.value.status is OrderStatus.DELIVERED
 
 
 def test_order_5_with_other_customers_email_is_rejected() -> None:
-    with pytest.raises(IdentityMismatch):
-        GetOrderStatus(repo, customers)(5, "joao.silva@gmail.com")
+    result = GetOrderStatus(repo, customers)(5, "joao.silva@gmail.com")
+    assert result == Err(OrdersErrorCode.ORDER_NOT_FOUND)
 
 
 def test_customer_3_has_two_orders_newest_first() -> None:

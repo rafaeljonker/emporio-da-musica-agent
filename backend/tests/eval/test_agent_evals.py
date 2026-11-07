@@ -37,6 +37,8 @@ from emporio.config import Settings, load_mcp_settings, load_settings
 from emporio.embeddings import E5Embedder
 from emporio.orders.application.check_return_eligibility import CheckReturnEligibility
 from emporio.orders.application.list_customer_orders import ListCustomerOrders
+from emporio.orders.domain.errors import OrdersErrorCode
+from emporio.orders.domain.return_policy import ReturnEligibility
 from emporio.orders.infrastructure.csv_order_repository import (
     CsvCustomerRepository,
     CsvOrderRepository,
@@ -64,6 +66,11 @@ CASES = tomllib.loads((EVALS / "agent_cases.toml").read_text(encoding="utf-8"))[
 GATE_PASS_RATE = 0.90
 ORDER_ID = 5
 REGRET_CUSTOMER = 14
+
+
+def _eligibility(result: Result[ReturnEligibility, OrdersErrorCode]) -> ReturnEligibility:
+    assert isinstance(result, Ok)
+    return result.value
 
 
 def _count(plan: Result[InstallmentPlan, CatalogErrorCode]) -> int:
@@ -108,8 +115,8 @@ def _derive_facts(pool: ConnectionPool, embedder: E5Embedder, settings: Settings
     assert order is not None
     assert customer is not None
     latest = ListCustomerOrders(orders)(REGRET_CUSTOMER)[0]
-    regret14 = CheckReturnEligibility(orders, today)(latest.id, REGRET_CUSTOMER)
-    eligibility5 = CheckReturnEligibility(orders, today)(ORDER_ID, order.customer_id)
+    regret14 = _eligibility(CheckReturnEligibility(orders, today)(latest.id, REGRET_CUSTOMER))
+    eligibility5 = _eligibility(CheckReturnEligibility(orders, today)(ORDER_ID, order.customer_id))
     returnable5 = eligibility5.regret_eligible or eligibility5.defect_eligible
     open_now = StoreNow(SystemClock(), STORE_HOLIDAYS)().open
     discontinued = next(p for p in seed.products() if p.status is ProductStatus.DISCONTINUED)
