@@ -6,7 +6,13 @@ from contextlib import contextmanager
 from emporio.catalog.application.create_product import CreateProduct
 from emporio.catalog.application.ports import CatalogRepository, CatalogWriter
 from emporio.catalog.application.update_product import UpdateProduct
-from emporio.catalog.domain.errors import CatalogFull, ProductNotOwned, UnknownCategory
+from emporio.catalog.domain.errors import (
+    CatalogFull,
+    NameTakenByStore,
+    ProductNotOwned,
+    PromoClaim,
+    UnknownCategory,
+)
 from emporio.catalog.domain.product import Product, ProductDraft, ProductStatus
 from emporio.db import IndexUnavailable
 from emporio.shared.money import Money
@@ -23,6 +29,10 @@ def _rejections() -> Iterator[None]:
         raise CatalogWriteRejected("not_found") from err
     except CatalogFull as err:
         raise CatalogWriteRejected("catalog_full") from err
+    except NameTakenByStore as err:
+        raise CatalogWriteRejected("name_taken_by_store") from err
+    except PromoClaim as err:
+        raise CatalogWriteRejected("promo_claim") from err
     except IndexUnavailable as err:
         raise CatalogWriteRejected("catalog_unavailable") from err
 

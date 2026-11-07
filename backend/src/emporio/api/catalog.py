@@ -20,6 +20,8 @@ _STATUS = {
     "not_found": 404,
     "catalog_full": 409,
     "catalog_unavailable": 503,
+    "name_taken_by_store": 422,
+    "promo_claim": 422,
 }
 
 # Zero-width marks and bidi embeddings, overrides and isolates: text that renders unlike it reads.

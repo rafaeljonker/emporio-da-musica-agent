@@ -1,6 +1,15 @@
 from emporio.catalog.application.ports import CatalogRepository, CatalogWriter
-from emporio.catalog.domain.errors import CatalogFull, UnknownCategory
+from emporio.catalog.domain.errors import CatalogFull, NameTakenByStore, UnknownCategory
 from emporio.catalog.domain.product import Product, ProductDraft
+
+
+def check_draft(repo: CatalogRepository, writer: CatalogWriter, draft: ProductDraft) -> None:
+    """The write rules a create and an update share."""
+    if draft.category_id not in {c.id for c in repo.categories()}:
+        raise UnknownCategory(draft.category_id)
+    # A twin of a store product at a fake price would sit next to the real one in every search.
+    if writer.seed_name_taken(draft.name):
+        raise NameTakenByStore
 
 
 class CreateProduct:
@@ -17,8 +26,7 @@ class CreateProduct:
         self._max_total = max_total
 
     def __call__(self, owner: str, draft: ProductDraft) -> Product:
-        if draft.category_id not in {c.id for c in self._repo.categories()}:
-            raise UnknownCategory(draft.category_id)
+        check_draft(self._repo, self._writer, draft)
         # ponytail: caps are checked then written without a lock; two racing creates can pass
         # one over the cap, fine for a demo
         if (

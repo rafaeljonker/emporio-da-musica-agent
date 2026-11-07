@@ -161,6 +161,15 @@ class PgCatalogWriter:
             row = conn.execute("SELECT count(*) FROM products WHERE source = 'admin'").fetchone()
         return row[0] if row else 0
 
+    def seed_name_taken(self, name: str) -> bool:
+        with catalog_connection(self._pool) as conn:
+            row = conn.execute(
+                "SELECT 1 FROM products WHERE source = 'seed' AND name_key = lower(f_unaccent(%s))"
+                " LIMIT 1",
+                (name,),
+            ).fetchone()
+        return row is not None
+
     def _document(self, draft: ProductDraft) -> str:
         with catalog_connection(self._pool) as conn:
             row = conn.execute(
