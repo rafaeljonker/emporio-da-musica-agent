@@ -262,31 +262,33 @@ If time runs short, cut in this order: task 6 (use the API from curl / Swagger i
 ## Owner decisions
 1. **Search stack:** FTS + `pg_trgm` + pgvector with RRF in one SQL query (recommended), FTS + vector only (drop trigram if Railway lacks it), or ParadeDB BM25 (new AGPL image service).
    Recommended: FTS + `pg_trgm` + pgvector (RRF k = 60).
-   Answer:
+   Answer (owner, 2026-11-07): FTS + `pg_trgm` + pgvector (RRF k = 60); `pg_trgm` 1.6 confirmed available on Railway.
 2. **Grading:** keep today's pure domain grader over the hybrid pool of 20 (recommended; keeps Exact/Candidates semantics and its 36 tests), or let the SQL score alone decide Exact.
    Recommended: keep the domain grader.
-   Answer:
+   Answer (owner, 2026-11-07): keep the domain grader.
 3. **Availability filter in SQL** (with `hnsw.iterative_scan = relaxed_order`), superseding the phase 3 "filter after retrieval" rule.
    Recommended: yes, in SQL.
-   Answer:
+   Answer (owner, 2026-11-07): yes, in SQL.
 4. **Embedding on write:** synchronous in the admin request (recommended at ≤ 200 admin rows), or a queue/outbox worker.
    Recommended: synchronous; bulk loads through `make ingest`.
-   Answer:
+   Answer (owner, 2026-11-07): synchronous in the request; bulk loads through `make ingest`.
 5. **If the embedding fails on an admin write:** save the row with `embedding NULL` (found by text search; back-filled later), or reject the write.
    Recommended: save with NULL and log.
-   Answer:
+   Answer (owner, 2026-11-07): save with NULL and log.
 6. **Admin access in the hosted demo:** separate admin credential (recommended), admin role for the demo login, or admin only locally (`make up`).
    Recommended: separate credential, given to evaluators in the delivery note.
-   Answer:
+   Answer (owner, 2026-11-07): any logged-in demo user may create products (owner, 2026-11-07); protect it with a per-session write rate limit and server-side validation.
 7. **Admin capabilities:** create + edit admin rows only, seed rows read-only, no delete (recommended); or full edit of seed rows too (e.g. change a price live in the demo).
    Recommended: create + edit; allow price/stock edits on seed rows only if the demo needs the "price changed, agent sees it" moment.
-   Answer:
+   Answer (owner, 2026-11-07): create + edit own rows only, seed rows read-only, no delete, one product per request.
 8. **Bulk upload:** JSON form for one product (recommended for this delivery) or CSV upload.
    Recommended: one product per request; CSV later.
-   Answer:
+   Answer (owner, 2026-11-07): one product per request; no CSV upload.
 9. **Reset of the hosted catalog:** manual `make ingest` reset after the evaluation, or an automatic nightly reset.
    Recommended: manual, documented.
-   Answer:
+   Answer (owner, 2026-11-07): manual `make ingest` reset after the evaluation, documented.
 10. **`product_embeddings` table:** drop it in this PR or keep it until after delivery.
     Recommended: drop in a follow-up migration in this PR once nothing reads it.
-    Answer:
+    Answer (owner, 2026-11-07): drop it in this PR once nothing reads it.
+
+Also decided: the README cites the research probe numbers for scale; no benchmark script is committed.
