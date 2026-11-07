@@ -1,8 +1,9 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Protocol
+from typing import Literal, Protocol
 
+from emporio.shared.errors import DomainError
 from emporio.support.domain.ai_tells import Tell
 from emporio.support.domain.channel_identity import ChannelIdentity
 from emporio.support.domain.scope import Scope
@@ -67,3 +68,52 @@ class ChatAgent(Protocol):
 
     @property
     def close(self) -> Callable[[], None]: ...
+
+
+@dataclass(frozen=True)
+class ProductInput:
+    """One product as a demo user submits it (primitives only: no catalog types here)."""
+
+    name: str
+    category_id: int
+    description: str
+    price: Decimal
+    stock: int
+    status: str
+    specs: tuple[tuple[str, str], ...]
+
+
+@dataclass(frozen=True)
+class ProductView:
+    id: int
+    name: str
+    category_id: int
+    category: str
+    description: str
+    price: Decimal
+    stock: int
+    status: str
+    specs: tuple[tuple[str, str], ...]
+
+
+RejectionCode = Literal["unknown_category", "not_found", "catalog_full"]
+
+
+class CatalogWriteRejected(DomainError):
+    def __init__(self, code: RejectionCode) -> None:
+        super().__init__(code)
+        self.code: RejectionCode = code
+
+
+class CatalogAdmin(Protocol):
+    """What the web layer may do to the catalog: demo users create and edit their own rows."""
+
+    def categories(self) -> tuple[tuple[int, str], ...]: ...
+
+    def create(self, owner: str, data: ProductInput) -> ProductView: ...
+
+    def update(self, owner: str, product_id: int, data: ProductInput) -> ProductView: ...
+
+    def mine(self, owner: str) -> tuple[ProductView, ...]:
+        """Newest first."""
+        ...
