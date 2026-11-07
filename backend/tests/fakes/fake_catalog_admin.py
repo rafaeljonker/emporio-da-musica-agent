@@ -7,7 +7,7 @@ from emporio.support.application.ports import (
 
 
 class FakeCatalogAdmin:
-    """A CatalogAdmin that records calls; `reject` (when set) is raised by create and update."""
+    """A CatalogAdmin that records calls; `reject` (when set) is raised by all but categories."""
 
     def __init__(self) -> None:
         self.calls: list[tuple[str, str, int | None, ProductInput | None]] = []
@@ -33,6 +33,8 @@ class FakeCatalogAdmin:
 
     def mine(self, owner: str) -> tuple[ProductView, ...]:
         self.calls.append(("mine", owner, None, None))
+        if self.reject is not None:
+            raise CatalogWriteRejected(self.reject)
         return tuple(v for o, v in reversed(self.rows) if o == owner)
 
 

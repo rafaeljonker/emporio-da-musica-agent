@@ -74,6 +74,8 @@ def test_create_with_failing_embedder_saves_and_is_searchable(
 
     assert _row(pg_conn, created.id)[3] is True  # embedding IS NULL
     assert "product embed failed: RuntimeError" in caplog.text
+    # The type only: a traceback could carry the product text into the logs.
+    assert all(r.exc_info is None for r in caplog.records if r.levelno >= logging.WARNING)
     found = catalog_repo.search("rozini", CatalogFilter(available_only=True), 10)
     assert created.id in [p.id for p in found]
 

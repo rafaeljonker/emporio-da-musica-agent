@@ -40,3 +40,24 @@ def test_unreachable_db_raises_index_unavailable() -> None:
             PgCatalogRepository(pool, HashEmbedder()).search("violao", CatalogFilter(), 3)
     finally:
         pool.close()
+
+
+def test_unreachable_db_fails_catalog_writes_as_unavailable() -> None:
+    from emporio.catalog.domain.product import ProductDraft, ProductStatus
+    from emporio.catalog.infrastructure.pg_catalog_writer import PgCatalogWriter
+    from emporio.shared.money import Money
+
+    draft = ProductDraft("Violão", 5, "", Money.from_str("10"), 1, ProductStatus.ACTIVE, ())
+    pool = make_pool(UNREACHABLE, timeout=1)
+    writer = PgCatalogWriter(pool, HashEmbedder())
+    try:
+        for write in (
+            lambda: writer.create("a", draft),
+            lambda: writer.update("a", 100000, draft),
+            lambda: writer.own("a"),
+            writer.admin_total,
+        ):
+            with pytest.raises(IndexUnavailable):
+                write()
+    finally:
+        pool.close()

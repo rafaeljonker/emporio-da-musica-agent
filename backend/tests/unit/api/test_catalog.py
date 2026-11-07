@@ -134,6 +134,15 @@ INVALID = {
     "spec_long_key": _with(specs={"k" * 41: "v"}),
     "spec_long_value": _with(specs={"k": "v" * 121}),
     "spec_number_value": _with(specs={"k": 1}),
+    "name_nul": _with(name="Viol\x00ão"),
+    "name_control": _with(name="Viol\x1bão"),
+    "name_rtl": _with(name="Violão \u202eX"),
+    "name_zero_width": _with(name="Viol\u200bão"),
+    "name_isolate": _with(name="Violão \u2066X"),
+    "spec_nul": _with(specs={"k": "v\x00"}),
+    "spec_key_rtl": _with(specs={"k\u202e": "v"}),
+    "description_nul": _with(description="a\x00b"),
+    "description_rtl": _with(description="a\u202eb"),
 }
 
 
@@ -224,3 +233,58 @@ def test_mine_is_scoped_to_login(catalog: FakeCatalogAdmin) -> None:
     assert [p["name"] for p in mine_second] == ["Segundo"]
     owners = {owner for _, owner, _, _ in catalog.calls}
     assert len(owners) == 2
+
+
+def test_description_keeps_line_breaks(client: TestClient, catalog: FakeCatalogAdmin) -> None:
+    login(client)
+    body = _with(description="Tampo maciço.\nCordas de aço.")
+    assert client.post("/api/catalog/products", json=body).status_code == 201
+    data = catalog.calls[0][3]
+    assert data is not None
+    assert data.description == "Tampo maciço.\nCordas de aço."
+
+
+def test_unavailable_catalog_is_503(client: TestClient, catalog: FakeCatalogAdmin) -> None:
+    login(client)
+    catalog.reject = "catalog_unavailable"
+    created = client.post("/api/catalog/products", json=BODY)
+    listed = client.get("/api/catalog/products/mine")
+    assert (created.status_code, created.json()) == (503, {"detail": "catalog_unavailable"})
+    assert (listed.status_code, listed.json()) == (503, {"detail": "catalog_unavailable"})
+
+
+class FakeClock:
+    def __init__(self) -> None:
+        self.now = 1000.0
+
+    def monotonic(self) -> float:
+        return self.now
+
+
+def test_new_logins_from_one_ip_share_the_write_limit(
+    client: TestClient, catalog: FakeCatalogAdmin
+) -> None:
+    for _ in range(10):
+        login(client).post("/api/catalog/products", json=BODY)
+        client.post("/api/auth/logout")
+    response = login(client).post("/api/catalog/products", json=BODY)
+    assert (response.status_code, response.json()) == (429, {"detail": "too_many_writes"})
+    assert len(catalog.calls) == 10
+
+
+def test_thirty_first_create_in_an_hour_from_one_ip_is_429(
+    client: TestClient, catalog: FakeCatalogAdmin, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from emporio.api import guards
+
+    clock = FakeClock()
+    monkeypatch.setattr(guards, "time", clock)
+    statuses: list[int] = []
+    for _ in range(31):
+        clock.now += 61  # every per-minute window has emptied
+        statuses.append(login(client).post("/api/catalog/products", json=BODY).status_code)
+        client.post("/api/auth/logout")
+    assert statuses == [201] * 30 + [429]
+    clock.now += 61
+    edit = login(client).put("/api/catalog/products/100000", json=BODY)
+    assert edit.status_code == 200  # the hourly cap counts creates, not edits
