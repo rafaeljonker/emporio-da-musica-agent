@@ -85,6 +85,8 @@ describe('errorCopy', () => {
     [new HttpError(409, 'catalog_full'), copy.catalog.full],
     [new HttpError(422, 'unknown_category'), copy.catalog.errors.categoryId],
     [new HttpError(404, 'not_found'), copy.catalog.notFound],
+    [new HttpError(422, 'name_taken_by_store'), copy.catalog.nameTaken],
+    [new HttpError(422, 'promo_claim'), copy.catalog.promoClaim],
     [new HttpError(422, [{ type: 'string_pattern_mismatch', loc: ['body', 'name'] }]), copy.catalog.invalid],
     [new HttpError(422), copy.catalog.invalid],
     [new HttpError(503, 'catalog_unavailable'), copy.catalog.unavailable],
@@ -92,6 +94,12 @@ describe('errorCopy', () => {
     [new HttpError(500), copy.catalog.failed],
     [new TypeError('Failed to fetch'), copy.catalog.failed],
   ])('maps %s', (err, want) => expect(errorCopy(err)).toBe(want))
+})
+
+describe('rejection copy', () => {
+  it('has no trailing period', () => {
+    for (const text of [copy.catalog.nameTaken, copy.catalog.promoClaim]) expect(text).toMatch(/[^.]$/)
+  })
 })
 
 describe('mergeById', () => {
