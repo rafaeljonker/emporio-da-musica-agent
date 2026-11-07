@@ -1,6 +1,6 @@
 # Catalog research: products in Postgres with hybrid product search
 
-Date: 2026-11-07. Delivery is 2026-11-09 23:59, so everything below is sized for about 4–5 hours of implementation with tests. Sources were read on 2026-11-07 unless a date is given. Probes ran on the owner's Apple Silicon Mac against the local compose Postgres (`pgvector/pgvector:0.8.7-pg17`, PostgreSQL 17.11, port 5434) in a scratch database `catalog_probe_scratch`, never the dev or `_test` data; the scripts lived in `/private/tmp/claude-501/catalog-probe/` and were not committed. Local timings have no network round trip; the hosted path adds the ~80 ms Modal → Railway RTT measured in `docs/scaling-and-cost.md` per query. Anything not verified is marked "unconfirmed".
+Date: 2026-11-07. Delivery is 2026-11-09 23:59, so everything below is sized for about 4–5 hours of implementation with tests. Sources were read on 2026-11-07 unless a date is given. Probes ran on the owner's Apple Silicon Mac against the local compose Postgres (`pgvector/pgvector:0.8.7-pg17`, PostgreSQL 17.11, port 5434) in a scratch database `catalog_probe_scratch`, never the dev or `_test` data; the probe scripts were throwaway and not committed. Local timings have no network round trip; the hosted path adds the ~80 ms Modal → Railway RTT measured in `docs/scaling-and-cost.md` per query. Anything not verified is marked "unconfirmed".
 
 ## 0. What exists today
 - `CsvCatalogRepository` loads the 65 products, 9 categories and 24 promotions once per process (`cached_property`). Every use case scans the full tuple: `GetProduct` (linear `next(...)`), `ListPromotions`, `SearchProducts` (filters the price ceiling in Python, then calls the pure `domain/search.py`), and `tools.py` (`_categories`, `_product_names` iterate every product on every call).
@@ -52,6 +52,7 @@ Date: 2026-11-07. Delivery is 2026-11-09 23:59, so everything below is sized for
 ## 4. Keeping the agent contract
 - `search_products(query, max_price)` keeps its strict schema and returns the same JSON (`match`: `exact | candidates | none`, `products` via `product_json`, cap 8). `recommend_products(need)` keeps its schema too.
 - **Retrieval moves to SQL; grading stays in the domain.** The hybrid query returns at most 20 filtered ids; the existing pure `search_products` grader then decides Exact/Candidates/NoMatch over that pool exactly as today (name containment, glued codes, category words, digit rules). The 36 domain tests stay valid untouched, and at 65 rows the behaviour should not change, because the pool contains every plausible product (to be confirmed by the golden cases, §10). A NoMatch from the grader on a meaning query ("bateria para gravar em estúdio") falls back to the fused list as Candidates, which is what `recommend_products` gives today.
+  - *Superseded by spec §7.2.6: the pool is 40 and there is no NoMatch fallback.*
 - **Facts come from columns at answer time:** price, PIX, stock, status and the best active promotion are read in the same query as the product (`LEFT JOIN LATERAL` best promotion), and `quote_price`/`best_active_promotion` stay pure domain code. No fact ever comes from the vector side.
 - **Availability and price ceiling become SQL filters** in every branch (`status='active' AND stock>0`; final price after the best active promotion `<= max_price`). The NoMatch → `include_unavailable=True` retry in `tools.py` stays, so discontinued items are still reported with their status.
 - **Ambiguity stays Candidates.** Several close hits are returned, the agent asks; the spec's grading rules (§7.2.1) are unchanged.
@@ -232,6 +233,8 @@ ORDER BY fused.score DESC, p.id
 LIMIT %(k)s;   -- k = 20 for the grader pool, `limit` for recommend_products
 ```
 
+*Superseded by spec §7.2.6: the grader pool is 40, not 20.*
+
 The sketch was run as written (filter substituted) against the 50k scratch database: "takamine gd 20" (available only) returns the real GD20 at rank 3, behind two synthetic "Takamine GD-xxx" twins, which is why the grader stays (it makes GD20 Exact by its glued code); "ukulele com som mais grave" with category 9, available and ≤ R$ 600 returns the real Kala KA-B Barítono first, then tenor and baritone ukuleles under the ceiling.
 
 Flow per tool call: embed the query (~4 ms) → one SQL round trip → `Product` + best promotion → pure grader → `search_json`. `recommend_products` is the same query with `available=True` and no grader.
@@ -242,7 +245,7 @@ Flow per tool call: embed the query (~4 ms) → one SQL round trip → `Product`
 | 1 | Migration `006_catalog.sql` (+ `pg_trgm`), migration test | `test(catalog): catalog tables migrate (red)` / `feat` | 25 min |
 | 2 | Seed in `ingest.py` (idempotent upsert, hash-gated embedding), integration test | red/green | 35 min |
 | 3 | `PgCatalogRepository`: `get`, `get_many`, `categories`, `promotions_for`, `promoted`, `search` (hybrid SQL above); postgres tests per filter, code/typo hit, NULL embedding still found | 2 pairs | 70 min |
-| 4 | Port and use cases: new `CatalogRepository` methods, `SearchProducts` = search pool → grader (+ fallback), `RecommendProducts` on `search`, `GetProduct`/`ListPromotions` by query; fake repo; `tools.py` names/categories by ids; bootstrap wiring | 2 pairs | 60 min |
+| 4 | Port and use cases: new `CatalogRepository` methods, `SearchProducts` = search pool → grader (+ fallback; superseded by spec §7.2.6: no NoMatch fallback, pool 40), `RecommendProducts` on `search`, `GetProduct`/`ListPromotions` by query; fake repo; `tools.py` names/categories by ids; bootstrap wiring | 2 pairs | 60 min |
 | 5 | `UpsertProduct` + `CatalogWriter` (sync embed, audit, `source='admin'`, row cap); admin login role, `POST/PUT /api/admin/products`, rate limit; tests for 401/403/422 | 2 pairs | 50 min |
 | 6 | Minimal React admin form (create/edit, list of admin rows) | `check-web` | 30 min |
 | 7 | `products_retrieval.toml` + eval test; `make evals` on Gemini for the 22 golden cases; README + spec ruling line; scaling note | — | 30 min |
