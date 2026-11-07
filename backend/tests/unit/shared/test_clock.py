@@ -1,6 +1,7 @@
 from datetime import date, datetime, time, timedelta
 
-from emporio.shared.clock import STORE_TZ, FixedClock, SystemClock
+from emporio.platform.clock import SystemClock
+from emporio.shared.clock import STORE_TZ, FixedClock
 
 
 def test_fixed_clock_returns_fixed_date() -> None:

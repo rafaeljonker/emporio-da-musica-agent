@@ -10,6 +10,7 @@ from emporio.policies.domain.store_hours import (
 )
 from emporio.policies.infrastructure.holidays import STORE_HOLIDAYS
 from emporio.shared.clock import STORE_TZ
+from emporio.shared.errors import DomainError
 
 HOLIDAYS = frozenset({date(2026, 4, 21)})
 
@@ -72,16 +73,18 @@ def test_utc_input_is_converted_to_store_time() -> None:
     assert result.utcoffset() == utc_now.astimezone(STORE_TZ).utcoffset()
 
 
-def test_naive_input_is_rejected() -> None:
+def test_store_hours_naive_datetime_raises_plain_exception_not_domain_error() -> None:
     naive = datetime(2026, 2, 20, 10, 0)  # noqa: DTZ001
-    with pytest.raises(NaiveDatetimeError):
+    with pytest.raises(NaiveDatetimeError) as closed:
         is_open(naive, HOLIDAYS)
     with pytest.raises(NaiveDatetimeError):
         next_opening(naive, HOLIDAYS)
+    assert not isinstance(closed.value, DomainError)  # a bug, not an expected failure
 
 
 def test_no_opening_within_14_days_raises() -> None:
     start = date(2026, 3, 2)
     holidays = frozenset(start + timedelta(days=i) for i in range(16))
-    with pytest.raises(NoOpeningFound):
+    with pytest.raises(NoOpeningFound) as err:
         next_opening(at(start, 10), holidays)
+    assert not isinstance(err.value, DomainError)

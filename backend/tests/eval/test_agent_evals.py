@@ -43,12 +43,13 @@ from emporio.orders.infrastructure.csv_order_repository import (
     CsvCustomerRepository,
     CsvOrderRepository,
 )
+from emporio.platform.clock import SystemClock
 from emporio.policies.application.ingest_policies import IngestPolicies
 from emporio.policies.application.store_now import StoreNow
 from emporio.policies.infrastructure.holidays import STORE_HOLIDAYS
 from emporio.policies.infrastructure.pdf_sections import PdfPolicySource
 from emporio.policies.infrastructure.pg_policy_index import PgPolicyIndex
-from emporio.shared.clock import FixedClock, SystemClock
+from emporio.shared.clock import FixedClock
 from emporio.shared.money import Money
 from emporio.shared.result import Ok, Result
 from emporio.support.application.ports import Reply
