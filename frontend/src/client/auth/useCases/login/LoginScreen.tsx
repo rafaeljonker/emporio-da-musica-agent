@@ -1,6 +1,6 @@
 import { CircleAlert } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { InvalidCredentials, login, warmExpected } from '@/client/shared/lib/api'
+import { login, warmExpected } from '@/client/shared/lib/api'
 import type { WarmStatus } from '@/client/shared/lib/apiTypes'
 import wordmark from '@/client/shared/assets/wordmark.jpg'
 import { Button } from '@/client/shared/components/ui/button'
@@ -25,9 +25,8 @@ export function LoginScreen({ expired, onSignedIn }: { expired?: boolean; onSign
   // The same measured expectation the warm-up shows; none when the model is always ready.
   const [expected, setExpected] = useState(0)
   useEffect(() => {
-    warmExpected().then(
-      ({ mode, expected_seconds }) => setExpected(mode === 'provider_api' ? 0 : ceil10(expected_seconds)),
-      () => {},
+    void warmExpected().then(
+      (res) => res.ok && setExpected(res.data.mode === 'provider_api' ? 0 : ceil10(res.data.expected_seconds)),
     )
   }, [])
 
@@ -42,19 +41,17 @@ export function LoginScreen({ expired, onSignedIn }: { expired?: boolean; onSign
     }
     setSubmitting(true)
     setError(null)
-    try {
-      onSignedIn(await login(email, password))
-    } catch (err) {
-      setSubmitting(false)
-      if (err instanceof InvalidCredentials) {
-        setError('invalid')
-        setInvalid({ email: true, password: true })
-        emailRef.current?.focus()
-      } else {
-        // Network, 5xx and 429: the fields are not the problem, so they are not marked.
-        setError('network')
-        setInvalid({ email: false, password: false })
-      }
+    const res = await login(email, password)
+    if (res.ok) return onSignedIn(res.data)
+    setSubmitting(false)
+    if (res.error.code === 'invalid_credentials') {
+      setError('invalid')
+      setInvalid({ email: true, password: true })
+      emailRef.current?.focus()
+    } else {
+      // Network, 5xx and 429: the fields are not the problem, so they are not marked.
+      setError('network')
+      setInvalid({ email: false, password: false })
     }
   }
 

@@ -3,7 +3,7 @@ import { useSession } from '@/app/useSession'
 import { ChatShell } from '@/client/chat/useCases/chatShell/ChatShell'
 
 export default function App() {
-  const { session, signedIn, signedOut, expired } = useSession()
+  const { session, signedIn, signedOut } = useSession()
   if (session.status === 'checking') return null
   if (session.status === 'signedOut') return <LoginScreen expired={session.expired} onSignedIn={signedIn} />
   return (
@@ -12,7 +12,6 @@ export default function App() {
       fromLogin={session.fromLogin}
       customerId={session.customerId}
       onSignedOut={signedOut}
-      onExpired={expired}
     />
   )
 }

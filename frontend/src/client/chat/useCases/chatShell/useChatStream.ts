@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { SessionExpired, streamChat } from '@/client/shared/lib/api'
+import { streamChat } from '@/client/shared/lib/api'
 import type { ChatEvent } from '@/client/shared/lib/apiTypes'
 import { createPacer } from '@/client/chat/domain/pacing'
 import { initialTurn, reduceTurn, type TurnState } from '@/client/chat/domain/turn'
@@ -32,7 +32,7 @@ export const isExchange = (e: Entry): e is Exchange => 'turn' in e
  * Sends one message per turn; resolves false only when the session expired. The server does not sleep (ruling R5): each bubble waits its
  * `delay_ms` here, in arrival order, with typing still on, and is appended only when complete.
  */
-export function useChatStream(onSessionExpired: () => void) {
+export function useChatStream() {
   const [entries, setEntries] = useState<Entry[]>([])
   const busy = entries.some((e) => isExchange(e) && e.turn.status === 'streaming')
   // Aborted on unmount (e.g. Sair): the fetch stops and no paced bubble lands afterwards.
@@ -65,21 +65,17 @@ export function useChatStream(onSessionExpired: () => void) {
       const signal = controller.current!.signal
       const pacer = createPacer(apply, signal)
 
-      try {
-        await streamChat(text, pacer.push, signal)
-      } catch (err) {
+      const res = await streamChat(text, pacer.push, signal)
+      if (!res.ok) {
         if (signal.aborted) return true
-        if (err instanceof SessionExpired) {
-          onSessionExpired()
-          return false
-        }
+        if (res.error.code === 'unauthenticated') return false
       }
       await pacer.drained()
       // A dropped stream or a refused request (409, 429, network) ends the turn as an error.
       if (!pacer.ended && !signal.aborted) apply({ type: 'error', partial: pacer.shown > 0 })
       return true
     },
-    [onSessionExpired],
+    [],
   )
 
   /** "Manda de novo?": drops that error line and sends the same text once more. */

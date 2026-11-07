@@ -1,6 +1,7 @@
 import { CircleCheck, PackagePlus, Pencil } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
-import { catalogCategories, createProduct, myProducts, SessionExpired, updateProduct } from '@/client/shared/lib/api'
+import { catalogCategories, createProduct, myProducts, updateProduct, type ApiError } from '@/client/shared/lib/api'
+import { errorMessage, fieldFor } from '@/client/shared/lib/errorMessage'
 import type { Category, Product, ProductStatus } from '@/client/shared/lib/apiTypes'
 import { Button } from '@/client/shared/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/client/shared/components/ui/dialog'
@@ -11,7 +12,6 @@ import { Textarea } from '@/client/shared/components/ui/textarea'
 import { copy } from '@/client/shared/lib/copy'
 import {
   EMPTY,
-  errorCopy,
   formatPrice,
   mergeById,
   priceInput,
@@ -32,7 +32,6 @@ const ITEM_CLASS = 'min-h-11 py-2 pl-3 text-base'
 interface Props {
   /** "Perguntar ao assistente": the shell puts this text in the composer (not sent). */
   onAsk: (text: string) => void
-  onSessionExpired: () => void
 }
 
 interface FieldProps {
@@ -65,7 +64,7 @@ function Field({ field, label, hint, error, children }: FieldProps) {
 }
 
 /** "Catálogo" in the demo strip: a dialog where a signed-in visitor adds and edits own products. */
-export function CatalogDialog({ onAsk, onSessionExpired }: Props) {
+export function CatalogDialog({ onAsk }: Props) {
   const [open, setOpen] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   /** null until this opening's list arrives. */
@@ -84,27 +83,29 @@ export function CatalogDialog({ onAsk, onSessionExpired }: Props) {
   const savedHeading = useRef<HTMLHeadingElement>(null)
   const asking = useRef<string | null>(null)
 
-  const failed = (err: unknown) => {
-    if (err instanceof SessionExpired) onSessionExpired()
-    return err instanceof SessionExpired
-  }
-
   useEffect(() => {
     if (!open) return
     let live = true
-    const failed = (err: unknown) => {
-      if (!live) return
-      if (err instanceof SessionExpired) onSessionExpired()
-      else setLoadFailure(errorCopy(err) === copy.catalog.unavailable ? copy.catalog.unavailable : copy.catalog.loadFailed)
+    // An expired session signs out (the app listens); nothing to show here.
+    const failed = (error: ApiError) => {
+      if (error.code !== 'unauthenticated') setLoadFailure(errorMessage(error, 'catalogLoad'))
     }
     setLoadFailure(null)
-    catalogCategories().then((list) => live && setCategories(list), failed)
+    void catalogCategories().then((res) => {
+      if (!live) return
+      if (res.ok) setCategories(res.data)
+      else failed(res.error)
+    })
     // A save may land first: the rows it put on screen win over this (older) server list.
-    myProducts().then((list) => live && setMine((shown) => mergeById(shown ?? [], list)), failed)
+    void myProducts().then((res) => {
+      if (!live) return
+      if (res.ok) setMine((shown) => mergeById(shown ?? [], res.data))
+      else failed(res.error)
+    })
     return () => {
       live = false
     }
-  }, [open, loads, onSessionExpired])
+  }, [open, loads])
 
   useEffect(() => savedHeading.current?.focus(), [saved])
 
@@ -142,23 +143,24 @@ export function CatalogDialog({ onAsk, onSessionExpired }: Props) {
       return
     }
     setSaving(true)
-    try {
-      const product = editing ? await updateProduct(editing.id, body) : await createProduct(body)
+    const res = editing ? await updateProduct(editing.id, body) : await createProduct(body)
+    setSaving(false)
+    if (res.ok) {
+      const product = res.data
       setMine((list) => [product, ...(list ?? []).filter((p) => p.id !== product.id)])
       setSaved({ name: product.name, edited: !!editing })
       setEditing(null)
       setFields(EMPTY)
-    } catch (err) {
-      if (failed(err)) return
-      const message = errorCopy(err)
-      const field = message === c.errors.categoryId ? 'categoryId' : message === c.nameTaken ? 'name' : null
-      if (field) {
-        setErrors({ [field]: message })
-        focusField(field)
-      } else setFailure(message)
-    } finally {
-      setSaving(false)
+      return
     }
+    // An expired session signs out (the app listens).
+    if (res.error.code === 'unauthenticated') return
+    const message = errorMessage(res.error, 'catalogSave')
+    const field = fieldFor(res.error.code)
+    if (field) {
+      setErrors({ [field]: message })
+      focusField(field)
+    } else setFailure(message)
   }
 
   const ask = () => {

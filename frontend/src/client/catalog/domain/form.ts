@@ -1,5 +1,4 @@
 // Pure helpers for the Catálogo dialog; the bounds mirror emporio.api.catalog.ProductIn.
-import { HttpError, SessionExpired } from '@/client/shared/lib/api'
 import type { Product, ProductBody, ProductStatus } from '@/client/shared/lib/apiTypes'
 import { copy } from '@/client/shared/lib/copy'
 
@@ -103,25 +102,6 @@ export const toFields = (p: Product): ProductFields => ({
     .map(([k, v]) => `${k}: ${v}`)
     .join('\n'),
 })
-
-/** A failed request in plain pt-BR (a 401 also signs out: the caller does that). */
-export function errorCopy(err: unknown): string {
-  const c = copy.catalog
-  if (err instanceof SessionExpired) return copy.login.expired
-  if (!(err instanceof HttpError)) return c.failed
-  if (err.status === 429) return c.tooMany
-  if (err.status === 409) return c.full
-  if (err.status === 404) return c.notFound
-  if (err.status === 503) return c.unavailable
-  // 422 is a write rule's code or FastAPI's list of field errors.
-  if (err.status === 422) {
-    if (err.detail === 'unknown_category') return c.errors.categoryId
-    if (err.detail === 'name_taken_by_store') return c.nameTaken
-    if (err.detail === 'promo_claim') return c.promoClaim
-    return c.invalid
-  }
-  return c.failed
-}
 
 /** The open-time list arriving after a save: rows on screen win, new server rows go after them. */
 export function mergeById<T extends { id: number }>(local: T[], server: T[]): T[] {

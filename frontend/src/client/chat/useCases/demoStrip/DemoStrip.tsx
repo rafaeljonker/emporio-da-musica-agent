@@ -1,6 +1,6 @@
 import { FlaskConical } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
-import { customers as fetchCustomers, SessionExpired, setIdentity } from '@/client/shared/lib/api'
+import { customers as fetchCustomers, setIdentity } from '@/client/shared/lib/api'
 import type { DemoCustomer } from '@/client/shared/lib/apiTypes'
 import { Label } from '@/client/shared/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/client/shared/components/ui/select'
@@ -13,7 +13,6 @@ interface Props {
   customerId: number | null
   /** After PUT /api/identity succeeded (the server rotated the session): the shell adds the divider. */
   onSwitched: (customerId: number | null, divider: string) => void
-  onSessionExpired: () => void
   children: ReactNode
 }
 
@@ -36,21 +35,16 @@ function Item({ value, name, note }: { value: string; name: string; note: string
 }
 
 /** `<aside aria-label="Demonstração">`: demo tools kept apart from store content. Children: the Métricas toggle and the Catálogo dialog. */
-export function DemoStrip({ customerId, onSwitched, onSessionExpired, children }: Props) {
+export function DemoStrip({ customerId, onSwitched, children }: Props) {
   const [list, setList] = useState<DemoCustomer[]>([])
   useEffect(() => {
-    fetchCustomers().then(setList, (err) => err instanceof SessionExpired && onSessionExpired())
-  }, [onSessionExpired])
+    void fetchCustomers().then((res) => res.ok && setList(res.data))
+  }, [])
 
   // Selection follows the server: it changes only after the PUT succeeds. Focus never moves (SC 3.2.2).
   const change = async (value: string) => {
     const id = value === ANON ? null : Number(value)
-    try {
-      await setIdentity(id)
-    } catch (err) {
-      if (err instanceof SessionExpired) onSessionExpired()
-      return
-    }
+    if (!(await setIdentity(id)).ok) return
     const name = list.find((c) => c.id === id)?.name.split(' ')[0]
     onSwitched(id, name ? copy.demo.nowAs(name) : copy.demo.nowAnonymous)
   }

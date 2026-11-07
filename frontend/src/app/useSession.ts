@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { me } from '@/client/shared/lib/api'
+import { onSessionExpired } from '@/client/shared/lib/session'
 import type { WarmStatus } from '@/client/shared/lib/apiTypes'
 
 export type Session =
@@ -13,11 +14,21 @@ export function useSession() {
   const [session, setSession] = useState<Session>({ status: 'checking' })
 
   useEffect(() => {
-    me().then(
-      ({ warm, customer_id }) => setSession({ status: 'signedIn', warm, fromLogin: false, customerId: customer_id }),
-      () => setSession({ status: 'signedOut' }),
+    void me().then((res) =>
+      setSession(
+        res.ok
+          ? { status: 'signedIn', warm: res.data.warm, fromLogin: false, customerId: res.data.customer_id }
+          : { status: 'signedOut' },
+      ),
     )
   }, [])
+
+  // Any 401 mid-session signs out with the "expired" line; a 401 from the first `me()` is a plain sign-out.
+  useEffect(
+    () =>
+      onSessionExpired(() => setSession((s) => (s.status === 'signedIn' ? { status: 'signedOut', expired: true } : s))),
+    [],
+  )
 
   const signedIn = useCallback(
     // Login starts anonymous (the server resets customer_id).
@@ -25,6 +36,5 @@ export function useSession() {
     [],
   )
   const signedOut = useCallback(() => setSession({ status: 'signedOut' }), [])
-  const expired = useCallback(() => setSession({ status: 'signedOut', expired: true }), [])
-  return { session, signedIn, signedOut, expired }
+  return { session, signedIn, signedOut }
 }

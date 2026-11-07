@@ -1,6 +1,7 @@
 import { Laptop, LogOut } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { logout } from '@/client/shared/lib/api'
+import { focusById, isFinePointer } from '@/client/shared/lib/focus'
 import type { WarmStatus } from '@/client/shared/lib/apiTypes'
 import avatar from '@/client/shared/assets/avatar.jpg'
 import { CatalogDialog } from '@/client/catalog/useCases/catalogDialog/CatalogDialog'
@@ -28,12 +29,11 @@ interface Props {
   fromLogin: boolean
   customerId: number | null
   onSignedOut: () => void
-  onExpired: () => void
 }
 
-export function ChatShell({ warm, fromLogin, customerId: initialCustomer, onSignedOut, onExpired }: Props) {
-  const { entries, busy, send, resend, addDivider } = useChatStream(onExpired)
-  const { status, elapsed, networkError, retry } = useWarmStatus(warm, onExpired)
+export function ChatShell({ warm, fromLogin, customerId: initialCustomer, onSignedOut }: Props) {
+  const { entries, busy, send, resend, addDivider } = useChatStream()
+  const { status, elapsed, networkError, retry } = useWarmStatus(warm)
   const [customerId, setCustomerId] = useState(initialCustomer)
   const [said, setSaid] = useState<Announcement | null>(null)
   const announce = useCallback((text: string) => setSaid((s) => ({ n: (s?.n ?? 0) + 1, text })), [])
@@ -48,7 +48,7 @@ export function ChatShell({ warm, fromLogin, customerId: initialCustomer, onSign
   const [openedReady] = useState(readyOnArrival || warm?.mode === 'provider_api')
   useEffect(() => {
     if (!openedReady || (document.activeElement && document.activeElement !== document.body)) return
-    if (matchMedia('(pointer: fine)').matches) document.getElementById('composer-input')?.focus()
+    if (isFinePointer()) focusById('composer-input')
   }, [openedReady])
 
   useEffect(() => {
@@ -58,8 +58,7 @@ export function ChatShell({ warm, fromLogin, customerId: initialCustomer, onSign
     // to the composer with a fine pointer, to the log on touch (no soft keyboard).
     const focus = setTimeout(() => {
       if (document.activeElement && document.activeElement !== document.body) return
-      const fine = matchMedia('(pointer: fine)').matches
-      document.getElementById(fine ? 'composer-input' : 'chat-log')?.focus()
+      focusById(isFinePointer() ? 'composer-input' : 'chat-log')
     }, READY_FOCUS_MS)
     return () => {
       clearTimeout(close)
@@ -102,16 +101,14 @@ export function ChatShell({ warm, fromLogin, customerId: initialCustomer, onSign
     const back = queue.take()
     setText(text ? `${back}\n${text}` : back)
     announce(copy.warmup.undone)
-    document.getElementById('composer-input')?.focus()
+    focusById('composer-input')
   }
 
   // Back to login even if the logout request fails (offline, 5xx). Sair drops a queued message;
   // an expired session keeps it for the next login.
   const signOut = () => {
     save(null)
-    logout()
-      .catch(() => {})
-      .finally(onSignedOut)
+    void logout().then(onSignedOut)
   }
 
   return (
@@ -140,10 +137,9 @@ export function ChatShell({ warm, fromLogin, customerId: initialCustomer, onSign
           setCustomerId(id)
           addDivider(divider)
         }}
-        onSessionExpired={onExpired}
       >
         <MetricsDetails turns={turns} warmupSeconds={warmupSeconds} local={local} />
-        <CatalogDialog onAsk={ask} onSessionExpired={onExpired} />
+        <CatalogDialog onAsk={ask} />
       </DemoStrip>
       {!warming && status?.mode === 'local_cpu' && (
         <p className="border-b border-border">
