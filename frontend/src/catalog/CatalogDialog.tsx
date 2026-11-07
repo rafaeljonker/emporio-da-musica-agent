@@ -149,9 +149,10 @@ export function CatalogDialog({ onAsk, onSessionExpired }: Props) {
     } catch (err) {
       if (failed(err)) return
       const message = errorCopy(err)
-      if (message === c.errors.categoryId) {
-        setErrors({ categoryId: message })
-        focusField('categoryId')
+      const field = message === c.errors.categoryId ? 'categoryId' : message === c.nameTaken ? 'name' : null
+      if (field) {
+        setErrors({ [field]: message })
+        focusField(field)
       } else setFailure(message)
     } finally {
       setSaving(false)

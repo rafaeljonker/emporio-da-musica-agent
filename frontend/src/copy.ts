@@ -100,6 +100,8 @@ export const copy = {
     notFound: 'Esse produto não está mais na sua lista.',
     invalid: 'Confere os campos: tem algum caractere que não dá pra salvar.',
     unavailable: 'O catálogo está fora do ar agora. Tenta de novo em instantes.',
+    nameTaken: 'Já existe um produto da loja com esse nome. Escolhe outro nome',
+    promoClaim: 'Promoção e desconto não entram no nome nem na descrição. Tira termos como OFF, desconto ou cupom',
     loadFailed: 'Não consegui carregar as categorias e os seus produtos.',
     retry: 'Tentar de novo',
     errors: {

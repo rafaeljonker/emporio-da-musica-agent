@@ -113,8 +113,13 @@ export function errorCopy(err: unknown): string {
   if (err.status === 409) return c.full
   if (err.status === 404) return c.notFound
   if (err.status === 503) return c.unavailable
-  // 422 is either {"detail": "unknown_category"} or FastAPI's list of field errors.
-  if (err.status === 422) return err.detail === 'unknown_category' ? c.errors.categoryId : c.invalid
+  // 422 is a write rule's code or FastAPI's list of field errors.
+  if (err.status === 422) {
+    if (err.detail === 'unknown_category') return c.errors.categoryId
+    if (err.detail === 'name_taken_by_store') return c.nameTaken
+    if (err.detail === 'promo_claim') return c.promoClaim
+    return c.invalid
+  }
   return c.failed
 }
 
