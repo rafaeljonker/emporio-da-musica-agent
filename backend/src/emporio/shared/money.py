@@ -2,13 +2,11 @@ from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Self
 
-from emporio.shared.errors import DomainError
-
 _CENT = Decimal("0.01")
 _HUNDRED = Decimal(100)
 
 
-class InvalidMoney(DomainError):
+class InvalidMoney(Exception):
     """Raised for unparseable amounts or invalid money operations."""
 
 

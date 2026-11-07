@@ -8,11 +8,10 @@ from pathlib import Path
 from emporio.catalog.domain.pricing import Promotion
 from emporio.catalog.domain.product import Category, Product, ProductStatus
 from emporio.paths import CASE_CSV_FILES
-from emporio.shared.errors import DomainError
-from emporio.shared.money import Money
+from emporio.shared.money import InvalidMoney, Money
 
 
-class CatalogDataError(DomainError):
+class CatalogDataError(Exception):
     """Raised when a catalog CSV row cannot be parsed."""
 
     def __init__(self, file: str, row: int, cause: Exception) -> None:
@@ -72,7 +71,7 @@ class CsvCatalogRepository:
                     raise CatalogDataError(path.name, number, exc)
                 try:
                     items.append(parse(row))
-                except (ValueError, TypeError, KeyError, InvalidOperation, DomainError) as exc:
+                except (ValueError, TypeError, KeyError, InvalidOperation, InvalidMoney) as exc:
                     raise CatalogDataError(path.name, number, exc) from exc
         return tuple(items)
 

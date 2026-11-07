@@ -31,7 +31,7 @@ from emporio.support.domain.bubbles import strip_channel_markup
 from emporio.support.domain.scope import Scope
 from emporio.support.infrastructure.agent.context import TurnContext
 from emporio.support.infrastructure.agent.prompt import scope_note, system_prompt
-from emporio.support.infrastructure.agent.tools import TOOL_FAILURE
+from emporio.support.infrastructure.agent.tools.base import TOOL_FAILURE
 
 logger = logging.getLogger("emporio.support.tools")
 

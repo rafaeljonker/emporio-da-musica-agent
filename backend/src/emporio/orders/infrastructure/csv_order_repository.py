@@ -7,11 +7,10 @@ from pathlib import Path
 
 from emporio.orders.domain.order import Customer, Order, OrderItem, OrderStatus
 from emporio.paths import CASE_CSV_FILES
-from emporio.shared.errors import DomainError
-from emporio.shared.money import Money
+from emporio.shared.money import InvalidMoney, Money
 
 
-class OrdersDataError(DomainError):
+class OrdersDataError(Exception):
     """Raised when an orders CSV row cannot be parsed."""
 
     def __init__(self, file: str, row: int, cause: Exception) -> None:
@@ -62,7 +61,7 @@ def _load[T](path: Path, parse: Callable[[dict[str, str]], T]) -> tuple[T, ...]:
                 raise OrdersDataError(path.name, number, ValueError("missing or extra columns"))
             try:
                 items.append(parse(row))
-            except (ValueError, TypeError, KeyError, InvalidOperation, DomainError) as exc:
+            except (ValueError, TypeError, KeyError, InvalidOperation, InvalidMoney) as exc:
                 raise OrdersDataError(path.name, number, exc) from exc
     return tuple(items)
 

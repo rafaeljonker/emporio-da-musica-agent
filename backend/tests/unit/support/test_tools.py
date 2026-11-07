@@ -19,7 +19,7 @@ from emporio.shared.clock import FixedClock
 from emporio.shared.errors import StoreUnavailable
 from emporio.support.infrastructure.agent import tools
 from emporio.support.infrastructure.agent.context import TurnContext
-from emporio.support.infrastructure.agent.tools import Toolbox
+from emporio.support.infrastructure.agent.tools import Toolbox, base
 from tests.unit.catalog.factories import category, product
 from tests.unit.catalog.fakes import FakeCatalogRepository
 from tests.unit.orders.factories import cust, order
@@ -122,7 +122,7 @@ def test_calc_installments_error_names_the_maximum() -> None:
 
 
 def test_store_unavailable_is_index_unavailable() -> None:
-    @tools._safe
+    @base.safe
     def boom() -> str:
         raise StoreUnavailable
 
@@ -133,10 +133,11 @@ def test_unknown_product_is_product_not_found_text() -> None:
     assert tools.get_product(make_box(), ANON, product_id=99) == "Produto não encontrado."
 
 
-def test_calc_installments_huge_total_returns_text() -> None:
-    result = tools.calc_installments(make_box(), ANON, total=1e30)
-
-    assert isinstance(result, str)
+def test_calc_installments_huge_total_is_a_crash_not_text() -> None:
+    # The edges cap the total (le=MAX_REAIS); past them, InvalidMoney is a bug.
+    with pytest.raises(tools.ToolCrashed) as crash:
+        tools.calc_installments(make_box(), ANON, total=1e30)
+    assert str(crash.value) == "calc_installments raised InvalidMoney"
 
 
 def test_data_error_is_tool_failure_not_invalid_data() -> None:

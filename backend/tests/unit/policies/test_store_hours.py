@@ -10,7 +10,6 @@ from emporio.policies.domain.store_hours import (
 )
 from emporio.policies.infrastructure.holidays import STORE_HOLIDAYS
 from emporio.shared.clock import STORE_TZ
-from emporio.shared.errors import DomainError
 
 HOLIDAYS = frozenset({date(2026, 4, 21)})
 
@@ -79,7 +78,7 @@ def test_store_hours_naive_datetime_raises_plain_exception_not_domain_error() ->
         is_open(naive, HOLIDAYS)
     with pytest.raises(NaiveDatetimeError):
         next_opening(naive, HOLIDAYS)
-    assert not isinstance(closed.value, DomainError)  # a bug, not an expected failure
+    assert type(closed.value).__base__ is Exception  # a bug, not an expected failure
 
 
 def test_no_opening_within_14_days_raises() -> None:
@@ -87,4 +86,4 @@ def test_no_opening_within_14_days_raises() -> None:
     holidays = frozenset(start + timedelta(days=i) for i in range(16))
     with pytest.raises(NoOpeningFound) as err:
         next_opening(at(start, 10), holidays)
-    assert not isinstance(err.value, DomainError)
+    assert type(err.value).__base__ is Exception

@@ -1,8 +1,7 @@
 from emporio.policies.application.ports import PolicyIndex, PolicySource
-from emporio.shared.errors import DomainError
 
 
-class EmptyPolicySource(DomainError):
+class EmptyPolicySource(Exception):
     def __init__(self) -> None:
         super().__init__("The policy source yielded no chunks; refusing to wipe the index.")
 

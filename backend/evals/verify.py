@@ -14,13 +14,12 @@ import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from emporio.shared.errors import DomainError
 from emporio.shared.text import fold
 
 type Facts = Mapping[str, str | tuple[str, ...]]
 
 
-class UnknownGroup(DomainError):
+class UnknownGroup(Exception):
     def __init__(self, name: str) -> None:
         super().__init__(f"unknown synonym group @{name}")
 

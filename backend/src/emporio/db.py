@@ -4,10 +4,8 @@ import psycopg
 from pgvector.psycopg import register_vector
 from psycopg_pool import ConnectionPool
 
-from emporio.shared.errors import DomainError
 
-
-class DatabaseNotConfigured(DomainError):
+class DatabaseNotConfigured(Exception):
     """DATABASE_URL is missing from the environment."""
 
     def __init__(self) -> None:

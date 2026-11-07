@@ -6,7 +6,6 @@ from pydantic import Field, SecretStr, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from emporio.paths import REPO_ROOT
-from emporio.shared.errors import DomainError
 from emporio.support.application.warmup import WarmMode
 
 
@@ -18,7 +17,7 @@ class Provider(StrEnum):
     LOCAL = "local"
 
 
-class ConfigError(DomainError):
+class ConfigError(Exception):
     """Startup configuration is missing or inconsistent."""
 
 

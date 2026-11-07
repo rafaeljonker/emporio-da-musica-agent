@@ -8,7 +8,8 @@ from langgraph.checkpoint.memory import InMemorySaver
 from emporio.support.domain.scope import Scope
 from emporio.support.infrastructure.agent.context import TurnContext
 from emporio.support.infrastructure.agent.graph import build_graph
-from emporio.support.infrastructure.agent.tools import TOOL_FAILURE, build_tools
+from emporio.support.infrastructure.agent.tools import build_tools
+from emporio.support.infrastructure.agent.tools.base import TOOL_FAILURE
 from tests.fakes.fake_chat_model import FakeToolCallingModel
 from tests.unit.support.test_tools import make_box
 

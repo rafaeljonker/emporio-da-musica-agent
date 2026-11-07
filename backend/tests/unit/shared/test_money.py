@@ -4,7 +4,6 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from emporio.shared.errors import DomainError
 from emporio.shared.money import InvalidMoney, Money, format_brl
 
 
@@ -29,7 +28,7 @@ def test_format_brl_small_value():
 
 
 def test_from_str_rejects_garbage():
-    with pytest.raises(DomainError):
+    with pytest.raises(InvalidMoney):
         Money.from_str("abc")
 
 

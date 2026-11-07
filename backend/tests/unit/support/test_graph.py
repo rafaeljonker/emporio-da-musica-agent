@@ -26,7 +26,8 @@ from emporio.support.infrastructure.agent.graph import (
 )
 from emporio.support.infrastructure.agent.guard import Label, make_classifier
 from emporio.support.infrastructure.agent.prompt import scope_note
-from emporio.support.infrastructure.agent.tools import ORDER_NOT_FOUND, build_tools
+from emporio.support.infrastructure.agent.tools import build_tools
+from emporio.support.infrastructure.agent.tools.orders import ORDER_NOT_FOUND
 from tests.fakes.fake_chat_model import FakeToolCallingModel
 from tests.unit.support.test_tools import make_box
 
