@@ -18,7 +18,6 @@ from emporio.catalog.application.quote_installments import QuoteInstallments
 from emporio.catalog.application.recommend_products import RecommendProducts
 from emporio.catalog.application.search_products import SearchProducts
 from emporio.catalog.infrastructure.csv_catalog_repository import CsvCatalogRepository
-from emporio.catalog.infrastructure.pg_product_index import PgProductIndex
 from emporio.config import Provider, Settings, UnknownCustomer
 from emporio.db import connect, database_url, make_pool
 from emporio.embeddings import E5Embedder
@@ -96,7 +95,7 @@ def build_toolbox(
     customers = CsvCustomerRepository()
     box = Toolbox(
         SearchProducts(catalog),
-        RecommendProducts(catalog, PgProductIndex(pool, embedder)),
+        RecommendProducts(catalog),
         GetProduct(catalog),
         ListPromotions(catalog),
         QuoteInstallments(),

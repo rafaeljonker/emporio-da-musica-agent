@@ -7,7 +7,8 @@ shared with the MCP server through the plain functions' signatures.
 """
 
 import logging
-from collections.abc import Callable
+from collections import defaultdict
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 from functools import wraps
@@ -28,7 +29,13 @@ from emporio.catalog.application.recommend_products import RecommendProducts
 from emporio.catalog.application.search_products import SearchProducts
 from emporio.catalog.domain.errors import ProductNotFound
 from emporio.catalog.domain.installments import InvalidInstallments, max_installments
-from emporio.catalog.domain.pricing import PriceQuote
+from emporio.catalog.domain.pricing import (
+    PriceQuote,
+    Promotion,
+    best_active_promotion,
+    quote_price,
+)
+from emporio.catalog.domain.product import Product
 from emporio.catalog.domain.search import Candidates, Exact, NoMatch
 from emporio.db import IndexUnavailable
 from emporio.orders.application.check_return_eligibility import CheckReturnEligibility
@@ -36,6 +43,7 @@ from emporio.orders.application.get_order_status import GetOrderStatus
 from emporio.orders.application.list_customer_orders import ListCustomerOrders
 from emporio.orders.domain.errors import OrderNotFound
 from emporio.orders.domain.identity import IdentityMismatch
+from emporio.orders.domain.order import Order
 from emporio.policies.application.search_policies import SearchPolicies
 from emporio.policies.application.store_now import StoreNow
 from emporio.shared.errors import DomainError
@@ -158,24 +166,31 @@ def _reais(amount: float) -> Decimal:
     return Decimal(str(amount))
 
 
-def _categories(box: Toolbox) -> dict[int, str]:
+def _categories(box: Toolbox, products: Iterable[Product]) -> dict[int, str]:
     names = {c.id: c.name for c in box.catalog.categories()}
-    return {p.id: names.get(p.category_id, "") for p in box.catalog.products()}
+    return {p.id: names.get(p.category_id, "") for p in products}
 
 
-def _quotes(box: Toolbox, result: Exact | Candidates | NoMatch) -> dict[int, PriceQuote]:
+def _found(result: Exact | Candidates | NoMatch) -> tuple[Product, ...]:
     match result:
         case Exact(product):
-            found = (product,)
+            return (product,)
         case Candidates(products):
-            found = products
+            return products
         case NoMatch():
-            found = ()
-    return {p.id: box.get_product(p.id)[1] for p in found}
+            return ()
 
 
-def _product_names(box: Toolbox) -> dict[int, str]:
-    return {p.id: p.name for p in box.catalog.products()}
+def _quotes(box: Toolbox, products: Sequence[Product]) -> dict[int, PriceQuote]:
+    groups: defaultdict[int, list[Promotion]] = defaultdict(list)
+    for promo in box.catalog.promotions_for([p.id for p in products]):
+        groups[promo.product_id].append(promo)
+    return {p.id: quote_price(p, best_active_promotion(groups[p.id])) for p in products}
+
+
+def _product_names(box: Toolbox, orders: Iterable[Order]) -> dict[int, str]:
+    ids = {i.product_id for o in orders for i in o.items}
+    return {p.id: p.name for p in box.catalog.get_many(ids)}
 
 
 @_safe
@@ -187,25 +202,28 @@ def search_products(
     if isinstance(result, NoMatch):
         # Report discontinued products with their status instead of "not found".
         result = box.search_products(query, ceiling, include_unavailable=True)
-    return search_json(result, _quotes(box, result), _categories(box))
+    found = _found(result)
+    return search_json(result, _quotes(box, found), _categories(box, found))
 
 
 @_safe
 def recommend_products(box: Toolbox, ctx: TurnContext, need: Need) -> ToolOutput:
     result = box.recommend_products(need)
-    return search_json(result, _quotes(box, result), _categories(box))
+    found = _found(result)
+    return search_json(result, _quotes(box, found), _categories(box, found))
 
 
 @_safe
 def get_product(box: Toolbox, ctx: TurnContext, product_id: ProductId) -> ToolOutput:
     found, quote = box.get_product(product_id)
-    return product_json(found, quote, _categories(box).get(product_id, ""))
+    return product_json(found, quote, _categories(box, (found,))[product_id])
 
 
 @_safe
 def list_active_promotions(box: Toolbox, ctx: TurnContext) -> ToolOutput:
-    categories = _categories(box)
-    return [product_json(p, q, categories[p.id]) for p, q in box.list_promotions()]
+    items = box.list_promotions()
+    categories = _categories(box, (p for p, _ in items))
+    return [product_json(p, q, categories[p.id]) for p, q in items]
 
 
 @_safe
@@ -226,15 +244,15 @@ def calc_installments(
 def list_my_orders(box: Toolbox, ctx: TurnContext) -> ToolOutput:
     if ctx.customer_id is None:
         return ASK_ORDER_IDENTITY
-    names = _product_names(box)
-    return [order_json(o, names) for o in box.list_customer_orders(ctx.customer_id)]
+    orders = box.list_customer_orders(ctx.customer_id)
+    names = _product_names(box, orders)
+    return [order_json(o, names) for o in orders]
 
 
 @_safe
 def get_order_status(
     box: Toolbox, ctx: TurnContext, order_id: OrderId, email_or_phone: EmailOrPhone | None = None
 ) -> ToolOutput:
-    names = _product_names(box)
     if ctx.customer_id is not None:
         # Ownership through the customer's own orders: a foreign id looks unknown.
         mine = next(
@@ -242,10 +260,11 @@ def get_order_status(
         )
         if mine is None:
             raise OrderNotFound(order_id)
-        return order_json(mine, names)
+        return order_json(mine, _product_names(box, (mine,)))
     if not email_or_phone:
         return ASK_EMAIL_OR_PHONE
-    return order_json(box.get_order_status(order_id, email_or_phone), names)
+    found = box.get_order_status(order_id, email_or_phone)
+    return order_json(found, _product_names(box, (found,)))
 
 
 @_safe

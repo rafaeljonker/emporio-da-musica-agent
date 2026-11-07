@@ -98,9 +98,7 @@ def _derive_facts(pool: ConnectionPool, settings: Settings) -> Facts:
     returnable5 = eligibility5.regret_eligible or eligibility5.defect_eligible
     open_now = StoreNow(SystemClock(), STORE_HOLIDAYS)().open
     discontinued = next(p for p in catalog.products() if p.status is ProductStatus.DISCONTINUED)
-    recommended = RecommendProducts(catalog, PgProductIndex(pool, E5Embedder()))(
-        "algo pra tocar MPB em casa"
-    )
+    recommended = RecommendProducts(catalog)("algo pra tocar MPB em casa")
     c40 = next(p for p in catalog.products() if "C40" in p.name)
     c40_quote = get_product(c40.id)[1]
     promo_product, promo_quote = ListPromotions(catalog)()[0]

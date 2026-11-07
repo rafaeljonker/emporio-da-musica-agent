@@ -9,10 +9,8 @@ class GetProduct:
         self._repo = repo
 
     def __call__(self, product_id: int) -> tuple[Product, PriceQuote]:
-        found = next((p for p in self._repo.products() if p.id == product_id), None)
+        found = self._repo.get(product_id)
         if found is None:
             raise ProductNotFound(product_id)
-        active = best_active_promotion(
-            x for x in self._repo.promotions() if x.product_id == product_id
-        )
+        active = best_active_promotion(self._repo.promotions_for([product_id]))
         return found, quote_price(found, active)
