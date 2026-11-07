@@ -96,7 +96,7 @@ class ProductView:
     specs: tuple[tuple[str, str], ...]
 
 
-RejectionCode = Literal["unknown_category", "not_found", "catalog_full"]
+RejectionCode = Literal["unknown_category", "not_found", "catalog_full", "catalog_unavailable"]
 
 
 class CatalogWriteRejected(DomainError):

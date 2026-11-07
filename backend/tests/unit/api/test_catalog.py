@@ -264,9 +264,10 @@ class FakeClock:
 def test_new_logins_from_one_ip_share_the_write_limit(
     client: TestClient, catalog: FakeCatalogAdmin
 ) -> None:
+    login(client)
     for _ in range(10):
-        login(client).post("/api/catalog/products", json=BODY)
-        client.post("/api/auth/logout")
+        client.post("/api/catalog/products", json=BODY)
+    client.post("/api/auth/logout")  # a fresh login gets a fresh lid, not a fresh IP window
     response = login(client).post("/api/catalog/products", json=BODY)
     assert (response.status_code, response.json()) == (429, {"detail": "too_many_writes"})
     assert len(catalog.calls) == 10

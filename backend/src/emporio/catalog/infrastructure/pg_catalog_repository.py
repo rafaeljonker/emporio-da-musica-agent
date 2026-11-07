@@ -1,5 +1,5 @@
 from collections.abc import Collection, Iterator, Mapping, Sequence
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager
 from decimal import Decimal
 from functools import cached_property
 from typing import LiteralString
@@ -15,7 +15,7 @@ from emporio.db import IndexUnavailable
 from emporio.embeddings import TextEmbedder
 from emporio.shared.money import Money
 
-_COLUMNS = "p.id, p.name, p.category_id, p.description, p.specs, p.price, p.stock, p.status"
+COLUMNS = "p.id, p.name, p.category_id, p.description, p.specs, p.price, p.stock, p.status"
 
 # The best active promotion's final price, rounded to the cent like `Money` (round(numeric)
 # is half away from zero, which is HALF_UP for prices).
@@ -64,14 +64,14 @@ LIMIT %(k)s
 """
 
 _GET_MANY = "SELECT {columns} FROM products p WHERE p.id = ANY(%s) ORDER BY p.id".replace(
-    "{columns}", _COLUMNS
+    "{columns}", COLUMNS
 )
 _PROMOTED = """
 SELECT {columns} FROM products p
 WHERE p.status = 'active' AND p.stock > 0
   AND EXISTS (SELECT 1 FROM promotions x WHERE x.product_id = p.id AND x.active)
 ORDER BY p.id
-""".replace("{columns}", _COLUMNS)
+""".replace("{columns}", COLUMNS)
 
 
 def _filter(flt: CatalogFilter) -> LiteralString:
@@ -86,7 +86,9 @@ def _filter(flt: CatalogFilter) -> LiteralString:
     return "(" + " AND ".join(clauses) + ")"
 
 
-def _product(row: tuple[int, str, int, str, Mapping[str, object], Decimal, int, str]) -> Product:
+def product_from_row(
+    row: tuple[int, str, int, str, Mapping[str, object], Decimal, int, str],
+) -> Product:
     id_, name, category_id, description, specs, price, stock, status = row
     return Product(
         id=id_,
@@ -100,18 +102,23 @@ def _product(row: tuple[int, str, int, str, Mapping[str, object], Decimal, int, 
     )
 
 
+@contextmanager
+def catalog_connection(pool: ConnectionPool) -> Iterator[psycopg.Connection]:
+    """A pooled connection; an unreachable database surfaces as `IndexUnavailable`."""
+    try:
+        with pool.connection() as conn:
+            yield conn
+    except (psycopg.OperationalError, PoolTimeout) as err:
+        raise IndexUnavailable from err
+
+
 class PgCatalogRepository:
     def __init__(self, pool: ConnectionPool, embedder: TextEmbedder) -> None:
         self._pool = pool
         self._embedder = embedder
 
-    @contextmanager
-    def _connection(self) -> Iterator[psycopg.Connection]:
-        try:
-            with self._pool.connection() as conn:
-                yield conn
-        except (psycopg.OperationalError, PoolTimeout) as err:
-            raise IndexUnavailable from err
+    def _connection(self) -> AbstractContextManager[psycopg.Connection]:
+        return catalog_connection(self._pool)
 
     def get(self, product_id: int) -> Product | None:
         found = self.get_many([product_id])
@@ -123,7 +130,7 @@ class PgCatalogRepository:
                 _GET_MANY,
                 (list(ids),),
             ).fetchall()
-        return [_product(r) for r in rows]
+        return [product_from_row(r) for r in rows]
 
     @cached_property
     def _categories(self) -> tuple[Category, ...]:
@@ -147,7 +154,7 @@ class PgCatalogRepository:
     def promoted(self) -> Sequence[Product]:
         with self._connection() as conn:
             rows = conn.execute(_PROMOTED).fetchall()
-        return [_product(r) for r in rows]
+        return [product_from_row(r) for r in rows]
 
     def search(self, query: str, flt: CatalogFilter, k: int) -> Sequence[Product]:
         if not query.strip():
@@ -159,7 +166,7 @@ class PgCatalogRepository:
             "max_price": flt.max_price.amount if flt.max_price is not None else None,
             "k": k,
         }
-        sql = _SEARCH.format(flt=_filter(flt), columns=_COLUMNS)
+        sql = _SEARCH.format(flt=_filter(flt), columns=COLUMNS)
         with self._connection() as conn:
             rows = conn.execute(sql, params).fetchall()
-        return [_product(r) for r in rows]
+        return [product_from_row(r) for r in rows]

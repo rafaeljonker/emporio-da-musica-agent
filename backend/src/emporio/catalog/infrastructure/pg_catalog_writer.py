@@ -9,7 +9,11 @@ from psycopg_pool import ConnectionPool, PoolTimeout
 
 from emporio.catalog.domain.pricing import Promotion
 from emporio.catalog.domain.product import Category, Product, ProductDraft, search_document
-from emporio.catalog.infrastructure.pg_catalog_repository import _COLUMNS, _product
+from emporio.catalog.infrastructure.pg_catalog_repository import (
+    COLUMNS,
+    catalog_connection,
+    product_from_row,
+)
 from emporio.db import IndexUnavailable
 from emporio.embeddings import TextEmbedder
 
@@ -33,7 +37,7 @@ ON CONFLICT (id) DO UPDATE SET
 
 _OWN = (
     "SELECT {columns} FROM products p WHERE p.source = 'admin' AND p.owner = %s ORDER BY p.id DESC"
-).replace("{columns}", _COLUMNS)
+).replace("{columns}", COLUMNS)
 
 
 def _hash(doc: str) -> str:
@@ -104,7 +108,7 @@ class PgCatalogWriter:
     def create(self, owner: str, draft: ProductDraft) -> Product:
         doc = self._document(draft)
         vector, digest = self._embed(doc)
-        with self._pool.connection() as conn, conn.transaction():
+        with catalog_connection(self._pool) as conn, conn.transaction():
             [(new_id,)] = conn.execute(
                 "INSERT INTO products (id, name, category_id, description, specs, price, stock,"
                 " status, source, owner, search_doc, embedding, embedded_hash)"
@@ -117,7 +121,7 @@ class PgCatalogWriter:
         return created
 
     def update(self, owner: str, product_id: int, draft: ProductDraft) -> Product | None:
-        with self._pool.connection() as conn:
+        with catalog_connection(self._pool) as conn:
             found = conn.execute(
                 "SELECT embedded_hash FROM products WHERE id = %s AND source = 'admin'"
                 " AND owner = %s",
@@ -128,7 +132,7 @@ class PgCatalogWriter:
         doc = self._document(draft)
         changed = found[0] != _hash(doc)
         vector, digest = self._embed(doc) if changed else (None, None)
-        with self._pool.connection() as conn, conn.transaction():
+        with catalog_connection(self._pool) as conn, conn.transaction():
             row = conn.execute(
                 "UPDATE products SET name = %s, category_id = %s, description = %s, specs = %s,"
                 " price = %s, stock = %s, status = %s, search_doc = %s,"
@@ -145,20 +149,20 @@ class PgCatalogWriter:
         return updated
 
     def own(self, owner: str) -> Sequence[Product]:
-        with self._pool.connection() as conn:
+        with catalog_connection(self._pool) as conn:
             rows = conn.execute(
                 _OWN,
                 (owner,),
             ).fetchall()
-        return [_product(r) for r in rows]
+        return [product_from_row(r) for r in rows]
 
     def admin_total(self) -> int:
-        with self._pool.connection() as conn:
+        with catalog_connection(self._pool) as conn:
             row = conn.execute("SELECT count(*) FROM products WHERE source = 'admin'").fetchone()
         return row[0] if row else 0
 
     def _document(self, draft: ProductDraft) -> str:
-        with self._pool.connection() as conn:
+        with catalog_connection(self._pool) as conn:
             row = conn.execute(
                 "SELECT name FROM categories WHERE id = %s", (draft.category_id,)
             ).fetchone()
@@ -170,7 +174,9 @@ class PgCatalogWriter:
         try:
             [vector] = self._embedder.embed_passages([doc])
         except Exception as err:  # any model failure: save the row, text search still finds it
-            logger.warning("product embed failed: %s", type(err).__name__, exc_info=True)
+            # The type only at warning: a traceback could carry the product text.
+            logger.warning("product embed failed: %s", type(err).__name__)
+            logger.debug("product embed traceback", exc_info=True)
             return None, None
         return Vector(vector), _hash(doc)
 
