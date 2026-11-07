@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 import pytest
 from conftest import DEMO_EMAIL, StartServer, login
 from playwright.sync_api import Page, expect
@@ -276,3 +278,61 @@ def test_typing_dots_sit_under_the_last_bubble(signed_in_page: Page) -> None:
         pytest.fail("the typing dots are not under the last bubble")
     expect(log.locator("p", has_text="Assistente: Segunda")).to_be_visible(timeout=AGENT_TIMEOUT_MS)
     expect(dots).to_have_count(0)
+
+
+def test_catalog_create_then_ask(signed_in_page: Page, real_model: bool) -> None:
+    page = signed_in_page
+    name = f"Cavaquinho Teste {uuid4().hex[:6]}"
+    trigger = page.get_by_role("button", name="Catálogo")
+    trigger.click()
+    dialog = page.get_by_role("dialog", name="Cadastrar produto")
+    expect(dialog).to_be_visible()
+    dialog.get_by_label("Nome").fill(name)
+    dialog.get_by_role("combobox", name="Categoria").click()
+    page.get_by_role("option", name="Violões", exact=True).click()
+    dialog.get_by_label("Preço (R$)").fill("899,90")
+    dialog.get_by_label("Estoque").fill("3")
+    dialog.get_by_label("Especificações").fill("Cordas: aço\nTampo: abeto")
+    dialog.get_by_role("button", name="Cadastrar", exact=True).click()
+
+    saved = dialog.get_by_role("heading", name="Produto cadastrado.")
+    expect(saved).to_be_focused()
+    expect(dialog.get_by_role("button", name=f"Editar {name}")).to_be_visible()
+    mine = [p for p in page.request.get("/api/catalog/products/mine").json() if p["name"] == name]
+    if [(p["price"], p["stock"], p["category"]) for p in mine] != [("899.90", 3, "Violões")]:
+        pytest.fail(f"GET mine has {mine!r}")
+
+    dialog.get_by_role("button", name="Perguntar ao assistente").click()
+    expect(dialog).to_have_count(0)
+    composer = page.get_by_label("Mensagem", exact=True)
+    expect(composer).to_have_value(f"Vocês têm o {name}?")
+    expect(composer).to_be_focused()
+    log = page.get_by_role("log")
+    expect(log.locator("p", has_text="Você: ")).to_have_count(0)  # filled, never sent
+
+    composer.press("Enter")
+    agent = log.locator("p", has_text="Assistente: ")
+    expect(agent.first).to_be_visible(timeout=AGENT_TIMEOUT_MS)
+    if not real_model:
+        expect(agent.last).to_have_text(
+            f"Assistente: Você escreveu: Vocês têm o {name}?", timeout=AGENT_TIMEOUT_MS
+        )
+
+
+def test_catalog_dialog_shows_field_errors(signed_in_page: Page) -> None:
+    page = signed_in_page
+    trigger = page.get_by_role("button", name="Catálogo")
+    trigger.click()
+    dialog = page.get_by_role("dialog", name="Cadastrar produto")
+    dialog.get_by_role("button", name="Cadastrar", exact=True).click()
+
+    name = dialog.get_by_label("Nome")
+    expect(name).to_have_attribute("aria-invalid", "true")
+    expect(name).to_be_focused()
+    expect(name).to_have_accessible_description("Escreve o nome do produto, de 2 a 120 caracteres.")
+    expect(dialog.get_by_label("Preço (R$)")).to_have_attribute("aria-invalid", "true")
+
+    # Escape closes it and focus returns to the trigger.
+    page.keyboard.press("Escape")
+    expect(dialog).to_have_count(0)
+    expect(trigger).to_be_focused()
