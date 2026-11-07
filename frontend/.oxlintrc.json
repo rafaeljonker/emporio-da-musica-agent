@@ -17,7 +17,7 @@
   "overrides": [
     {
       "files": [
-        "src/components/ui/**"
+        "src/client/shared/components/ui/**"
       ],
       "rules": {
         "react/only-export-components": "off"
