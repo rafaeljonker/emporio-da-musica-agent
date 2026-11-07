@@ -171,12 +171,12 @@ export function CatalogDialog({ onAsk, onSessionExpired }: Props) {
           onAsk(text)
         }}
       >
-        <div className="flex flex-col gap-1 border-b border-border px-5 pt-5 pr-14 pb-4">
+        <div className="flex shrink-0 flex-col gap-1 border-b border-border px-5 pt-5 pr-14 pb-4">
           <DialogTitle>{editing ? c.editTitle : c.title}</DialogTitle>
           <DialogDescription>{c.description}</DialogDescription>
         </div>
 
-        <div className="flex flex-col gap-6 px-5 py-5">
+        <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto short:flex-none short:overflow-visible px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
           {saved ? (
             <section aria-labelledby="catalog-saved" className="flex flex-col items-start gap-4 rounded-lg bg-card p-4">
               <div className="flex items-start gap-2">

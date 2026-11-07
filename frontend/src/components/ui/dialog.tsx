@@ -4,6 +4,8 @@ import { XIcon } from "lucide-react"
 import { Dialog as DialogPrimitive } from "radix-ui"
 
 // shadcn Dialog with the brand tokens: full-height sheet below md, centred card from md.
+// The content does not scroll itself: the caller gives its body `min-h-0 flex-1 overflow-y-auto`,
+// so the title and the close button stay in view (short viewports scroll the whole content).
 function Dialog(props: React.ComponentProps<typeof DialogPrimitive.Root>) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />
 }
@@ -24,7 +26,7 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "fixed inset-0 z-50 flex flex-col overflow-y-auto bg-popover text-popover-foreground animate-arrive md:inset-auto md:top-1/2 md:left-1/2 md:max-h-[min(48rem,90dvh)] md:w-[calc(100vw-2rem)] md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-lg md:border md:border-border md:shadow-xl",
+          "fixed inset-0 z-50 flex flex-col overflow-hidden short:overflow-y-auto bg-popover text-popover-foreground animate-arrive md:inset-auto md:top-1/2 md:left-1/2 md:max-h-[min(48rem,90dvh)] md:w-[calc(100vw-2rem)] md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-lg md:border md:border-border md:shadow-xl",
           className
         )}
         {...props}
