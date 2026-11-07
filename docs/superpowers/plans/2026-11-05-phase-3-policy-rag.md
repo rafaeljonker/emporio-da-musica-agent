@@ -27,7 +27,7 @@
 - pytest markers `postgres` and `eval`;
 - stdlib `tomllib` for eval data.
 
-**Spec:** `docs/superpowers/specs/2026-11-05-emporio-agent-design.md` §5 (embeddings, Railway), §7.1, §7.2, §7.3, §7.7, §7.9 (phase 3 row), §7.14. **Research and owner decisions:** `docs/research/fase-3.md`, which you must read; its "Owner decisions" section is binding.
+**Spec:** `docs/superpowers/specs/2026-11-05-emporio-agent-design.md` §5 (embeddings, Railway), §7.1, §7.2, §7.3, §7.7, §7.9 (phase 3 row), §7.14. **Research and owner decisions:** `docs/research/phase-3.md`, which you must read; its "Owner decisions" section is binding.
 
 ## Global Constraints
 - **Branch and commits:** branch `feat/policies-rag`. TDD pairs `test(<scope>): <behavior> (red)` then `feat(<scope>): <behavior>`; scopes are `policies`, `catalog`, `shared`, `db`, `ci`, `build`. Entity or config scaffolding goes in its own `chore`/`build` commit, never inside a `(red)` commit. Subject ≤ 72 chars, imperative. Every commit ends with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
@@ -317,7 +317,7 @@
   - The eval test (`eval` + `postgres`) ingests with `E5Embedder`. It prints hit@1, hit@3 and hit@5 for both `hybrid=False` and `hybrid=True`, and asserts hybrid hit@5 ≥ 0.9.
 
 - [ ] **Step 1: failing test** `test_hybrid_retrieval_hit_at_5`, with the TOML. Commit `test(policies): retrieval eval over 20 questions (red)`.
-- [ ] **Step 2:** implement `ingest.py` and the Makefile/AGENTS.md changes. Run `make db` (ingests); `make evals` passes. Paste the printed table into `docs/research/fase-3.md` § "Measured retrieval" (vector vs hybrid). Commit `feat(policies): add ingestion entry point and retrieval eval`.
+- [ ] **Step 2:** implement `ingest.py` and the Makefile/AGENTS.md changes. Run `make db` (ingests); `make evals` passes. Paste the printed table into `docs/research/phase-3.md` § "Measured retrieval" (vector vs hybrid). Commit `feat(policies): add ingestion entry point and retrieval eval`.
 - [ ] **Step 3:** if hybrid hit@5 < 0.9, stop and report the misses. Do not tune the questions to pass.
 
 ### Task 10: spec sync, PR and review

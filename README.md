@@ -93,12 +93,12 @@ Cada domínio tem `domain/` (regras puras, sem IO nem framework), `application/`
 |---|---|---|---|
 | Dados × políticas | ferramentas para dados, RAG para o manual | preço e prazo não podem ser aproximados | [0001](docs/decisions/0001-tools-vs-rag.md) |
 | Framework | LangGraph: guard → agente ⇄ ferramentas | escopo e abuso testáveis fora do prompt | [0007](docs/decisions/0007-langgraph-guard-agent.md) |
-| Modelo | Gemma 4 31B no Modal (vLLM, H100 FP8) | a voz mais humana do teste de modelos | [0002](docs/decisions/0002-gemma-no-modal.md) |
+| Modelo | Gemma 4 31B no Modal (vLLM, H100 FP8) | a voz mais humana do teste de modelos | [0002](docs/decisions/0002-gemma-on-modal.md) |
 | Modelo da demo | Gemini 3.8 Flash | sem cold start de GPU e sem queimar o crédito | [0008](docs/decisions/0008-gemini-hosted-default.md) |
-| Provedores | um factory, escolha por flag, sem fallback silencioso | trocar de modelo sem mexer no código | [0006](docs/decisions/0006-provedores-por-flag.md) |
+| Provedores | um factory, escolha por flag, sem fallback silencioso | trocar de modelo sem mexer no código | [0006](docs/decisions/0006-provider-by-flag.md) |
 | Recuperação e persistência | um Postgres com pgvector; busca híbrida (vetor + full-text) | um banco só para histórico, métricas e índice | [0003](docs/decisions/0003-postgres-pgvector.md) |
-| Embeddings | `multilingual-e5-small` em CPU, embutido na imagem | sem segundo provedor nem chave extra | [0004](docs/decisions/0004-embeddings-locais.md) |
-| Interface | chat web que simula o WhatsApp | o avaliador testa em minutos, sem conta de WhatsApp | [0005](docs/decisions/0005-canal-simulado.md) |
+| Embeddings | `multilingual-e5-small` em CPU, embutido na imagem | sem segundo provedor nem chave extra | [0004](docs/decisions/0004-local-embeddings.md) |
+| Interface | chat web que simula o WhatsApp | o avaliador testa em minutos, sem conta de WhatsApp | [0005](docs/decisions/0005-simulated-channel.md) |
 | Observabilidade | Langfuse obrigatório, com nomes mascarados | trace de toda resposta, sem vazar cliente | [0009](docs/decisions/0009-langfuse-mandatory.md) |
 | Argumentos das ferramentas | schemas Pydantic estritos | argumento errado vira erro recuperável, não preço errado | [0010](docs/decisions/0010-strict-tool-schemas.md) |
 | Prompt | persona, voz, regras de ferramenta e guard em pt-BR | regras explícitas de ferramenta pesaram mais que o tamanho do modelo | [prompts](backend/src/emporio/support/infrastructure/agent/prompts/) |

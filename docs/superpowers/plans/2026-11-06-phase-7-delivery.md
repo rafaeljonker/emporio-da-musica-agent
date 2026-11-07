@@ -36,7 +36,7 @@
 ### Task 1: ADRs 0002–0010
 
 **Files:**
-- Create: `docs/decisions/0002-gemma-no-modal.md`, `0003-postgres-pgvector.md`, `0004-embeddings-locais.md`, `0005-canal-simulado.md`, `0006-provedores-por-flag.md`, `0007-langgraph-guard-agent.md`, `0008-gemini-hosted-default.md`, `0009-langfuse-mandatory.md`, `0010-strict-tool-schemas.md`
+- Create: `docs/decisions/0002-gemma-on-modal.md`, `0003-postgres-pgvector.md`, `0004-local-embeddings.md`, `0005-simulated-channel.md`, `0006-provider-by-flag.md`, `0007-langgraph-guard-agent.md`, `0008-gemini-hosted-default.md`, `0009-langfuse-mandatory.md`, `0010-strict-tool-schemas.md`
 
 **Interfaces:**
 - Produces: these exact filenames; Task 3's decisions table links each one.
@@ -115,7 +115,7 @@ Sections, in this order (§7.8, adjusted to what was built):
 5. **Decisões técnicas:** table `decisão | escolha | por quê (1 linha) | ADR`, rows: framework, LLM/provedor, hospedagem da demo, recuperação, embeddings, persistência/histórico, interface, guarda de escopo, schemas das ferramentas, observabilidade, prompt (link to `backend/src/emporio/support/infrastructure/agent/prompts/`). Links to ADRs 0001–0010.
 6. **Como escolhi o modelo:** the spike table summary (9 models × 14 scenarios, round 1, prompt v2) + link `docs/model-selection.md`.
 7. **Voz humana:** voice guide/persona prompts, bubbles (≤ 3, `delay_ms` rule from §7.3.1, closing period dropped), AI-tell detector and what it flags (`backend/src/emporio/support/domain/ai_tells.py`).
-8. **Tratamento de dados e armadilhas:** normalization (accent/plural, difflib), each data trap found and the test that pins it (take them from `docs/research/fase-2.md` and the test names under `backend/tests/unit/`).
+8. **Tratamento de dados e armadilhas:** normalization (accent/plural, difflib), each data trap found and the test that pins it (take them from `docs/research/phase-2.md` and the test names under `backend/tests/unit/`).
 9. **Premissas:** `STORE_TODAY`, installments rule, the two phone numbers and the accented e-mail in the PDF (§7.2.2), identity by channel (never by the model), "venda final" on promotion, Campo Grande holiday 08-26 unconfirmed.
 10. **Qualidade:** tests (count from `make check` output at the time of writing), CI jobs (`.github/workflows/ci.yml`), evals table per provider with only the three committed reports and their caveats (Global Constraints).
 11. **Escala e custo:** 6–10 lines from `docs/scaling-and-cost.md` (GPU choice, cold start not met, load test 120 users 11.2 chats/s 0 failures p50 4.2 s on the fake model, R$ 0.0307 per eval case, ~R$ 0.12 per 4-turn conversation estimate, 1k/10k/100k projection) + link.

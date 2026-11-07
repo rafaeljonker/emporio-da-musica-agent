@@ -27,7 +27,7 @@
 - fastmcp 4.1, langfuse 5.2 (server v4), pydantic-settings 2.16, psycopg-pool 3.3;
 - pytest markers `postgres` and `eval`.
 
-**Spec:** `docs/superpowers/specs/2026-11-05-emporio-agent-design.md` §5, §7.2–7.6, §7.12. **Research + owner decisions (binding):** `docs/research/fase-4.md`. Also read the carried items in `.superpowers/sdd/2026-11-05-fase-3-rag-politicas/progress.md` (R6) and `.superpowers/reviews/2026-11-05-pr-4/verdict.md` rows 10–11.
+**Spec:** `docs/superpowers/specs/2026-11-05-emporio-agent-design.md` §5, §7.2–7.6, §7.12. **Research + owner decisions (binding):** `docs/research/phase-4.md`. Also read the carried items in `.superpowers/sdd/2026-11-05-phase-3-policy-rag/progress.md` (R6) and `.superpowers/reviews/2026-11-05-pr-4/verdict.md` rows 10–11.
 
 ## Global Constraints
 - **Branch and commits:** branch `feat/agent`. TDD pairs `test(<scope>): … (red)` then `feat(<scope>): …`, with scopes `support`, `catalog`, `policies`, `db`, `config`, `build`, `ci`, `evals`. Scaffolding and config go in their own `chore`/`build` commit, never in a red commit. Subject ≤ 72 chars, imperative. Every commit ends with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Never `--no-verify`, never amend, never `# noqa`. Pyright ignores are allowed only for untyped third-party calls.

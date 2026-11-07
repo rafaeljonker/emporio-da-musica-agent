@@ -23,7 +23,7 @@ These decisions were made after the plan was written and override the task inter
 
 **Tech stack:** Python 3.12 stdlib (`decimal`, `csv`, `difflib`, `unicodedata`, `zoneinfo`, `enum.StrEnum`, `dataclasses`, `typing.Protocol`), pytest, hypothesis (dev only).
 
-**Spec:** `docs/superpowers/specs/2026-11-05-emporio-agent-design.md` §7.2, §7.3, §7.6, §7.7. **Research:** `docs/research/fase-2.md`.
+**Spec:** `docs/superpowers/specs/2026-11-05-emporio-agent-design.md` §7.2, §7.3, §7.6, §7.7. **Research:** `docs/research/phase-2.md`.
 
 ## Global Constraints
 - **Branch and commits:** branch `feat/domains`. TDD pairs per behavior: `test(<ctx>): <behavior> (red)` then `feat(<ctx>): <behavior>`. Commit subject ≤ 72 chars, imperative, with the trailer `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
@@ -36,7 +36,7 @@ These decisions were made after the plan was written and override the task inter
   - statuses are `StrEnum`;
   - errors are subclasses of `emporio.shared.errors.DomainError`;
   - time comes only through `emporio.shared.clock.Clock`.
-- **Store rules** (the store policy is the source of truth; ambiguous points are recorded in `docs/research/fase-2.md` §3):
+- **Store rules** (the store policy is the source of truth; ambiguous points are recorded in `docs/research/phase-2.md` §3):
   - **PIX:** 5% off the table price, only when the product has no active promotion. Promotions never stack with PIX (policy 6.2).
   - **Promotions:** active only if `is_active == 1`. Shown as original + % + final.
   - **Installments, interest-free:** n=1 is always allowed. For n in 2..3 the minimum parcel is R$ 50.00, for 4..6 it is R$ 80.00, for 7..12 it is R$ 100.00. Max 12. The parcel is rounded half-up to cents.

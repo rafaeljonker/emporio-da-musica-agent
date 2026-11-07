@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.12, uv, ruff 0.17.3, basedpyright, pytest, import-linter 2.15, pre-commit 4.7 (pre-commit-hooks v6.0.0, ruff-pre-commit v0.17.3, gitleaks v8.30.1), GitHub Actions (setup-uv v10, gitleaks-action v3), GNU Make.
 
-**Spec:** `docs/superpowers/specs/2026-11-05-emporio-agent-design.md`, sections 7.7, 7.9, 7.10, 7.12, 7.13 and 7.14. **Research:** `docs/research/fase-0.md`.
+**Spec:** `docs/superpowers/specs/2026-11-05-emporio-agent-design.md`, sections 7.7, 7.9, 7.10, 7.12, 7.13 and 7.14. **Research:** `docs/research/phase-0.md`.
 
 ## Global Constraints
 - Repo path: repo root (`emporio-da-musica-agent/`).
@@ -34,7 +34,7 @@
 
 **Files:**
 - Create: `.gitignore`, `.env.example`, `README.md` (Portuguese stub: one sentence + "em construção, ver `docs/superpowers/specs/`")
-- Create: `docs/superpowers/specs/2026-11-05-emporio-agent-design.md`, `docs/superpowers/plans/2026-11-05-fase-0-fundacao.md` and `docs/research/fase-0.md`, created in this task (approved versions of the spec, the plan and the research)
+- Create: `docs/superpowers/specs/2026-11-05-emporio-agent-design.md`, `docs/superpowers/plans/2026-11-05-phase-0-foundation.md` and `docs/research/phase-0.md`, created in this task (approved versions of the spec, the plan and the research)
 - Create: `docs/decisions/0001-tools-vs-rag.md`. ADR in English, context, decision and consequences format, about principle 7.1 of the spec: structured data goes to a tool, text goes to RAG.
 - Create: `data/` with the 6 quarantine CSVs (original names) and `data/políticas_da_loja.pdf`, copied from `pol_ticas_da_loja.pdf`
 
@@ -107,7 +107,7 @@ The layer structure gets no test of its own: import-linter guarantees the depend
 ### Task 4: pre-commit with ruff and gitleaks
 
 **Files:**
-- Create: `.pre-commit-config.yaml` at the root, with the exact hooks and revs from `docs/research/fase-0.md` §5. The ruff hooks use `args: [--config, backend/pyproject.toml]` and `files: ^backend/`.
+- Create: `.pre-commit-config.yaml` at the root, with the exact hooks and revs from `docs/research/phase-0.md` §5. The ruff hooks use `args: [--config, backend/pyproject.toml]` and `files: ^backend/`.
 
 - [ ] **Step 1:** `cd backend && uv run pre-commit install --config ../.pre-commit-config.yaml`, followed by `uv run pre-commit run --all-files`. Expected: Passed. Fix whatever the fixers change and run again.
 - [ ] **Step 2: Prove that gitleaks blocks (red).** Create `leak_probe.txt` with a fake key in AWS format, assembled at runtime and not written in the plan. Example: `printf 'aws_secret_access_key = %s\n' "$(python3 -c "print('A'*4+'KIA'+'Q'*16)")"`; if that format does not trigger, use another default gitleaks rule. Run `git add leak_probe.txt && git commit -m probe`. Expected: the commit is blocked by the `gitleaks` hook. Then remove the file and run `git reset`.

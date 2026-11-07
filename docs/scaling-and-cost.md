@@ -2,7 +2,7 @@
 
 Phase 6 numbers: GPU sizing, cold start, the load test and the cost per conversation. Everything here was measured on 2026-11-06 unless it says **estimate**, in which case the basis is given next to it. The Modal budget for this phase was $8 of credit with no card on file, which is why some measurements were skipped (see "What was not measured").
 
-Prices: Modal list prices read on 2026-11-06 (H100 $3.95/h and L40S $1.95/h from `deploy/modal_api.py` `GPU_PRICES`; H200 $4.54/h from `docs/research/fase-6.md`), Gemini list prices from `backend/src/emporio/config.py` (`Settings.prices`), and `usd_brl` 5.50 (config default).
+Prices: Modal list prices read on 2026-11-06 (H100 $3.95/h and L40S $1.95/h from `deploy/modal_api.py` `GPU_PRICES`; H200 $4.54/h from `docs/research/phase-6.md`), Gemini list prices from `backend/src/emporio/config.py` (`Settings.prices`), and `usd_brl` 5.50 (config default).
 
 ## 1. GPU sizing
 
