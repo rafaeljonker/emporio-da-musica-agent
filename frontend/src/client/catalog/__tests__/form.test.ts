@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { copy } from '@/client/shared/lib/copy'
-import { appendQuestion, mergeById, parseSpecs, toPrice, validate, type ProductFields } from '@/client/catalog/domain/form'
+import { z } from 'zod'
+import { appendQuestion, mergeById, parseSpecs, productSchema, toPrice, type ProductFields } from '@/client/catalog/domain/form'
+
+/** The schema's verdict in the old shape: the body, or one message per field. */
+function validate(fields: ProductFields) {
+  const res = productSchema.safeParse(fields)
+  if (res.success) return { body: res.data, errors: {} }
+  const errors: Record<string, string | undefined> = Object.fromEntries(
+    Object.entries(z.flattenError(res.error).fieldErrors).map(([field, messages]) => [field, messages?.[0]]),
+  )
+  return { body: undefined, errors }
+}
 
 describe('toPrice', () => {
   it.each([
@@ -44,7 +55,7 @@ const valid: ProductFields = {
   specs: 'Cordas: aço',
 }
 
-describe('validate', () => {
+describe('productSchema', () => {
   it('flags an empty name', () => {
     const { body, errors } = validate({ ...valid, name: '  ' })
     expect(body).toBeUndefined()
