@@ -33,6 +33,9 @@ FASTEMBED_CACHE = "/models/fastembed"
 MINUTES = 60
 # What the hosted demo talks to: the Gemma GPU app (LLM_APP) or the Gemini API.
 API_PROVIDERS = ("gemma", "gemini")
+# Never on the load-test app. emporio-proxy: PROXY_SECRET, shared with the Cloudflare Worker
+# (per-IP limits). emporio-mcp: MCP_TOKENS, the bearer tokens of the remote MCP at /mcp.
+DEMO_ONLY_SECRETS = ("emporio-proxy", "emporio-mcp")
 
 LLM_APP = os.environ.get("EMPORIO_LLM_APP", "emporio-llm-h100-fp8")
 LOADTEST = os.environ.get("EMPORIO_LOADTEST", "")
@@ -121,8 +124,7 @@ if GEMMA:
 elif API_PROVIDER == "gemini" and not LOADTEST:
     web_secrets.append(modal.Secret.from_name("emporio-gemini"))
 if not LOADTEST:
-    # PROXY_SECRET, shared with the Cloudflare Worker (make deploy-proxy): per-IP login limits.
-    web_secrets.append(modal.Secret.from_name("emporio-proxy"))
+    web_secrets += [modal.Secret.from_name(name) for name in DEMO_ONLY_SECRETS]
 
 
 @app.function(
