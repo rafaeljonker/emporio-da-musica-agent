@@ -1,17 +1,20 @@
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import AbstractAsyncContextManager, asynccontextmanager, nullcontext
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from starlette.applications import Starlette
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.routing import Route
 
 from emporio.api.auth import build_auth_router
 from emporio.api.catalog import build_catalog_router
 from emporio.api.chat import build_chat_router
 from emporio.api.identity import build_identity_router
+from emporio.api.mcp_auth import McpBearerAuth
 from emporio.api.warm import build_warm_router
-from emporio.config import Settings, require_web_settings
+from emporio.config import Settings, mcp_token_identities, require_web_settings
 from emporio.support.application.ports import CatalogAdmin, ChatAgent
 from emporio.support.application.warmup import Warmup
 
@@ -23,14 +26,23 @@ def create_app(
     catalog: CatalogAdmin,
     *,
     static_dir: Path | None = None,
+    mcp: Starlette | None = None,
 ) -> FastAPI:
+    """`mcp` (the streamable HTTP app at /mcp) is served only when MCP_TOKENS is set."""
     require_web_settings(settings)
     secret = settings.session_secret.get_secret_value() if settings.session_secret else ""
+    identities = mcp_token_identities(settings)
+    mcp = mcp if identities else None
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        # A mounted app's lifespan never runs on its own: the MCP session manager starts here.
+        mcp_life: AbstractAsyncContextManager[object] = (
+            mcp.router.lifespan_context(mcp) if mcp else nullcontext()
+        )
         try:
-            yield
+            async with mcp_life:
+                yield
         finally:
             agent.close()
 
@@ -51,6 +63,9 @@ def create_app(
     app.include_router(build_catalog_router(catalog, settings))
     app.include_router(build_identity_router(agent))
     app.include_router(build_warm_router(warmup))
+    if mcp is not None:
+        # Exactly /mcp (/mcp/ is not served); routed before the static mount, which takes "/".
+        app.router.routes.append(Route("/mcp", McpBearerAuth(mcp, identities, settings)))
     # Mounted last so it never shadows /api.
     if static_dir is not None and static_dir.is_dir():
         app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")

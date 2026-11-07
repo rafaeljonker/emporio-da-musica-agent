@@ -1,4 +1,4 @@
-"""MCP server exposing the same ten tools the agent uses (stdio).
+"""MCP server exposing the same ten tools the agent uses (stdio and streamable HTTP).
 
 Tool logic is not duplicated: each MCP tool wraps the plain function in `agent.tools`.
 Identity: each call asks a context provider for its `TurnContext`: a fixed one on stdio
@@ -15,6 +15,7 @@ from collections.abc import Callable
 from functools import wraps
 
 from fastmcp import FastMCP
+from starlette.applications import Starlette
 
 from emporio.support.infrastructure.agent import tools
 from emporio.support.infrastructure.agent.context import TurnContext
@@ -57,3 +58,10 @@ def build_mcp(box: Toolbox, context: Callable[[], TurnContext]) -> FastMCP:
             _bind(fn, box, context), name=fn.__name__, description=descriptions[fn.__name__]
         )
     return server
+
+
+def build_mcp_http_app(box: Toolbox, customer_id: Callable[[], int | None]) -> Starlette:
+    """Streamable HTTP at exactly `/mcp`, stateless with JSON replies (one container, no
+    session affinity behind the Worker). `customer_id` is read on every tool call."""
+    server = build_mcp(box, lambda: TurnContext(customer_id=customer_id()))
+    return server.http_app(path="/mcp", stateless_http=True, json_response=True)

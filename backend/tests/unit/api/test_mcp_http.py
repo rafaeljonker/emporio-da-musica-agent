@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from httpx import Response
+from httpx2 import Response
 
 from emporio.api.app import create_app
 from emporio.api.mcp_auth import current_mcp_customer
@@ -101,7 +101,8 @@ def test_each_token_sees_its_own_orders(client: TestClient):
 def test_mcp_is_absent_without_tokens(tmp_path: Path):
     (tmp_path / "index.html").write_text("<h1>oi</h1>")
     with _client("", static_dir=tmp_path) as client:
-        assert _rpc(client, LIST_TOOLS, f"Bearer {ANON}").status_code == 404
+        # The static mount answers: GET 404 (a POST gets its 405).
+        assert client.get("/mcp", headers={"authorization": f"Bearer {ANON}"}).status_code == 404
 
 
 def test_api_and_static_still_work_with_mcp_mounted(tmp_path: Path):
