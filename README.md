@@ -152,7 +152,7 @@ Cada linha é uma rodada só. A rodada anterior do Gemini deu 20/22: uma diverg�
 
 - **Cold start:** a meta era 30 s e **não foi atingida**; ligar a GPU do Gemma leva cerca de 3,5 min. Por isso a demo roda no Gemini.
 - **Carga:** 120 usuários ao mesmo tempo por 2 minutos, 1.334 conversas e nenhuma falha (com o modelo de teste, medindo a nossa infraestrutura).
-- **Custo:** cerca de R$ 0,11 por conversa de 4 turnos no Gemini (estimativa pelo preço de tabela).
+- **Custo:** cerca de R$ 0,12 por conversa de 4 turnos no Gemini (estimativa pelo preço de tabela).
 - **GPU própria:** uma H100 ligada no horário da loja custa ~US$ 837/mês e passa a compensar a partir de ~42 mil conversas/mês ([contas e projeções](docs/scaling-and-cost.md)).
 
 ## Limitações e o que eu faria com mais tempo
