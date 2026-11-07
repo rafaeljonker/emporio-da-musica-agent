@@ -17,16 +17,16 @@ from emporio.shared.money import Money
 
 _COLUMNS = "p.id, p.name, p.category_id, p.description, p.specs, p.price, p.stock, p.status"
 
-# The best active promotion's final price, unrounded like the research §8 predicate.
+# The best active promotion's final price, rounded to the cent like `Money` (round(numeric)
+# is half away from zero, which is HALF_UP for prices).
 _FINAL_PRICE = (
-    "p.price * (100 - coalesce((SELECT max(x.percent) FROM promotions x"
-    " WHERE x.product_id = p.id AND x.active), 0)) / 100"
+    "round(p.price * (100 - coalesce((SELECT max(x.percent) FROM promotions x"
+    " WHERE x.product_id = p.id AND x.active), 0)) / 100, 2)"
 )
 
-# Iterative scans keep a filtered HNSW search from returning too few rows (research §6).
-_HNSW = "SET LOCAL hnsw.iterative_scan = relaxed_order; SET LOCAL hnsw.ef_search = 100"
-
-# RRF (k = 60) of full text, trigram on name and glued code, and vector. Each branch inlines
+# RRF (k = 60) of full text, trigram on name and glued code, and vector. The pool sets
+# hnsw.iterative_scan = relaxed_order, so `near` may come back slightly out of order and
+# `vec` ranks it by distance afterwards (pgvector's documented pattern). Each branch inlines
 # the filter: an `id IN (SELECT ...)` form measured ~60% slower. The tsquery is OR-ed and cast
 # once, so lexemes are stemmed once (as in pg_policy_index). `%%` is psycopg's escaped `%`.
 _SEARCH = """
@@ -47,10 +47,12 @@ trgm AS MATERIALIZED (
          OR regexp_replace(lower(f_unaccent(%(text)s)), '[^a-z0-9]', '', 'g') <%% p.code_key)
     AND {flt}
   ORDER BY r LIMIT 40),
-vec AS MATERIALIZED (
-  SELECT p.id, row_number() OVER (ORDER BY p.embedding <=> %(embedding)s, p.id) AS r
+near AS MATERIALIZED (
+  SELECT p.id, p.embedding <=> %(embedding)s AS dist
   FROM products p WHERE p.embedding IS NOT NULL AND {flt}
-  ORDER BY p.embedding <=> %(embedding)s LIMIT 40),
+  ORDER BY dist LIMIT 40),
+vec AS (
+  SELECT id, row_number() OVER (ORDER BY dist, id) AS r FROM near),
 fused AS (
   SELECT id, sum(1.0 / (60 + r)) AS score
   FROM (SELECT id, r FROM fts UNION ALL SELECT id, r FROM trgm UNION ALL SELECT id, r FROM vec) u
@@ -158,7 +160,6 @@ class PgCatalogRepository:
             "k": k,
         }
         sql = _SEARCH.format(flt=_filter(flt), columns=_COLUMNS)
-        with self._connection() as conn, conn.transaction():
-            conn.execute(_HNSW)
+        with self._connection() as conn:
             rows = conn.execute(sql, params).fetchall()
         return [_product(r) for r in rows]
