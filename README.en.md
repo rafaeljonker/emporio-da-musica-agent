@@ -83,6 +83,11 @@ The store's ten tools, for any MCP client. The identity comes from the server, n
 - **Claude Code:** `claude mcp add --transport http emporio https://emporio.fastmind.site/mcp --header "Authorization: Bearer $EMPORIO_MCP_TOKEN"`
 - **Claude Desktop:** `npx mcp-remote https://emporio.fastmind.site/mcp --header "Authorization: Bearer ${EMPORIO_MCP_TOKEN}"`, with the token in the `env` block.
 
+Running in Claude Code against the production MCP (customer 14 token):
+
+<img src="docs/img/mcp-order-status.png" alt="Claude Code calls list_my_orders on the remote MCP and answers the status of order 7" width="620">
+<img src="docs/img/mcp-product-installments.png" alt="Claude Code calls search_products and calc_installments on the remote MCP" width="620">
+
 ## Catalog in Postgres
 
 Products live in Postgres, and one query combines text, typo tolerance and meaning. In the demo, log in and open **Catálogo** (the store's back office): create a product and ask about it in the chat. The agent still only reads. The logged-in user writes, and only their own products. A product named like a store product, or with promotion claims in its text, is rejected. With 50 thousand products the search took 17 to 34 ms (median, local probes; [research](docs/research/catalog-db.md), [ADR 0011](docs/decisions/0011-catalog-in-postgres-hybrid-search.md)).

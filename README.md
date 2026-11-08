@@ -77,6 +77,11 @@ As dez ferramentas da loja, para qualquer cliente MCP. A identidade vem do servi
 - **Claude Code:** `claude mcp add --transport http emporio https://emporio.fastmind.site/mcp --header "Authorization: Bearer $EMPORIO_MCP_TOKEN"`
 - **Claude Desktop:** `npx mcp-remote https://emporio.fastmind.site/mcp --header "Authorization: Bearer ${EMPORIO_MCP_TOKEN}"`, com o token no bloco `env`.
 
+Rodando no Claude Code contra o MCP de produção (token da cliente 14):
+
+<img src="docs/img/mcp-order-status.png" alt="Claude Code chama list_my_orders no MCP remoto e responde o status do pedido 7" width="620">
+<img src="docs/img/mcp-product-installments.png" alt="Claude Code chama search_products e calc_installments no MCP remoto" width="620">
+
 ## Catálogo no Postgres
 
 Os produtos ficam no Postgres, e a busca combina texto, erro de digitação e significado numa consulta só. Na demo, entre e abra **Catálogo** (o back office da loja): cadastre um produto e pergunte por ele no chat. O agente continua só lendo; quem escreve é o usuário logado, e só nos próprios produtos. Com 50 mil produtos, a busca levou de 17 a 34 ms (mediana, testes locais; [pesquisa](docs/research/catalog-db.md), [ADR 0011](docs/decisions/0011-catalog-in-postgres-hybrid-search.md)).
