@@ -96,7 +96,11 @@ Products live in Postgres, and one query combines text, typo tolerance and meani
 
 The backend (`backend/src/emporio/`) has four domains: **catalog** (products, stock, promotions, PIX and installments), **orders** (orders, tracking, identity, exchanges and returns), **policies** (the store manual, the search over it and store hours) and **support** (the agent: persona, guard, graph, memory, tools and voice).
 
-Each domain has `domain/` (pure rules, no IO or framework), `application/` (one use case per file) and `infrastructure/` (CSV, Postgres, model providers, MCP). `import-linter` enforces this split on every `make check` ([full rules](AGENTS.md#architecture-rules)).
+Each domain has `domain/` (pure rules, no IO or framework), `application/` (one use case per file) and `infrastructure/` (CSV, Postgres, model providers, MCP). `import-linter` enforces this split on every `make check` ([full rules](AGENTS.md#architecture-rules)). Technical modules live in `emporio/platform/` and the composition roots in `emporio/entrypoints/`; where each piece of state lives is in [docs/architecture/state.md](docs/architecture/state.md).
+
+- **Errors are values:** expected failures return `Result` (`Ok`/`Err`) with one error-code enum per context; each boundary maps a code exactly once (HTTP status in `api/errors.py`, pt-BR text in the agent tools), and an unexpected error returns a generic 500 ([ADR 0013](docs/decisions/0013-domain-errors-as-values.md), [ADR 0014](docs/decisions/0014-error-mapping-at-the-boundaries.md)).
+- **Frontend:** `frontend/src/client/<domain>/{domain,ui,useCases}`; each use-case component makes one `use{Component}` view-model call and renders, the HTTP client returns `Result`, and one map turns error codes into copy ([ADR 0015](docs/decisions/0015-frontend-domain-folders-and-view-models.md)).
+- **Tests mirror the source** by context and layer (`backend/tests/<context>/{domain,application,infrastructure}`), with markers for Postgres, data files, contracts and real-model evals.
 
 ## Technical decisions
 
@@ -113,6 +117,9 @@ Each domain has `domain/` (pure rules, no IO or framework), `application/` (one 
 | Observability | Langfuse mandatory, with masked names | a trace for every answer, without leaking customers | [0009](docs/decisions/0009-langfuse-mandatory.md) |
 | Tool arguments | strict Pydantic schemas | a wrong argument becomes a recoverable error, not a wrong price | [0010](docs/decisions/0010-strict-tool-schemas.md) |
 | Catalog | Postgres with hybrid search (full-text + trigram + pgvector) | scales to tens of thousands of products, typos and meaning in one query | [0011](docs/decisions/0011-catalog-in-postgres-hybrid-search.md) |
+| Remote MCP | bearer token per identity at `/mcp` | any MCP client, identity from the server | [0012](docs/decisions/0012-remote-mcp-bearer-token.md) |
+| Errors | `Result` + error codes, one map per boundary | callers must handle failures; no message parsing | [0013](docs/decisions/0013-domain-errors-as-values.md), [0014](docs/decisions/0014-error-mapping-at-the-boundaries.md) |
+| Frontend | domain folders and view models | components only render; logic is testable with `renderHook` | [0015](docs/decisions/0015-frontend-domain-folders-and-view-models.md) |
 | Prompt | persona, voice, tool rules and guard in pt-BR | explicit tool rules mattered more than model size | [prompts](backend/src/emporio/support/infrastructure/agent/prompts/) |
 
 ## How I chose the model
