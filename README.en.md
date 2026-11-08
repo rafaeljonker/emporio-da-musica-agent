@@ -155,7 +155,7 @@ Product search in Postgres ignores accents and case and tolerates typos with tri
 
 ## Quality
 
-- **Tests:** 800 deterministic tests with no model (plus the Postgres ones, in `make test-pg`), written before the code (each behavior is a `test(...) (red)` → `feat(...)` commit pair in the history). `make check` (ruff, basedpyright, import-linter and pytest) and the secret scan also run in CI.
+- **Tests:** 837 deterministic backend tests with no model (plus the Postgres ones, in `make test-pg`) and 125 frontend tests (Vitest), written before the code (each behavior is a `test(...) (red)` → `feat(...)` commit pair in the history). `make check` (ruff, basedpyright, import-linter and pytest) and the secret scan also run in CI.
 - **Evals:** 22 golden cases running the real graph (expected tool, expected fact and voice detector); target 90% accuracy and zero AI tells. Each report carries the full transcripts for audit. A separate retrieval eval covers product search (30 cases: hit@1 0.83, hit@5 0.97).
 
 | Provider | Accuracy | AI tells | Response time (median / p95) | Note |

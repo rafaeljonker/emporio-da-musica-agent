@@ -58,6 +58,22 @@ Errors (ADRs [0013](docs/decisions/0013-domain-errors-as-values.md), [0014](docs
 
 Tests mirror the source: `backend/tests/<ctx>/<layer>/`, plus `api/`, `platform/`, `entrypoints/`, `evals/`. Builders live in `tests/<ctx>/fakes.py` (`make_box` in `tests/support/fakes.py`), API clients in `tests/api/helpers.py`, context-free fakes in `tests/fakes/`; never import another test module or a conftest. Markers (`--strict-markers`): `postgres` (`make test-pg`), `eval` (`make evals`), `files` (real `data/` files, no DB), `contract` (tool and MCP schemas); unit tests are unmarked.
 
+### Frontend
+Folder map (`frontend/src/`; ADR [0015](docs/decisions/0015-frontend-domain-folders-and-view-models.md), rule `.claude/rules/frontend-view-models.md`):
+- `app/`: bootstrap (`main.tsx`, `index.css`) and `App.tsx` + `useApp.ts` (the session).
+- `client/<domain>/` for `auth`, `catalog`, `chat`, `warmup`: `domain/` (pure TS rules, no React, no IO), `ui/` (hookless presentation, typed props), `useCases/<case>/` (`Component.tsx` beside `use{Component}.ts` and its data hooks), `__tests__/`.
+- `client/shared/`: `components/ui/` (shadcn primitives, visually untouched), `lib/` (`api.ts`, `apiTypes.ts`, `copy.ts`, `errorMessage.ts`, `session.ts`, `focus.ts`), `assets/`.
+- `shared/result.ts`: `Result<T, E> = { ok: true; data } | { ok: false; error }`. `test-support/`: Vitest setup, fixtures, fetch/SSE stubs.
+
+View-model rules (oxlint fences the hooks and the domain imports):
+- A use-case component makes exactly one hook call, `use{Component}(props)`, destructures it and renders. No `useState`/`useEffect`/`useMemo`/`useCallback`/`useForm` in its body; a JSX arrow only adapts arguments.
+- The view model returns a discriminated union (`state`), every variant declaring every field it renders.
+- Data hooks are single-purpose and return `pending | error{error} | success{data}`; no toast, navigation or session handling.
+- Effects only sync with outside systems (fetch, timers, DOM listeners, storage); side effects run in event handlers.
+- The HTTP client never throws: every endpoint returns `Result<T, ApiError>`. `errorMessage.ts` is the only place a code becomes text. A 401 outside login calls `notifySessionExpired()`; `useApp` signs out.
+- The catalog form is React Hook Form + `zodResolver(productSchema)`: the schema owns every rule and message; validation runs on submit; server codes go through `setError`.
+- Tests: `renderHook` for hooks with real behavior, fetch stubbed (never our own modules mocked); fast-check for pacing and the queue; no component tests (the e2e pins the markup).
+
 ## TDD
 Red, green, refactor. Each behavior is a pair of commits: `test(x): <behavior> (red)` then `feat(x): <behavior>`, optionally `refactor(x)`.
 

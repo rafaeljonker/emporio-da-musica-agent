@@ -1,0 +1,13 @@
+---
+paths:
+  - "frontend/src/**"
+---
+- A use-case component (`client/<domain>/useCases/<case>/Component.tsx`) makes one hook call, `use{Component}(props)`, destructures it and renders; no other hook in its body.
+- The view model returns a discriminated union on `state`; every variant declares every field the component reads, so guards narrow without `?.`.
+- `domain/` is plain TS: no React, no IO, no UI imports. `ui/` components have no hooks and take typed props, never the whole view model.
+- Data hooks do one fetch each and return `pending | error{error} | success{data}`; side effects (focus, announcements, sign-out) live in the view model's handlers.
+- `useEffect` only syncs with an outside system and says which; never derive state with effect + setState or steer effects with refs; read callbacks through `useEffectEvent`.
+- API calls return `Result<T, ApiError>`; branch on `ok` and `error.code`, never on text. Copy comes from `copy.ts`; error text only from `errorMessage.ts`.
+- Forms: React Hook Form + `zodResolver`; the schema owns rules and messages; complete `defaultValues`; server errors via `setError`; validation on submit.
+- Never change markup, classes or copy in a refactor: the e2e selectors read them.
+- Test hooks with `renderHook` and `vi.stubGlobal('fetch', ...)`; fake timers with `act(() => vi.advanceTimersByTimeAsync(ms))`; fast-check with a fixed seed.

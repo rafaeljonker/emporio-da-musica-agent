@@ -148,7 +148,7 @@ A busca de produtos no Postgres ignora acento e caixa e tolera erro de digitaç�
 
 ## Qualidade
 
-- **Testes:** 800 testes determinísticos (mais os de Postgres, em `make test-pg`), sem modelo, escritos antes do código (cada comportamento é um par de commits `test(...) (red)` → `feat(...)` no histórico). O `make check` (ruff, basedpyright, import-linter e pytest) e a varredura de segredos rodam também no CI.
+- **Testes:** 837 testes determinísticos no backend (mais os de Postgres, em `make test-pg`) e 125 no frontend (Vitest), sem modelo, escritos antes do código (cada comportamento é um par de commits `test(...) (red)` → `feat(...)` no histórico). O `make check` (ruff, basedpyright, import-linter e pytest) e a varredura de segredos rodam também no CI.
 - **Evals:** 22 casos de ouro rodando o grafo real (ferramenta esperada, fato esperado e detector de voz); meta de 90% de acerto e zero marcas de IA. Cada relatório traz as transcrições completas para auditoria.
 
 | Provedor | Acerto | Marcas de IA | Tempo de resposta (mediana / p95) | Observação |
