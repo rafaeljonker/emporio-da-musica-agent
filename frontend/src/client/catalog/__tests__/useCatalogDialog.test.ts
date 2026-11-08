@@ -92,7 +92,7 @@ describe('useCatalogDialog', () => {
     expect(plain.defaultPrevented).toBe(false)
   })
 
-  it('editing the same product again resets typed values (remounts the form)', async () => {
+  it('editing the same product again remounts the form (a new formKey)', async () => {
     const p = product()
     routes({ '/api/catalog/categories': [json(200, CATEGORIES)], '/api/catalog/products/mine': [json(200, [p])] })
     const { result } = setup()
