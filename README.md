@@ -77,6 +77,11 @@ As dez ferramentas da loja, para qualquer cliente MCP. A identidade vem do servi
 - **Claude Code:** `claude mcp add --transport http emporio https://emporio.fastmind.site/mcp --header "Authorization: Bearer $EMPORIO_MCP_TOKEN"`
 - **Claude Desktop:** `npx mcp-remote https://emporio.fastmind.site/mcp --header "Authorization: Bearer ${EMPORIO_MCP_TOKEN}"`, com o token no bloco `env`.
 
+Rodando no Claude Code contra o MCP de produção (token da cliente 14):
+
+<img src="docs/img/mcp-order-status.png" alt="Claude Code chama list_my_orders no MCP remoto e responde o status do pedido 7" width="620">
+<img src="docs/img/mcp-product-installments.png" alt="Claude Code chama search_products e calc_installments no MCP remoto" width="620">
+
 ## Catálogo no Postgres
 
 Os produtos ficam no Postgres, e a busca combina texto, erro de digitação e significado numa consulta só. Na demo, entre e abra **Catálogo** (o back office da loja): cadastre um produto e pergunte por ele no chat. O agente continua só lendo; quem escreve é o usuário logado, e só nos próprios produtos. Com 50 mil produtos, a busca levou de 17 a 34 ms (mediana, testes locais; [pesquisa](docs/research/catalog-db.md), [ADR 0011](docs/decisions/0011-catalog-in-postgres-hybrid-search.md)).
@@ -85,7 +90,11 @@ Os produtos ficam no Postgres, e a busca combina texto, erro de digitação e si
 
 O backend (`backend/src/emporio/`) tem quatro domínios: **catalog** (produtos, estoque, promoções, PIX e parcelamento), **orders** (pedidos, rastreio, identidade, troca e devolução), **policies** (o manual da loja, a busca sobre ele e o horário) e **support** (o agente: persona, guard, grafo, memória, ferramentas e voz).
 
-Cada domínio tem `domain/` (regras puras, sem IO nem framework), `application/` (um caso de uso por arquivo) e `infrastructure/` (CSV, Postgres, provedores de modelo, MCP). O `import-linter` garante essa separação em todo `make check` ([regras completas](AGENTS.md#architecture-rules)).
+Cada domínio tem `domain/` (regras puras, sem IO nem framework), `application/` (um caso de uso por arquivo) e `infrastructure/` (CSV, Postgres, provedores de modelo, MCP). O `import-linter` garante essa separação em todo `make check` ([regras completas](AGENTS.md#architecture-rules)). Módulos técnicos ficam em `emporio/platform/` e as raízes de composição em `emporio/entrypoints/`; onde vive cada estado está em [docs/architecture/state.md](docs/architecture/state.md).
+
+- **Erros como valores:** falhas esperadas devolvem `Result` (`Ok`/`Err`) com um enum de códigos por domínio; cada borda traduz o código uma vez só (status HTTP em `api/errors.py`, texto pt-BR nas ferramentas do agente), e erro inesperado vira um 500 genérico ([ADR 0013](docs/decisions/0013-domain-errors-as-values.md), [ADR 0014](docs/decisions/0014-error-mapping-at-the-boundaries.md)).
+- **Frontend:** `frontend/src/client/<domínio>/{domain,ui,useCases}`; cada componente de caso de uso chama um único view model `use{Componente}` e só desenha a tela, o cliente HTTP devolve `Result`, e um mapa só transforma código de erro em texto ([ADR 0015](docs/decisions/0015-frontend-domain-folders-and-view-models.md)).
+- **Testes espelham o código** por domínio e camada (`backend/tests/<domínio>/{domain,application,infrastructure}`), com markers para Postgres, arquivos de dados, contratos e evals com modelo real.
 
 ## Decisões técnicas
 
@@ -101,6 +110,9 @@ Cada domínio tem `domain/` (regras puras, sem IO nem framework), `application/`
 | Interface | chat web que simula o WhatsApp | o avaliador testa em minutos, sem conta de WhatsApp | [0005](docs/decisions/0005-simulated-channel.md) |
 | Observabilidade | Langfuse obrigatório, com nomes mascarados | trace de toda resposta, sem vazar cliente | [0009](docs/decisions/0009-langfuse-mandatory.md) |
 | Argumentos das ferramentas | schemas Pydantic estritos | argumento errado vira erro recuperável, não preço errado | [0010](docs/decisions/0010-strict-tool-schemas.md) |
+| MCP remoto | bearer token por identidade em `/mcp` | qualquer cliente MCP, identidade vinda do servidor | [0012](docs/decisions/0012-remote-mcp-bearer-token.md) |
+| Erros | `Result` + códigos de erro, um mapa por borda | quem chama é obrigado a tratar a falha; nada de interpretar mensagem | [0013](docs/decisions/0013-domain-errors-as-values.md), [0014](docs/decisions/0014-error-mapping-at-the-boundaries.md) |
+| Frontend | pastas por domínio e view models | componente só desenha; a lógica é testável com `renderHook` | [0015](docs/decisions/0015-frontend-domain-folders-and-view-models.md) |
 | Prompt | persona, voz, regras de ferramenta e guard em pt-BR | regras explícitas de ferramenta pesaram mais que o tamanho do modelo | [prompts](backend/src/emporio/support/infrastructure/agent/prompts/) |
 
 ## Como escolhi o modelo
