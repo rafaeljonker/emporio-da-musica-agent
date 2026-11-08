@@ -25,6 +25,9 @@ export interface CatalogDialogView {
   /** The categories or the list failed to load; null on none or a session expiry. */
   alert: string | null
   categories: Category[]
+  /** A save is in flight; it outlives the form, so a reopened dialog cannot start a second one. */
+  saving: boolean
+  onSaving: (saving: boolean) => void
   onOpenChange: (open: boolean) => void
   onCloseAutoFocus: (e: Event) => void
   retry: () => void
@@ -46,6 +49,7 @@ export function useCatalogDialog({ onAsk }: CatalogDialogProps): CatalogDialogVi
   const [editing, setEditing] = useState<Product | null>(null)
   const [formKey, setFormKey] = useState(0)
   const [saved, setSaved] = useState<Saved | null>(null)
+  const [saving, setSaving] = useState(false)
   const asking = useRef<string | null>(null)
 
   const categories = useCategories(open, load)
@@ -78,6 +82,8 @@ export function useCatalogDialog({ onAsk }: CatalogDialogProps): CatalogDialogVi
         : { state: 'ready', products: mergeById(savedRows, products.data ?? []) },
     alert: failure?.state === 'error' ? errorMessage(failure.error, 'catalogLoad') : null,
     categories: categories.data,
+    saving,
+    onSaving: setSaving,
     onOpenChange: (next) => {
       setOpen(next)
       if (!next) return

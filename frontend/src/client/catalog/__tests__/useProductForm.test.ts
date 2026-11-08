@@ -11,7 +11,7 @@ type View = ReturnType<typeof useProductForm>
 
 function setup(editing: Product | null = null) {
   const onSaved = vi.fn()
-  const hook = renderHook(() => useProductForm({ editing, onSaved }))
+  const hook = renderHook(() => useProductForm({ editing, onSaved, saving: false, onSaving: vi.fn() }))
   return { ...hook, onSaved }
 }
 const type = (view: View, field: 'name' | 'price', value: string) =>

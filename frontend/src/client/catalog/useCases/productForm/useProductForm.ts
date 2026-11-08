@@ -15,6 +15,9 @@ export interface ProductFormProps {
   /** The product "Editar" opened; null adds a new one. The form remounts (key) on each change. */
   editing: Product | null
   onSaved: (product: Product, edited: boolean) => void
+  /** Owned by the dialog: a save started before a close and reopen still blocks this form. */
+  saving: boolean
+  onSaving: (saving: boolean) => void
 }
 
 type TextField = 'name' | 'description' | 'price' | 'stock' | 'specs'
@@ -35,7 +38,7 @@ export type ProductFormView = {
  * The add/edit form. The schema owns every rule and message; errors show on submit and stay
  * while typing until the next submit. A save error lands on its field or as the form's alert.
  */
-export function useProductForm({ editing, onSaved }: ProductFormProps): ProductFormView {
+export function useProductForm({ editing, onSaved, saving, onSaving }: ProductFormProps): ProductFormView {
   const { register, control, handleSubmit, formState, getValues, setValue, setError } = useForm<
     ProductFields,
     unknown,
@@ -49,9 +52,12 @@ export function useProductForm({ editing, onSaved }: ProductFormProps): ProductF
     defaultValues: editing ? toFields(editing) : EMPTY,
   })
   const { errors: found, isSubmitting } = formState
+  const busy = isSubmitting || saving
 
   const save = async (body: ProductBody) => {
+    onSaving(true)
     const res = editing ? await updateProduct(editing.id, body) : await createProduct(body)
+    onSaving(false)
     if (res.ok) return onSaved(res.data, !!editing)
     // An expired session signs out (the app listens).
     if (res.error.code === 'unauthenticated') return
@@ -76,7 +82,7 @@ export function useProductForm({ editing, onSaved }: ProductFormProps): ProductF
     specs: found.specs?.message,
   }
   return {
-    state: isSubmitting ? 'saving' : 'editing',
+    state: busy ? 'saving' : 'editing',
     fields: {
       name: register('name'),
       description: register('description'),
@@ -103,7 +109,7 @@ export function useProductForm({ editing, onSaved }: ProductFormProps): ProductF
     alert: found.root?.server?.message ?? null,
     onSubmit: (e) => {
       // aria-disabled, not disabled: the button stays focusable, so a second submit is ignored here.
-      if (!isSubmitting) return submit(e)
+      if (!busy) return submit(e)
       e?.preventDefault()
       return Promise.resolve()
     },

@@ -18,6 +18,8 @@ export function CatalogDialog(props: CatalogDialogProps) {
     mine,
     alert,
     categories,
+    saving,
+    onSaving,
     onOpenChange,
     onCloseAutoFocus,
     retry,
@@ -58,6 +60,8 @@ export function CatalogDialog(props: CatalogDialogProps) {
               editing={editing}
               categories={categories}
               onSaved={onSaved}
+              saving={saving}
+              onSaving={onSaving}
               onCancelEdit={newProduct}
             />
           )}
