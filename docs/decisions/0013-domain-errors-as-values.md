@@ -15,6 +15,8 @@ Use cases and pure rules return `Result[T, E] = Ok[T] | Err[E]` (`shared/result.
 - Policies and support need no enum yet: their read paths have no expected failure (`Reply.failed` is already a value).
 - Pydantic argument validation stays a separate channel (422 lists, tool retry hints).
 
+- A data, config or bug error inside a tool is now unexpected: the agent gets the tool-failure text, and an MCP client gets FastMCP's masked tool error instead of "Dado inválido.".
+
 ## Alternatives
 
 - Keep exceptions with a narrower base class: callers still are not forced to handle them, and messages tempt parsing.
