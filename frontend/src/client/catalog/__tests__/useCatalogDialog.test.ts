@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useCatalogDialog } from '@/client/catalog/useCases/catalogDialog/useCatalogDialog'
+import { useProductForm } from '@/client/catalog/useCases/productForm/useProductForm'
 import { copy } from '@/client/shared/lib/copy'
 import { product } from '@/test-support/fixtures'
 import { jsonResponse } from '@/test-support/sse'
@@ -103,5 +104,39 @@ describe('useCatalogDialog', () => {
     expect(result.current.editing).toBe(p)
     expect(result.current.panel).toMatchObject({ state: 'form' })
     expect(result.current.panel).not.toEqual(first)
+  })
+  it('a save in flight survives closing and reopening the dialog', async () => {
+    const p = product()
+    let answer: (res: Response) => void = () => {}
+    routes({
+      '/api/catalog/categories': [json(200, CATEGORIES)],
+      '/api/catalog/products/mine': [json(200, [p])],
+      '/api/catalog/products/1': [() => new Promise<Response>((resolve) => (answer = resolve))],
+    })
+    const { result } = setup()
+    const puts = () => vi.mocked(fetch).mock.calls.filter(([path]) => path === '/api/catalog/products/1').length
+    // The form as the dialog mounts it: a fresh hook per formKey.
+    const form = () => {
+      const { editing, onSaved, saving, onSaving } = result.current
+      return renderHook(() => useProductForm({ editing, onSaved, saving, onSaving }))
+    }
+
+    act(() => result.current.onEdit(p))
+    const first = form()
+    act(() => void first.result.current.onSubmit())
+    await waitFor(() => expect(puts()).toBe(1))
+
+    first.unmount()
+    act(() => result.current.onOpenChange(false))
+    act(() => result.current.onOpenChange(true))
+    act(() => result.current.onEdit(p))
+    const second = form()
+    expect(second.result.current.state).toBe('saving')
+    await act(() => second.result.current.onSubmit())
+    expect(puts()).toBe(1)
+
+    await act(async () => answer(jsonResponse(200, p)))
+    await waitFor(() => expect(result.current.panel).toMatchObject({ state: 'saved' }))
+    expect(result.current.saving).toBe(false)
   })
 })
