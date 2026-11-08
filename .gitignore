@@ -30,3 +30,8 @@ backend/evals/reports/*
 
 # wrangler local state
 deploy/cloudflare/.wrangler/
+
+# Design process notes (kept local)
+.design/CLAUDE.md
+.design/projects/*/critique/
+.design/projects/*/design/shared/personas.md

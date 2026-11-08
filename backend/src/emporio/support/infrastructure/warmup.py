@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 import httpx
 
-from emporio.shared.clock import SystemClock
+from emporio.platform.clock import SystemClock
 from emporio.support.application.warmup import WarmMode, WarmStage, WarmStatus
 
 

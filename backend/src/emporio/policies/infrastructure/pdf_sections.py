@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pdfplumber  # pyright: ignore[reportMissingTypeStubs]
 
-from emporio.paths import POLICIES_PDF
+from emporio.platform.paths import POLICIES_PDF
 from emporio.policies.domain.policy_chunk import PolicyChunk
 from emporio.policies.domain.sections import clean_lines, parse_sections
 

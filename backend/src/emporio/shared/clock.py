@@ -13,14 +13,6 @@ class Clock(Protocol):
     def now(self) -> datetime: ...
 
 
-class SystemClock:
-    def today(self) -> date:
-        return self.now().date()
-
-    def now(self) -> datetime:
-        return datetime.now(STORE_TZ)
-
-
 @dataclass(frozen=True)
 class FixedClock:
     fixed: date

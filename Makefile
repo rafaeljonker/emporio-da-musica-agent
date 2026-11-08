@@ -55,10 +55,10 @@ db-test: db-up
 	docker compose exec -T db psql -U emporio -d emporio -tc "SELECT 1 FROM pg_database WHERE datname='emporio_test'" | grep -q 1 || docker compose exec -T db createdb -U emporio emporio_test
 
 migrate:
-	cd backend && uv run python -m emporio.migrate
+	cd backend && uv run python -m emporio.platform.migrate
 
 ingest:
-	cd backend && uv run python -m emporio.ingest
+	cd backend && uv run python -m emporio.entrypoints.ingest
 
 # Always local: an exported DATABASE_URL (e.g. Railway) must not be migrated by accident.
 db: db-up
@@ -148,7 +148,7 @@ web-config:
 
 # Plain http on localhost, so the session cookie is not https-only. Always the local database.
 WEB_ENV = $(WEB_PROVIDER) SESSION_HTTPS_ONLY=false DATABASE_URL=$(LOCAL_DATABASE_URL)
-SERVE = uv run uvicorn --factory emporio.web:create_web_app --port 8000
+SERVE = uv run uvicorn --factory emporio.entrypoints.web:create_web_app --port 8000
 
 up: up-preflight web-config $(WEB_LOCAL_MODEL) db langfuse-up web-build
 	cd backend && $(WEB_ENV) $(SERVE)

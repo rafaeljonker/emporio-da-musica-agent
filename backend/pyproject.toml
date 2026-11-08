@@ -28,7 +28,7 @@ dependencies = [
 ]
 
 [project.scripts]
-emporio = "emporio.cli:main"
+emporio = "emporio.entrypoints.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.12.3,<0.13.0"]
@@ -67,19 +67,22 @@ known-first-party = ["emporio", "tests", "evals"]
 # Load-test traffic picks messages at random; nothing here is security-sensitive.
 "**/loadtest/*.py" = ["S311"]
 # Runs ollama/docker from fixed argument lists; the tag comes from a fixed table.
-"**/emporio/local_model.py" = ["S603"]
+"**/emporio/platform/local_model.py" = ["S603"]
 
 [tool.basedpyright]
 typeCheckingMode = "standard"
 include = ["src", "tests", "evals"]
 strict = ["src/emporio/*/domain", "src/emporio/*/application", "src/emporio/shared"]
+reportMatchNotExhaustive = "error"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = ["--import-mode=importlib", "-m", "not eval"]
+addopts = ["--import-mode=importlib", "--strict-markers", "-m", "not eval"]
 markers = [
     "postgres: needs DATABASE_URL",
     "eval: real model, run by make evals",
+    "files: reads the real data/ CSVs or the PDF, no database",
+    "contract: tool and MCP schema contracts",
 ]
 pythonpath = ["."]
 
@@ -235,14 +238,13 @@ source_modules = [
     "emporio.policies.application", "emporio.support.application",
 ]
 forbidden_modules = [
-    "emporio.config", "emporio.paths", "emporio.db", "emporio.migrate", "emporio.embeddings", "emporio.ingest",
-    "emporio.bootstrap", "emporio.cli", "emporio.web",
+    "emporio.platform", "emporio.entrypoints",
 ]
 
 [[tool.importlinter.contracts]]
-name = "Technical modules never import a context"
+name = "Platform never imports a context"
 type = "forbidden"
-source_modules = ["emporio.db", "emporio.embeddings", "emporio.migrate"]
+source_modules = ["emporio.platform"]
 forbidden_modules = ["emporio.catalog", "emporio.orders", "emporio.policies", "emporio.support"]
 
 [[tool.importlinter.contracts]]
@@ -284,44 +286,37 @@ forbidden_modules = [
     "emporio.orders.domain", "emporio.orders.application",
     "emporio.policies.domain", "emporio.policies.application",
 ]
-# Ruling R1: only the tool serializers and tools read other contexts' types.
+# Ruling R1: only the tool serializers and tools read other contexts' types
+# (tools.base holds the use-case box; each tools module reads its own context's domain).
 ignore_imports = [
     "emporio.support.infrastructure.agent.serializers -> emporio.catalog.domain.*",
     "emporio.support.infrastructure.agent.serializers -> emporio.orders.domain.*",
     "emporio.support.infrastructure.agent.serializers -> emporio.policies.domain.*",
     "emporio.support.infrastructure.agent.serializers -> emporio.policies.application.store_now",
-    "emporio.support.infrastructure.agent.tools -> emporio.catalog.application.get_product",
-    "emporio.support.infrastructure.agent.tools -> emporio.catalog.application.list_promotions",
-    "emporio.support.infrastructure.agent.tools -> emporio.catalog.application.ports",
-    "emporio.support.infrastructure.agent.tools -> emporio.catalog.application.quote_installments",
-    "emporio.support.infrastructure.agent.tools -> emporio.catalog.application.recommend_products",
-    "emporio.support.infrastructure.agent.tools -> emporio.catalog.application.search_products",
-    "emporio.support.infrastructure.agent.tools -> emporio.catalog.domain.errors",
-    "emporio.support.infrastructure.agent.tools -> emporio.catalog.domain.installments",
-    "emporio.support.infrastructure.agent.tools -> emporio.catalog.domain.pricing",
-    "emporio.support.infrastructure.agent.tools -> emporio.catalog.domain.product",
-    "emporio.support.infrastructure.agent.tools -> emporio.catalog.domain.search",
-    "emporio.support.infrastructure.agent.tools -> emporio.orders.application.check_return_eligibility",
-    "emporio.support.infrastructure.agent.tools -> emporio.orders.application.get_order_status",
-    "emporio.support.infrastructure.agent.tools -> emporio.orders.application.list_customer_orders",
-    "emporio.support.infrastructure.agent.tools -> emporio.orders.domain.errors",
-    "emporio.support.infrastructure.agent.tools -> emporio.orders.domain.identity",
-    "emporio.support.infrastructure.agent.tools -> emporio.orders.domain.order",
-    "emporio.support.infrastructure.agent.tools -> emporio.policies.application.search_policies",
-    "emporio.support.infrastructure.agent.tools -> emporio.policies.application.store_now",
-    # The catalog admin service maps the web DTOs to catalog drafts (write path).
-    "emporio.support.infrastructure.catalog_admin -> emporio.catalog.application.*",
-    "emporio.support.infrastructure.catalog_admin -> emporio.catalog.domain.*",
+    "emporio.support.infrastructure.agent.tools.base -> emporio.catalog.application.*",
+    "emporio.support.infrastructure.agent.tools.base -> emporio.orders.application.*",
+    "emporio.support.infrastructure.agent.tools.base -> emporio.policies.application.*",
+    "emporio.support.infrastructure.agent.tools.catalog -> emporio.catalog.domain.*",
+    "emporio.support.infrastructure.agent.tools.orders -> emporio.orders.domain.*",
 ]
 
 [[tool.importlinter.contracts]]
 name = "API stays on the application layer"
 type = "forbidden"
 source_modules = ["emporio.api"]
+# Direct imports only: the application services api calls may read their own domain.
+allow_indirect_imports = true
 forbidden_modules = [
     "emporio.catalog.infrastructure", "emporio.orders.infrastructure",
     "emporio.policies.infrastructure", "emporio.support.infrastructure",
-    "emporio.bootstrap", "emporio.db", "emporio.migrate", "emporio.embeddings", "emporio.ingest",
+    "emporio.catalog.domain", "emporio.orders.domain", "emporio.policies.domain",
+    "emporio.orders.application", "emporio.policies.application",
+    "emporio.entrypoints", "emporio.platform.db", "emporio.platform.migrate",
+    "emporio.platform.embeddings", "emporio.platform.local_model",
     "langchain", "langchain_core", "langgraph", "psycopg", "psycopg_pool", "langfuse",
     "langchain_openai", "langchain_anthropic", "langchain_google_genai",
+]
+# The error-code enums are the one domain module the HTTP maps read.
+ignore_imports = [
+    "emporio.api.* -> emporio.catalog.domain.errors",
 ]

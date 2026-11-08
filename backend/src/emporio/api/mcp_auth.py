@@ -8,11 +8,11 @@ import hmac
 from contextvars import ContextVar
 
 from starlette.requests import Request
-from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
+from emporio.api.errors import ApiErrorCode, error_response
 from emporio.api.guards import SlidingWindow, client_ip
-from emporio.config import Settings
+from emporio.platform.config import Settings
 
 _customer: ContextVar[int | None] = ContextVar("mcp_customer")
 _FAILURES_PER_MINUTE = 10
@@ -46,21 +46,21 @@ class McpBearerAuth:
         ip = client_ip(request, self._settings)
         # Locked-out IP: 429 before any compare, so a hit looks like a miss.
         if self._failures.full(ip):
-            await JSONResponse({"detail": "too_many_attempts"}, 429)(scope, receive, send)
+            await error_response(ApiErrorCode.TOO_MANY_ATTEMPTS)(scope, receive, send)
             return
         match = self._match(request.headers.get("authorization", ""))
         if match is None:
             if self._failures.allow(ip):
-                reply = JSONResponse(
-                    {"detail": "invalid_token"}, 401, headers={"WWW-Authenticate": "Bearer"}
+                reply = error_response(
+                    ApiErrorCode.INVALID_TOKEN, headers={"WWW-Authenticate": "Bearer"}
                 )
             else:
-                reply = JSONResponse({"detail": "too_many_attempts"}, 429)
+                reply = error_response(ApiErrorCode.TOO_MANY_ATTEMPTS)
             await reply(scope, receive, send)
             return
         index, customer = match
         if not self._calls.allow(f"token-{index}"):
-            await JSONResponse({"detail": "rate_limited"}, 429)(scope, receive, send)
+            await error_response(ApiErrorCode.RATE_LIMITED)(scope, receive, send)
             return
         bound = _customer.set(customer)
         try:

@@ -32,18 +32,31 @@ Run from the repo root; all targets execute in `backend/`.
 ## Architecture rules
 Enforced by `import-linter` (`make imports`).
 
+Folder map (`backend/src/emporio/`):
+- `catalog/`, `orders/`, `policies/`, `support/`: bounded contexts, each `domain/`, `application/`, `infrastructure/`. The agent tools live in `support/infrastructure/agent/tools/` (one module per context plus `base`).
+- `shared/`: `Money`, the `Clock` port, `Result`, `StoreUnavailable`.
+- `api/`: the FastAPI routes and `errors.py` (code → HTTP).
+- `platform/`: technical modules: `config/` (settings, checks, MCP tokens, errors), `db`, `embeddings`, `migrate`, `paths`, `local_model`, the system clock.
+- `entrypoints/`: composition roots: `bootstrap` (the agent: use cases, tools, model, tracing), `web` (the uvicorn factory), `cli` (`emporio` command), `ingest` (PDF and catalog CSV seed into Postgres).
+- Where runtime state lives: [docs/architecture/state.md](docs/architecture/state.md).
+
 | Layer | May import |
 |---|---|
 | `*/domain` | only `shared` and stdlib. No LangChain, SQL, FastAPI or IO |
 | `*/application` | own `domain`, other `application` via ports, `shared` |
-| `*/infrastructure` | `application`, `domain` and external libs |
-| `api/` | `support.application`, `support.domain`, `shared` and `config`; never an `infrastructure`, `bootstrap`, `db` or LangChain/psycopg/Langfuse (enforced) |
-| `cli.py` | `bootstrap`, `config`, `local_model`, the `db` errors and `support.domain.channel_identity` (never an `infrastructure` module directly) |
-| `web.py` | a composition root like `bootstrap`: `api`, `bootstrap`, `config` and `paths` |
-
-`emporio.db`, `embeddings`, `migrate` are leaf technical modules usable only by infrastructure; The composition roots are `emporio.bootstrap` (the agent: wires use cases, tools, model, tracing) and `emporio.ingest` (the data: PDF and the catalog CSV seed into Postgres).
+| `*/infrastructure` | `application`, `domain`, `platform` and external libs |
+| `api/` | `support.application`, `support.domain`, `catalog.application.admin`, the `catalog.domain.errors` enum, `shared` and `platform.config`; never another `domain` or `application`, an `infrastructure`, `entrypoints`, `platform.db/migrate/embeddings` or LangChain/psycopg/Langfuse (direct imports, enforced) |
+| `platform/` | external libs and itself; never a context (enforced) |
+| `entrypoints/` | anything: they wire the contexts, `api` and `platform`; nothing imports them |
 
 Domain has no IO and no frameworks. One use case per file.
+
+Errors (ADRs [0013](docs/decisions/0013-domain-errors-as-values.md), [0014](docs/decisions/0014-error-mapping-at-the-boundaries.md), rule `.claude/rules/backend-errors.md`):
+- Expected failures return `Result` (`Ok` / `Err`) with a context's `StrEnum` code from `<ctx>/domain/errors.py`; exceptions are for the unexpected.
+- Each boundary maps a code once, exhaustively (`assert_never`): `api/errors.py` to HTTP, `agent/tools/<ctx>.py` to pt-BR text. Unexpected API errors answer 500 `{"detail": "internal_error"}`.
+- No code decides on an error message.
+
+Tests mirror the source: `backend/tests/<ctx>/<layer>/`, plus `api/`, `platform/`, `entrypoints/`, `evals/`. Builders live in `tests/<ctx>/fakes.py` (`make_box` in `tests/support/fakes.py`), API clients in `tests/api/helpers.py`, context-free fakes in `tests/fakes/`; never import another test module or a conftest. Markers (`--strict-markers`): `postgres` (`make test-pg`), `eval` (`make evals`), `files` (real `data/` files, no DB), `contract` (tool and MCP schemas); unit tests are unmarked.
 
 ## TDD
 Red, green, refactor. Each behavior is a pair of commits: `test(x): <behavior> (red)` then `feat(x): <behavior>`, optionally `refactor(x)`.
@@ -64,7 +77,7 @@ Never write keys or real values in any file. Use `.env` (git-ignored); `.env.exa
 - The agent talks to customers in Brazilian Portuguese.
 
 ## Gotchas
-- Files in `data/` have spaces and accents in their names; never hardcode them, use `emporio.paths`.
+- Files in `data/` have spaces and accents in their names; never hardcode them, use `emporio.platform.paths`.
 - `DATABASE_URL` is the only DB setting. `make db`, `make test-pg`, `make evals`, `make chat` and `make mcp` set their own URL; `make test`/`make check` ignore any exported `DATABASE_URL`; Postgres tests only run against a database whose name ends in `_test`.
 - First use of the e5 embedder downloads about 470 MB (fastembed cache); `make db` and `make evals` need it.
 - Langfuse is mandatory: `make chat` and `make evals` fail at startup without its keys, and first run `emporio check-config` so a missing provider key fails in seconds, before Docker starts. The `observability` profile needs about 2.3 GB RAM; the first `make langfuse-up` pulls images (about 7 min).

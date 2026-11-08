@@ -11,8 +11,8 @@ from psycopg_pool import ConnectionPool, PoolTimeout
 from emporio.catalog.application.ports import CatalogFilter
 from emporio.catalog.domain.pricing import Promotion
 from emporio.catalog.domain.product import Category, Product, ProductStatus
-from emporio.db import IndexUnavailable
-from emporio.embeddings import TextEmbedder
+from emporio.platform.embeddings import TextEmbedder
+from emporio.shared.errors import StoreUnavailable
 from emporio.shared.money import Money
 
 COLUMNS = "p.id, p.name, p.category_id, p.description, p.specs, p.price, p.stock, p.status"
@@ -104,12 +104,12 @@ def product_from_row(
 
 @contextmanager
 def catalog_connection(pool: ConnectionPool) -> Iterator[psycopg.Connection]:
-    """A pooled connection; an unreachable database surfaces as `IndexUnavailable`."""
+    """A pooled connection; an unreachable database surfaces as `StoreUnavailable`."""
     try:
         with pool.connection() as conn:
             yield conn
     except (psycopg.OperationalError, PoolTimeout) as err:
-        raise IndexUnavailable from err
+        raise StoreUnavailable from err
 
 
 class PgCatalogRepository:

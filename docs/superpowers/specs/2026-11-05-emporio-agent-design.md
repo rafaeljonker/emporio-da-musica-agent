@@ -15,7 +15,7 @@
 > Status: approved and implemented (phases 0–7). Each phase's decisions are recorded in §7.2.1–7.2.5; measured numbers live in `docs/scaling-and-cost.md`.
 
 ## 1. Intent and why
-Artefact sent the written case, the 1st of 5 stages of the **AI Engineer – Full-Stack for Generative AI Applications** process, due **Mon 09/11/2026 23:59**.
+The written case for the **AI Engineer – Full-Stack for Generative AI Applications** role is due **Mon 09/11/2026 23:59**.
 The statement asks for a support agent in **Python** (mandatory constraint) for a fictional instrument store. The deliverable is:
 - a public GitHub repo, with a real commit history;
 - a README with decisions, assumptions, limitations and AI usage;
@@ -147,7 +147,7 @@ The agent's tools are a thin layer in `support/` that calls the use cases. A rul
 - **Identity:** an unknown order and a wrong e-mail/phone return the same error, so the agent never reveals which order numbers exist.
 
 ### 7.2.2 Phase 3 rulings
-- **Policy retrieval is hybrid** (owner decision): pgvector cosine + Postgres full-text (`portuguese`, over an immutable `f_unaccent`), fused with RRF `1/(60 + rank)`, k = 5. On a 20-question eval it scored hit@1/3/5 = 0.75/0.95/1.00 against 0.65/0.80/0.90 for vector only (`backend/evals/policies_retrieval.toml`, caveats in `docs/research/fase-3.md`). Hit@1 is 0.75, so the agent reads all five hits.
+- **Policy retrieval is hybrid** (owner decision): pgvector cosine + Postgres full-text (`portuguese`, over an immutable `f_unaccent`), fused with RRF `1/(60 + rank)`, k = 5. On a 20-question eval it scored hit@1/3/5 = 0.75/0.95/1.00 against 0.65/0.80/0.90 for vector only (`backend/evals/policies_retrieval.toml`, caveats in `docs/research/phase-3.md`). Hit@1 is 0.75, so the agent reads all five hits.
 - **Full-text query** is built as `replace(plainto_tsquery('portuguese', f_unaccent(q))::text, ' & ', ' | ')::tsquery`, so lexemes are stemmed once. The Portuguese stemmer splits singular and plural ("violão" → `viola`, "violões" → `violo`); the vector side covers those.
 - **Embeddings:** fastembed with `intfloat/multilingual-e5-small` ONNX (384 dims, `query:`/`passage:` prefixes), no torch. Lives in `emporio/embeddings.py`, usable only by infrastructure. The model revision is pinned when the phase 6 image bakes the model.
 - **Products:** `recommend_products` asks the vector index for 10 ids and filters availability after retrieval (never in SQL), returning at most `limit` (default 5) Candidates. **Superseded by §7.2.6** (the catalog is in Postgres and availability is filtered in SQL).
@@ -353,8 +353,8 @@ emporio-da-musica-agent/
 ├── data/                          # original CSVs + PDF, read-only
 ├── docs/
 │   ├── architecture.md            # diagrams (mermaid) and dependency rule
-│   ├── decisions/                 # short ADRs: 0001-tools-vs-rag, 0002-gemma-no-modal, 0003-postgres-pgvector,
-│   │                              #   0004-embeddings-locais, 0005-canal-simulado, 0006-provedores-por-flag
+│   ├── decisions/                 # short ADRs: 0001-tools-vs-rag, 0002-gemma-on-modal, 0003-postgres-pgvector,
+│   │                              #   0004-local-embeddings, 0005-simulated-channel, 0006-provider-by-flag
 │   ├── model-selection.md         # the spike: 9 models, prompt v1→v2, Modal vs NVIDIA
 │   ├── scaling-and-cost.md        # GPU, cold start before/after, load, cost projection
 │   └── superpowers/specs/         # this spec

@@ -1,7 +1,6 @@
 from datetime import date, datetime, time, timedelta
 
 from emporio.shared.clock import STORE_TZ
-from emporio.shared.errors import DomainError
 
 # Policy section 2. Opening inclusive, closing exclusive. Keys are date.weekday().
 WEEKLY_HOURS: dict[int, tuple[time, time] | None] = {
@@ -16,14 +15,14 @@ WEEKLY_HOURS: dict[int, tuple[time, time] | None] = {
 MAX_LOOKAHEAD_DAYS = 14
 
 
-class NaiveDatetimeError(DomainError):
+class NaiveDatetimeError(Exception):
     """A timezone-naive datetime was passed where an aware one is required."""
 
     def __init__(self) -> None:
         super().__init__("now must be timezone-aware")
 
 
-class NoOpeningFound(DomainError):
+class NoOpeningFound(Exception):
     """No opening within the lookahead window."""
 
     def __init__(self, since: datetime) -> None:

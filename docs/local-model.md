@@ -7,7 +7,7 @@ Routes:
 - **NVIDIA GPU:** Ollama in Docker with the GPU, when `nvidia-smi` works and Docker lists the `nvidia` runtime.
 - **Anything else:** Ollama in Docker on the CPU.
 
-The table follows `choose_local_model` in [`backend/src/emporio/local_model.py`](../backend/src/emporio/local_model.py). Memory is system RAM.
+The table follows `choose_local_model` in [`backend/src/emporio/platform/local_model.py`](../backend/src/emporio/platform/local_model.py). Memory is system RAM.
 
 | Machine | Model | Download | Time per reply (estimate) |
 |---|---|---|---|

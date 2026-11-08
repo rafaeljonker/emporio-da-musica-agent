@@ -11,11 +11,18 @@ from starlette.routing import Route
 from emporio.api.auth import build_auth_router
 from emporio.api.catalog import build_catalog_router
 from emporio.api.chat import build_chat_router
+from emporio.api.errors import unexpected_error
 from emporio.api.identity import build_identity_router
 from emporio.api.mcp_auth import McpBearerAuth
 from emporio.api.warm import build_warm_router
-from emporio.config import Settings, mcp_token_identities, require_web_settings
-from emporio.support.application.ports import CatalogAdmin, ChatAgent
+from emporio.catalog.application.admin import CatalogAdmin
+from emporio.platform.config import (
+    Settings,
+    mcp_token_identities,
+    require_web_settings,
+    secret_text,
+)
+from emporio.support.application.ports import ChatAgent
 from emporio.support.application.warmup import Warmup
 
 
@@ -30,7 +37,7 @@ def create_app(
 ) -> FastAPI:
     """`mcp` (the streamable HTTP app at /mcp) is served only when MCP_TOKENS is set."""
     require_web_settings(settings)
-    secret = settings.session_secret.get_secret_value() if settings.session_secret else ""
+    secret = secret_text(settings.session_secret)
     identities = mcp_token_identities(settings)
     mcp = mcp if identities else None
 
@@ -47,6 +54,7 @@ def create_app(
             agent.close()
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+    app.add_exception_handler(Exception, unexpected_error)
     # ponytail: stateless signed cookie, so logout cannot revoke a copied cookie. Starlette re-sets
     # the cookie only when the session changes, so max_age runs from login or the last customer
     # switch (it does not slide); upgrade = server-side sid denylist or an absolute issued_at check.

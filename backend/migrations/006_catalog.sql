@@ -1,4 +1,4 @@
--- The catalog moves from the CSVs into Postgres; the CSVs only seed it (`emporio.ingest`).
+-- The catalog moves from the CSVs into Postgres; the CSVs only seed it (`emporio.entrypoints.ingest`).
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 CREATE TABLE IF NOT EXISTS categories (

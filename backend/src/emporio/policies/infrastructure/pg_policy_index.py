@@ -4,9 +4,9 @@ import psycopg
 from pgvector import Vector
 from psycopg_pool import ConnectionPool, PoolTimeout
 
-from emporio.db import IndexUnavailable
-from emporio.embeddings import TextEmbedder
+from emporio.platform.embeddings import TextEmbedder
 from emporio.policies.domain.policy_chunk import PolicyChunk, PolicyHit
+from emporio.shared.errors import StoreUnavailable
 
 _VECTOR_ONLY = """
 SELECT c.section_id, c.title, c.parent_title, c.body, 1 - (c.embedding <=> %(q)s) AS score
@@ -64,7 +64,7 @@ class PgPolicyIndex:
             with self._pool.connection() as conn:
                 rows = conn.execute(sql, params).fetchall()
         except (psycopg.OperationalError, PoolTimeout) as err:
-            raise IndexUnavailable from err
+            raise StoreUnavailable from err
         return [PolicyHit(PolicyChunk(r[0], r[1], r[2], r[3]), float(r[4])) for r in rows]
 
     def replace_all(self, chunks: Sequence[PolicyChunk]) -> None:
@@ -82,4 +82,4 @@ class PgPolicyIndex:
                     rows,
                 )
         except (psycopg.OperationalError, PoolTimeout) as err:
-            raise IndexUnavailable from err
+            raise StoreUnavailable from err

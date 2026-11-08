@@ -99,12 +99,12 @@ Each domain has `domain/` (pure rules, no IO or framework), `application/` (one 
 |---|---|---|---|
 | Data vs policies | tools for data, RAG for the manual | price and deadlines cannot be approximate | [0001](docs/decisions/0001-tools-vs-rag.md) |
 | Framework | LangGraph: guard → agent ⇄ tools | scope and abuse are testable outside the prompt | [0007](docs/decisions/0007-langgraph-guard-agent.md) |
-| Model | Gemma 4 31B on Modal (vLLM, H100 FP8) | the most human voice in the model comparison | [0002](docs/decisions/0002-gemma-no-modal.md) |
+| Model | Gemma 4 31B on Modal (vLLM, H100 FP8) | the most human voice in the model comparison | [0002](docs/decisions/0002-gemma-on-modal.md) |
 | Demo model | Gemini 3.8 Flash | no GPU cold start and no burnt credit | [0008](docs/decisions/0008-gemini-hosted-default.md) |
-| Providers | one factory, chosen by flag, no silent fallback | switch models without touching code | [0006](docs/decisions/0006-provedores-por-flag.md) |
+| Providers | one factory, chosen by flag, no silent fallback | switch models without touching code | [0006](docs/decisions/0006-provider-by-flag.md) |
 | Retrieval and persistence | one Postgres with pgvector; hybrid search (vector + full-text) | one database for history, metrics and index | [0003](docs/decisions/0003-postgres-pgvector.md) |
-| Embeddings | `multilingual-e5-small` on CPU, baked into the image | no second provider or extra key | [0004](docs/decisions/0004-embeddings-locais.md) |
-| Interface | web chat that simulates WhatsApp | the evaluator tests in minutes, with no WhatsApp account | [0005](docs/decisions/0005-canal-simulado.md) |
+| Embeddings | `multilingual-e5-small` on CPU, baked into the image | no second provider or extra key | [0004](docs/decisions/0004-local-embeddings.md) |
+| Interface | web chat that simulates WhatsApp | the evaluator tests in minutes, with no WhatsApp account | [0005](docs/decisions/0005-simulated-channel.md) |
 | Observability | Langfuse mandatory, with masked names | a trace for every answer, without leaking customers | [0009](docs/decisions/0009-langfuse-mandatory.md) |
 | Tool arguments | strict Pydantic schemas | a wrong argument becomes a recoverable error, not a wrong price | [0010](docs/decisions/0010-strict-tool-schemas.md) |
 | Catalog | Postgres with hybrid search (full-text + trigram + pgvector) | scales to tens of thousands of products, typos and meaning in one query | [0011](docs/decisions/0011-catalog-in-postgres-hybrid-search.md) |

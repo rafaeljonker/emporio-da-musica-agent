@@ -5,7 +5,7 @@ Date: 2026-11-07. Delivery is 2026-11-09 23:59, so everything below is sized for
 ## 0. What exists today
 - `CsvCatalogRepository` loads the 65 products, 9 categories and 24 promotions once per process (`cached_property`). Every use case scans the full tuple: `GetProduct` (linear `next(...)`), `ListPromotions`, `SearchProducts` (filters the price ceiling in Python, then calls the pure `domain/search.py`), and `tools.py` (`_categories`, `_product_names` iterate every product on every call).
 - `domain/search.py` is a 208-line stdlib grader (difflib, prefix and glued model codes, category typos) with 36 unit tests. It returns `Exact | Candidates | NoMatch`; the serializer caps Candidates at 8. It is precise on names and model codes but has no notion of meaning.
-- `recommend_products` asks `PgProductIndex` (table `product_embeddings`, e5-small, HNSW) for 10 ids and filters availability in Python, because of the phase 3 rule "never filter in the vector SQL" (sparse HNSW results, `fase-3.md` §3).
+- `recommend_products` asks `PgProductIndex` (table `product_embeddings`, e5-small, HNSW) for 10 ids and filters availability in Python, because of the phase 3 rule "never filter in the vector SQL" (sparse HNSW results, `phase-3.md` §3).
 - Policies already run the hybrid pattern we want to reuse: FTS `portuguese` over the immutable `f_unaccent`, OR-ed `plainto_tsquery` cast once (stem-once fix), RRF with k = 60 (`pg_policy_index.py`).
 - Spec: §7.1 "structured data uses a deterministic tool; text uses RAG"; §3 non-goal "the agent reads and does not change orders or stock".
 

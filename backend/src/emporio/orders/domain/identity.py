@@ -1,12 +1,4 @@
 from emporio.orders.domain.order import Customer
-from emporio.shared.errors import DomainError
-
-
-class IdentityMismatch(DomainError):
-    """The caller is not the customer who owns the order."""
-
-    def __init__(self) -> None:
-        super().__init__("identity does not match the order's customer")
 
 
 def normalize_phone(raw: str) -> str:

@@ -1,9 +1,10 @@
 import secrets
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
+from emporio.api.errors import ApiErrorCode, http_error
 from emporio.api.guards import Session, SlidingWindow, require_json, require_session
 from emporio.support.application.ports import ChatAgent
 
@@ -27,9 +28,9 @@ def build_identity_router(agent: ChatAgent) -> APIRouter:
         body: IdentityIn, request: Request, _: Annotated[Session, Depends(require_session)]
     ) -> dict[str, int | None]:
         if not switches.allow(str(request.session.get("lid", ""))):
-            raise HTTPException(status_code=429, detail="too_many_switches")
+            raise http_error(ApiErrorCode.TOO_MANY_SWITCHES)
         if body.customer_id not in {None, *(c.id for c in agent.demo_customers)}:
-            raise HTTPException(status_code=404, detail="unknown_customer")
+            raise http_error(ApiErrorCode.UNKNOWN_CUSTOMER)
         # A new sid starts a new thread, so the previous customer's history is never reused.
         request.session.update({"sid": secrets.token_urlsafe(16), "customer_id": body.customer_id})
         return {"customer_id": body.customer_id}

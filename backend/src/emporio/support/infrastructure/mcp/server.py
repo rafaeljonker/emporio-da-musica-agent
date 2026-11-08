@@ -1,6 +1,6 @@
 """MCP server exposing the same ten tools the agent uses (stdio and streamable HTTP).
 
-Tool logic is not duplicated: each MCP tool wraps the plain function in `agent.tools`.
+Tool logic is not duplicated: each MCP tool wraps a plain function in `agent.tools.PLAIN`.
 Identity: each call asks a context provider for its `TurnContext`: a fixed one on stdio
 (`EMPORIO_MCP_CUSTOMER_ID`), the bearer token's identity on HTTP. The wrapper signature
 drops `box`/`ctx`, so no identity reaches the schema.
@@ -21,19 +21,6 @@ from emporio.support.infrastructure.agent import tools
 from emporio.support.infrastructure.agent.context import TurnContext
 from emporio.support.infrastructure.agent.tools import Toolbox, ToolOutput
 
-_PLAIN = (
-    tools.search_products,
-    tools.recommend_products,
-    tools.get_product,
-    tools.list_active_promotions,
-    tools.calc_installments,
-    tools.list_my_orders,
-    tools.get_order_status,
-    tools.check_return_eligibility,
-    tools.store_now,
-    tools.search_policies,
-)
-
 
 def _bind(
     fn: Callable[..., ToolOutput], box: Toolbox, context: Callable[[], TurnContext]
@@ -53,7 +40,7 @@ def _bind(
 def build_mcp(box: Toolbox, context: Callable[[], TurnContext]) -> FastMCP:
     server = FastMCP("emporio-da-musica", mask_error_details=True)
     descriptions = {t.name: t.description for t in tools.build_tools(box)}
-    for fn in _PLAIN:
+    for fn in tools.PLAIN:
         server.tool(
             _bind(fn, box, context), name=fn.__name__, description=descriptions[fn.__name__]
         )
