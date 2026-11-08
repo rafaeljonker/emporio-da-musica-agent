@@ -121,7 +121,3 @@ export function mergeById<T extends { id: number }>(local: T[], server: T[]): T[
   const seen = new Set(local.map((p) => p.id))
   return [...local, ...server.filter((p) => !seen.has(p.id))]
 }
-
-/** "Perguntar ao assistente" never discards a draft: the question goes on a new line after it. */
-export const appendQuestion = (draft: string, question: string) =>
-  draft.trim() ? `${draft.trimEnd()}\n${question}` : question

@@ -53,11 +53,7 @@
         "src/client/*/useCases/**/*.tsx"
       ],
       "excludeFiles": [
-        "src/client/shared/components/ui/**",
-        "src/client/chat/useCases/chatShell/ChatShell.tsx",
-        "src/client/chat/useCases/demoStrip/DemoStrip.tsx",
-        "src/client/chat/useCases/metricsDetails/MetricsDetails.tsx",
-        "src/client/chat/useCases/transcript/Transcript.tsx"
+        "src/client/shared/components/ui/**"
       ],
       "rules": {
         "no-restricted-imports": [

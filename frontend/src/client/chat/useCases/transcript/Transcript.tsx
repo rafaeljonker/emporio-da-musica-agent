@@ -1,14 +1,13 @@
 import { Clock } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
 import avatar from '@/client/shared/assets/avatar.jpg'
 import { Button } from '@/client/shared/components/ui/button'
 import { copy } from '@/client/shared/lib/copy'
 import { cn } from '@/client/shared/lib/utils'
 import { TypingIndicator } from '@/client/chat/ui/TypingIndicator'
-import { isExchange, type Entry } from '@/client/chat/useCases/chatShell/useChatStream'
+import { isExchange } from '@/client/chat/domain/entries'
+import { useTranscript, type TranscriptProps } from './useTranscript'
 
 const time = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' })
-const NEAR_BOTTOM_PX = 80
 
 const bubble = 'max-w-[80%] rounded-2xl px-4 py-2.5 text-base whitespace-pre-line [overflow-wrap:anywhere] animate-arrive'
 
@@ -16,56 +15,21 @@ function Stamp({ at, className }: { at: Date; className?: string }) {
   return <p className={cn('text-[0.8125rem] text-muted-foreground tnum', className)}>{time.format(at)}</p>
 }
 
-interface Props {
-  entries: Entry[]
-  /** Lines typed during warm-up, shown as one pending group until the model is ready. */
-  queued?: string[]
-  /** A reply is being generated: dots after the last bubble. */
-  typing: boolean
-  onUndo: () => void
-  onResend: (id: string) => void
-}
-
 /** role="log": bubbles enter the DOM only when complete, so each is announced once. */
-export function Transcript({ entries, queued, typing, onUndo, onResend }: Props) {
-  const ref = useRef<HTMLDivElement>(null)
-  const contentKey = `${entries.map((e) => (isExchange(e) ? `${e.turn.bubbles.length}${e.turn.status}${e.retried}` : '-')).join()}:${queued?.length}:${typing}`
-
-  // Follow new content only when the reader is already near the bottom; otherwise offer the pill.
-  // Sending a message always follows: the reader's own bubble must not land off screen.
-  // Focus never moves.
-  const nearBottom = useRef(true)
-  const sentLines = useRef(0)
-  const [unseen, setUnseen] = useState(false)
-  const userLines = entries.filter((e) => isExchange(e) && !e.resend).length + (queued?.length ?? 0)
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    if (userLines > sentLines.current) nearBottom.current = true
-    sentLines.current = userLines
-    if (nearBottom.current) el.scrollTop = el.scrollHeight
-    else setUnseen(true)
-  }, [contentKey, userLines])
-
-  const resend = (id: string) => {
-    onResend(id)
-    document.getElementById('composer-input')?.focus()
-  }
+export function Transcript(props: TranscriptProps) {
+  const { state, logRef, onScroll, jumpToBottom, resend } = useTranscript(props)
+  const { entries, queued, typing, onUndo } = props
 
   return (
     <div className={cn('relative flex flex-1 flex-col', entries.length || queued ? 'min-h-48' : 'min-h-0')}>
       <div
-        ref={ref}
+        ref={logRef}
         id="chat-log"
         role="log"
         aria-label={copy.chat.logLabel}
         aria-relevant="additions"
         tabIndex={0}
-        onScroll={(e) => {
-          const el = e.currentTarget
-          nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX
-          if (nearBottom.current) setUnseen(false)
-        }}
+        onScroll={onScroll}
         // An empty log needs no 12rem floor (set on the wrapper): during warm-up the panel gets that room.
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain focus-visible:-outline-offset-2"
       >
@@ -155,16 +119,10 @@ export function Transcript({ entries, queued, typing, onUndo, onResend }: Props)
           {typing && <TypingIndicator />}
         </div>
       </div>
-      {unseen && (
+      {state === 'unseen' && (
         <Button
           variant="secondary"
-          onClick={() => {
-            const el = ref.current
-            if (el) el.scrollTop = el.scrollHeight
-            setUnseen(false)
-            // The pill unmounts on click; focus goes to the composer, not the body.
-            document.getElementById('composer-input')?.focus()
-          }}
+          onClick={jumpToBottom}
           className="absolute bottom-2 left-1/2 -translate-x-1/2 shadow-md"
         >
           {copy.chat.newMessages}

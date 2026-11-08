@@ -1,4 +1,5 @@
 import { Send } from 'lucide-react'
+import { canSend } from '@/client/chat/domain/composer'
 import type { FormEvent, KeyboardEvent } from 'react'
 import { Button } from '@/client/shared/components/ui/button'
 import { Textarea } from '@/client/shared/components/ui/textarea'
@@ -16,7 +17,7 @@ interface Props {
 }
 
 export function Composer({ busy, onSend, text, setText, placeholder }: Props) {
-  const blocked = busy || text.trim() === ''
+  const blocked = !canSend(busy, text)
 
   // Send keeps focus wherever the user activated it: aria-disabled, never disabled.
   const submit = (e?: FormEvent) => {

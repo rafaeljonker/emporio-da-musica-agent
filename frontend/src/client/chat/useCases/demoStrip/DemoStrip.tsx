@@ -1,20 +1,10 @@
 import { FlaskConical } from 'lucide-react'
-import { useEffect, useState, type ReactNode } from 'react'
-import { customers as fetchCustomers, setIdentity } from '@/client/shared/lib/api'
-import type { DemoCustomer } from '@/client/shared/lib/apiTypes'
 import { Label } from '@/client/shared/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/client/shared/components/ui/select'
 import { copy } from '@/client/shared/lib/copy'
+import { ANON, useDemoStrip, type DemoStripProps } from './useDemoStrip'
 
-const ANON = 'anon'
 const TRIGGER_ID = 'conversar-como'
-
-interface Props {
-  customerId: number | null
-  /** After PUT /api/identity succeeded (the server rotated the session): the shell adds the divider. */
-  onSwitched: (customerId: number | null, divider: string) => void
-  children: ReactNode
-}
 
 function Item({ value, name, note }: { value: string; name: string; note: string }) {
   return (
@@ -35,19 +25,8 @@ function Item({ value, name, note }: { value: string; name: string; note: string
 }
 
 /** `<aside aria-label="Demonstração">`: demo tools kept apart from store content. Children: the Métricas toggle and the Catálogo dialog. */
-export function DemoStrip({ customerId, onSwitched, children }: Props) {
-  const [list, setList] = useState<DemoCustomer[]>([])
-  useEffect(() => {
-    void fetchCustomers().then((res) => res.ok && setList(res.data))
-  }, [])
-
-  // Selection follows the server: it changes only after the PUT succeeds. Focus never moves (SC 3.2.2).
-  const change = async (value: string) => {
-    const id = value === ANON ? null : Number(value)
-    if (!(await setIdentity(id)).ok) return
-    const name = list.find((c) => c.id === id)?.name.split(' ')[0]
-    onSwitched(id, name ? copy.demo.nowAs(name) : copy.demo.nowAnonymous)
-  }
+export function DemoStrip(props: DemoStripProps) {
+  const { customers, value, change } = useDemoStrip(props)
 
   return (
     <aside aria-label={copy.demo.tag} className="border-b border-border bg-background">
@@ -59,7 +38,7 @@ export function DemoStrip({ customerId, onSwitched, children }: Props) {
         <Label htmlFor={TRIGGER_ID} className="text-sm text-muted-foreground">
           {copy.demo.selectorLabel}
         </Label>
-        <Select value={customerId === null ? ANON : String(customerId)} onValueChange={change}>
+        <Select value={value} onValueChange={change}>
           <SelectTrigger
             id={TRIGGER_ID}
             className="h-11 max-w-80 min-w-48 flex-[1_1_12rem] rounded-md bg-popover px-3 text-base text-foreground focus-visible:border-input focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring data-[size=default]:h-11 [&_[data-note]]:hidden"
@@ -68,12 +47,11 @@ export function DemoStrip({ customerId, onSwitched, children }: Props) {
           </SelectTrigger>
           <SelectContent position="popper" className="rounded-lg border border-border shadow-md ring-0">
             <Item value={ANON} name={copy.demo.anonymous} note={copy.demo.anonymousNote} />
-            {list.map((c) => (
-              <Item key={c.id} value={String(c.id)} name={c.name} note={c.city} />
-            ))}
+            {customers.state === 'ready' &&
+              customers.list.map((c) => <Item key={c.id} value={String(c.id)} name={c.name} note={c.city} />)}
           </SelectContent>
         </Select>
-        {children}
+        {props.children}
       </div>
     </aside>
   )

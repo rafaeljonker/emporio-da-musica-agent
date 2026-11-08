@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { copy } from '@/client/shared/lib/copy'
 import { z } from 'zod'
 import type { ProductBody } from '@/client/shared/lib/apiTypes'
-import { appendQuestion, mergeById, parseSpecs, productSchema, toPrice, type ProductFields } from '@/client/catalog/domain/form'
+import { mergeById, parseSpecs, productSchema, toPrice, type ProductFields } from '@/client/catalog/domain/form'
 
 /** The schema's verdict in the old shape: the body, or one message per field. */
 function validate(fields: ProductFields): { body?: ProductBody; errors: Record<string, string | undefined> } {
@@ -103,10 +103,4 @@ describe('mergeById', () => {
     expect(mergeById(local, [row(2), row(1, 'stale')])).toEqual([row(3, 'just saved'), row(1, 'edited'), row(2)])
   })
   it('takes the server list when nothing is on screen', () => expect(mergeById([], [row(2), row(1)])).toEqual([row(2), row(1)]))
-})
-
-describe('appendQuestion', () => {
-  it('fills an empty composer', () => expect(appendQuestion('  ', 'Vocês têm?')).toBe('Vocês têm?'))
-  it('keeps a draft and adds the question on a new line', () =>
-    expect(appendQuestion('Oi, tudo bem?', 'Vocês têm?')).toBe('Oi, tudo bem?\nVocês têm?'))
 })
