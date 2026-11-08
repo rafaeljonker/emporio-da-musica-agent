@@ -40,6 +40,14 @@
               {
                 "regex": "^@/client/(.*/)?(ui|useCases|components)/",
                 "message": "domain/ must not import UI"
+              },
+              {
+                "regex": "^\\.\\.?/(.*/)?(ui|useCases|components)/",
+                "message": "domain/ must not import UI"
+              },
+              {
+                "regex": "^(@/client/|\\.\\.?/(.*/)?)shared/lib/(api|session|focus)$",
+                "message": "domain/ is plain TS: no IO (HTTP, session, DOM)"
               }
             ]
           }
