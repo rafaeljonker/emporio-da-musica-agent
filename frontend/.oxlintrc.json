@@ -17,10 +17,92 @@
   "overrides": [
     {
       "files": [
-        "src/components/ui/**"
+        "src/client/shared/components/ui/**"
       ],
       "rules": {
         "react/only-export-components": "off"
+      }
+    },
+    {
+      "files": [
+        "src/client/*/domain/**",
+        "src/shared/**"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "regex": "^(react|react-dom|react-hook-form|@hookform/.*|radix-ui|lucide-react)(/.*)?$",
+                "message": "domain/ is plain TS: no React"
+              },
+              {
+                "regex": "^@/client/(.*/)?(ui|useCases|components)/",
+                "message": "domain/ must not import UI"
+              },
+              {
+                "regex": "^\\.\\.?/(.*/)?(ui|useCases|components)/",
+                "message": "domain/ must not import UI"
+              },
+              {
+                "regex": "^(@/client/|\\.\\.?/(.*/)?)shared/lib/(api|session|focus)$",
+                "message": "domain/ is plain TS: no IO (HTTP, session, DOM)"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "src/client/*/ui/**",
+        "src/client/shared/components/**",
+        "src/client/*/useCases/**/*.tsx"
+      ],
+      "excludeFiles": [
+        "src/client/shared/components/ui/**"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "react",
+                "importNames": [
+                  "useState",
+                  "useEffect",
+                  "useLayoutEffect",
+                  "useMemo",
+                  "useCallback",
+                  "useRef",
+                  "useReducer",
+                  "useContext",
+                  "useEffectEvent",
+                  "useSyncExternalStore",
+                  "useTransition",
+                  "useActionState",
+                  "useOptimistic",
+                  "useId",
+                  "use"
+                ],
+                "message": "Render props only; behavior goes in use{Name}.ts"
+              },
+              {
+                "name": "react-hook-form",
+                "importNames": [
+                  "useForm",
+                  "useWatch",
+                  "useController",
+                  "useFieldArray",
+                  "useFormContext"
+                ],
+                "message": "Render props only; behavior goes in use{Name}.ts"
+              }
+            ]
+          }
+        ]
       }
     }
   ]
